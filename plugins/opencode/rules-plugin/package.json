@@ -1,0 +1,62 @@
+{
+  "name": "opencode-rules",
+  "version": "0.4.0",
+  "description": "OpenCode plugin that discovers and injects markdown rules into system prompts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "lint": "eslint src",
+    "format": "prettier --write src/**/*.ts",
+    "format:check": "prettier --check src/**/*.ts",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "keywords": [
+    "opencode",
+    "plugin",
+    "rules",
+    "system-prompt",
+    "typescript"
+  ],
+  "author": "Joe Maples <joe@maples.dev>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/frap129/opencode-rules.git"
+  },
+  "bugs": {
+    "url": "https://github.com/frap129/opencode-rules/issues"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "lICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "devDependencies": {
+    "@types/minimatch": "^5.1.2",
+    "@types/node": "^20.19.30",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "eslint": "^8.57.1",
+    "prettier": "^3.8.1",
+    "typescript": "^5.9.3",
+    "vitest": "^1.6.1"
+  },
+  "dependencies": {
+    "@opencode-ai/plugin": "^1.2.14",
+    "@opencode-ai/sdk": "^1.2.14",
+    "minimatch": "^9.0.5",
+    "yaml": "^2.8.2"
+  }
+}
