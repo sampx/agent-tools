@@ -2,7 +2,7 @@ import {
   readAndFormatRules,
   extractFilePathsFromMessages,
   type DiscoveredRule,
-} from './utils.js';
+} from "./utils.js";
 import {
   extractLatestUserPrompt,
   extractSessionID,
@@ -10,11 +10,11 @@ import {
   sanitizePathForContext,
   toExtractableMessages,
   type MessageWithInfo,
-} from './message-context.js';
-import { extractConnectedMcpCapabilityIDs } from './mcp-tools.js';
-import { createDebugLog, type DebugLog } from './debug.js';
-import type { SessionStore } from './session-store.js';
-import type { Model } from '@opencode-ai/sdk';
+} from "./message-context.js";
+import { extractConnectedMcpCapabilityIDs } from "./mcp-tools.js";
+import { createDebugLog, type DebugLog } from "./debug.js";
+import type { SessionStore } from "./session-store.js";
+import type { Model } from "@opencode-ai/sdk";
 
 interface MessagesTransformOutput {
   messages: MessageWithInfo[];
@@ -60,18 +60,18 @@ export class OpenCodeRulesRuntime {
 
   createHooks(): Record<string, unknown> {
     return {
-      'tool.execute.before': this.onToolExecuteBefore.bind(this),
-      'experimental.chat.messages.transform':
+      "tool.execute.before": this.onToolExecuteBefore.bind(this),
+      "experimental.chat.messages.transform":
         this.onMessagesTransform.bind(this),
-      'chat.message': this.onChatMessage.bind(this),
-      'experimental.chat.system.transform': this.onSystemTransform.bind(this),
-      'experimental.session.compacting': this.onSessionCompacting.bind(this),
+      "chat.message": this.onChatMessage.bind(this),
+      "experimental.chat.system.transform": this.onSystemTransform.bind(this),
+      "experimental.session.compacting": this.onSessionCompacting.bind(this),
     };
   }
 
   private async onToolExecuteBefore(
     input: { tool?: string; sessionID?: string; callID?: string },
-    output: { args?: Record<string, unknown> }
+    output: { args?: Record<string, unknown> },
   ): Promise<void> {
     const sessionID = input?.sessionID;
     const toolName = input?.tool;
@@ -83,42 +83,42 @@ export class OpenCodeRulesRuntime {
 
     let filePath: string | undefined;
 
-    if (['read', 'edit', 'write'].includes(toolName)) {
+    if (["read", "edit", "write"].includes(toolName)) {
       const arg = args.filePath;
-      if (typeof arg === 'string' && arg.length > 0) {
+      if (typeof arg === "string" && arg.length > 0) {
         filePath = arg;
       }
-    } else if (['glob', 'grep'].includes(toolName)) {
+    } else if (["glob", "grep"].includes(toolName)) {
       const arg = args.path;
-      if (typeof arg === 'string' && arg.length > 0) {
+      if (typeof arg === "string" && arg.length > 0) {
         filePath = arg;
       }
-    } else if (toolName === 'bash') {
+    } else if (toolName === "bash") {
       const arg = args.workdir;
-      if (typeof arg === 'string' && arg.length > 0) {
+      if (typeof arg === "string" && arg.length > 0) {
         filePath = arg;
       }
     }
 
     if (filePath) {
       const normalized = normalizeContextPath(filePath, this.projectDirectory);
-      this.sessionStore.upsert(sessionID, state => {
+      this.sessionStore.upsert(sessionID, (state) => {
         state.contextPaths.add(normalized);
       });
 
       this.debugLog(
-        `Recorded context path from tool ${toolName}: ${normalized}`
+        `Recorded context path from tool ${toolName}: ${normalized}`,
       );
     }
   }
 
   private async onMessagesTransform(
     _input: Record<string, never>,
-    output: MessagesTransformOutput
+    output: MessagesTransformOutput,
   ): Promise<MessagesTransformOutput> {
     const sessionID = extractSessionID(output.messages);
     if (!sessionID) {
-      this.debugLog('No sessionID found in messages');
+      this.debugLog("No sessionID found in messages");
       return output;
     }
 
@@ -129,11 +129,11 @@ export class OpenCodeRulesRuntime {
     }
 
     const contextPaths = extractFilePathsFromMessages(
-      toExtractableMessages(output.messages)
+      toExtractableMessages(output.messages),
     );
     const userPrompt = extractLatestUserPrompt(output.messages);
 
-    this.sessionStore.upsert(sessionID, state => {
+    this.sessionStore.upsert(sessionID, (state) => {
       for (const p of contextPaths) {
         state.contextPaths.add(normalizeContextPath(p, this.projectDirectory));
       }
@@ -148,13 +148,13 @@ export class OpenCodeRulesRuntime {
       this.debugLog(
         `Seeded ${contextPaths.length} context path(s) for session ${sessionID}: ${contextPaths
           .slice(0, 5)
-          .join(', ')}${contextPaths.length > 5 ? '...' : ''}`
+          .join(", ")}${contextPaths.length > 5 ? "..." : ""}`,
       );
     }
 
     if (userPrompt) {
       this.debugLog(
-        `Seeded user prompt for session ${sessionID} (len=${userPrompt.length})`
+        `Seeded user prompt for session ${sessionID} (len=${userPrompt.length})`,
       );
     }
 
@@ -166,15 +166,15 @@ export class OpenCodeRulesRuntime {
     output: {
       message?: { role?: string };
       parts?: Array<{ type?: string; text?: string; synthetic?: boolean }>;
-    }
+    },
   ): Promise<void> {
     const sessionID = input?.sessionID;
     if (!sessionID) {
-      this.debugLog('No sessionID in chat.message hook input');
+      this.debugLog("No sessionID in chat.message hook input");
       return;
     }
 
-    if (output?.message?.role !== 'user') {
+    if (output?.message?.role !== "user") {
       return;
     }
 
@@ -183,9 +183,9 @@ export class OpenCodeRulesRuntime {
       for (const part of output.parts) {
         if (part.synthetic) continue;
 
-        if (part.type === 'text' && part.text) {
+        if (part.type === "text" && part.text) {
           textParts.push(part.text);
-        } else if (typeof part.text === 'string' && !part.type) {
+        } else if (typeof part.text === "string" && !part.type) {
           textParts.push(part.text);
         }
       }
@@ -193,18 +193,18 @@ export class OpenCodeRulesRuntime {
 
     if (textParts.length > 0) {
       const userPrompt = textParts
-        .map(t => t.trim())
+        .map((t) => t.trim())
         .filter(Boolean)
-        .join(' ')
+        .join(" ")
         .trim();
 
       if (userPrompt) {
-        this.sessionStore.upsert(sessionID, state => {
+        this.sessionStore.upsert(sessionID, (state) => {
           state.lastUserPrompt = userPrompt;
         });
 
         this.debugLog(
-          `Updated lastUserPrompt for session ${sessionID} (len=${userPrompt.length}, parts=${textParts.length})`
+          `Updated lastUserPrompt for session ${sessionID} (len=${userPrompt.length}, parts=${textParts.length})`,
         );
       }
     }
@@ -212,7 +212,7 @@ export class OpenCodeRulesRuntime {
 
   private async onSystemTransform(
     hookInput: SystemTransformInput,
-    output: SystemTransformOutput | null
+    output: SystemTransformOutput | null,
   ): Promise<SystemTransformOutput> {
     const sessionID = hookInput?.sessionID;
     const sessionState = sessionID
@@ -223,11 +223,11 @@ export class OpenCodeRulesRuntime {
       const skip = this.sessionStore.shouldSkipInjection(
         sessionID,
         this.now(),
-        30_000
+        30_000,
       );
       if (skip) {
         this.debugLog(
-          `Session ${sessionID} is compacting - skipping rule injection`
+          `Session ${sessionID} is compacting - skipping rule injection`,
         );
         return output ?? { system: [] };
       }
@@ -244,15 +244,15 @@ export class OpenCodeRulesRuntime {
       this.ruleFiles,
       contextPaths,
       userPrompt,
-      availableToolIDs
+      availableToolIDs,
     );
 
     if (!formattedRules) {
-      this.debugLog('No applicable rules for current context');
+      this.debugLog("No applicable rules for current context");
       return output ?? { system: [] };
     }
 
-    this.debugLog('Injecting rules into system prompt');
+    this.debugLog("Injecting rules into system prompt");
 
     if (!output) {
       return { system: [formattedRules] };
@@ -278,16 +278,16 @@ export class OpenCodeRulesRuntime {
     ]);
 
     if (
-      toolResult.status === 'fulfilled' &&
+      toolResult.status === "fulfilled" &&
       Array.isArray(toolResult.value?.data)
     ) {
       for (const id of toolResult.value.data) {
         ids.add(id);
       }
       this.debugLog(
-        `Built-in tools: ${toolResult.value.data.slice(0, 10).join(', ')}${toolResult.value.data.length > 10 ? '...' : ''} (${toolResult.value.data.length} total)`
+        `Built-in tools: ${toolResult.value.data.slice(0, 10).join(", ")}${toolResult.value.data.length > 10 ? "..." : ""} (${toolResult.value.data.length} total)`,
       );
-    } else if (toolResult.status === 'rejected') {
+    } else if (toolResult.status === "rejected") {
       const message =
         toolResult.reason instanceof Error
           ? toolResult.reason.message
@@ -295,15 +295,15 @@ export class OpenCodeRulesRuntime {
       this.debugLog(`Warning: Failed to query tool IDs: ${message}`);
     }
 
-    if (mcpResult.status === 'fulfilled' && mcpResult.value?.data) {
+    if (mcpResult.status === "fulfilled" && mcpResult.value?.data) {
       const mcpIds = extractConnectedMcpCapabilityIDs(mcpResult.value.data);
       for (const id of mcpIds) {
         ids.add(id);
       }
       if (mcpIds.length > 0) {
-        this.debugLog(`MCP capability IDs: ${mcpIds.join(', ')}`);
+        this.debugLog(`MCP capability IDs: ${mcpIds.join(", ")}`);
       }
-    } else if (mcpResult.status === 'rejected') {
+    } else if (mcpResult.status === "rejected") {
       const message =
         mcpResult.reason instanceof Error
           ? mcpResult.reason.message
@@ -316,18 +316,18 @@ export class OpenCodeRulesRuntime {
 
   private async onSessionCompacting(
     input: { sessionID: string },
-    output: { context: string[]; prompt?: string }
+    output: { context: string[]; prompt?: string },
   ): Promise<void> {
     const sessionID = input?.sessionID;
     if (!sessionID) {
-      this.debugLog('No sessionID in compacting hook input');
+      this.debugLog("No sessionID in compacting hook input");
       return;
     }
 
     const sessionState = this.sessionStore.get(sessionID);
     if (!sessionState || sessionState.contextPaths.size === 0) {
       this.debugLog(
-        `No context paths for session ${sessionID} during compaction`
+        `No context paths for session ${sessionID} during compaction`,
       );
       return;
     }
@@ -339,18 +339,18 @@ export class OpenCodeRulesRuntime {
     const pathsToInclude = sortedPaths.slice(0, maxPaths);
 
     const contextString = [
-      'OpenCode Rules: Working context',
-      'Current file paths in context:',
-      ...pathsToInclude.map(p => `  - ${sanitizePathForContext(p)}`),
+      "OpenCode Rules: Working context",
+      "Current file paths in context:",
+      ...pathsToInclude.map((p) => `  - ${sanitizePathForContext(p)}`),
       ...(sortedPaths.length > maxPaths
         ? [`  ... and ${sortedPaths.length - maxPaths} more paths`]
         : []),
-    ].join('\n');
+    ].join("\n");
 
     output.context.push(contextString);
 
     this.debugLog(
-      `Added ${pathsToInclude.length} context path(s) to compaction for session ${sessionID}`
+      `Added ${pathsToInclude.length} context path(s) to compaction for session ${sessionID}`,
     );
   }
 }

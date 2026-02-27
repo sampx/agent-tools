@@ -271,8 +271,11 @@ tools:
   - Rule applies when any file in context matches a pattern
 - `keywords` (optional): Array of keywords for prompt-based matching
   - Rule applies when the user's prompt contains any keyword
-  - Case-insensitive, word-boundary matching (e.g., "test" matches "testing")
-  - Does NOT match mid-word (e.g., "test" does NOT match "contest")
+  - Case-insensitive matching
+  - **Wildcard support**: Use `*` for flexible matching (e.g., `开发*技能` matches "开发一个技能")
+  - **English keywords**: Word-boundary matching (e.g., "test" matches "testing", NOT "contest")
+  - **Chinese/CJK keywords**: Substring matching by default (no word boundaries in CJK)
+  - **Mixed language**: Boundary behavior determined by first character
 - `tools` (optional): Array of tool IDs for tool-availability matching
   - Rule applies when any listed tool is available to the agent
   - Uses exact string matching against tool IDs (e.g., `mcp_websearch`, `mcp_bash`)
@@ -285,6 +288,19 @@ tools:
 - **Only keywords**: Rule applies when the user's prompt contains any keyword
 - **Only tools**: Rule applies when any listed tool is available
 - **Multiple conditions**: Rule applies when ANY condition matches (OR logic across all fields)
+
+### Keyword Matching Details
+
+The keyword matching system supports both English and CJK (Chinese, Japanese, Korean) languages:
+
+| Keyword Pattern | Matches | Does NOT Match |
+|-----------------|---------|----------------|
+| `test` (English) | "testing", "test code" | "contest", "attest" |
+| `开发技能` (Chinese) | "帮我开发技能吧", "开发技能" | - (substring match) |
+| `开发*技能` (wildcard) | "开发一个技能", "开发游戏技能" | - |
+| `*deploy*` (wildcard) | "autodeploy", "deploying" | - |
+| `app部署` (mixed, English first) | "start app部署" | "testapp部署" |
+| `部署app` (mixed, Chinese first) | "自动部署app", "部署app" | - |
 
 ## Glob Pattern Reference
 

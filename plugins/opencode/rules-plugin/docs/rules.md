@@ -50,7 +50,7 @@ This is a rule for TypeScript components.
 
 ### Prompt-Based Conditions (keywords)
 
-The `keywords` key contains a list of keywords. The rule applies if the user's prompt contains any of the keywords (case-insensitive, word-boundary matching).
+The `keywords` key contains a list of keywords. The rule applies if the user's prompt contains any of the keywords (case-insensitive matching).
 
 ```markdown
 ---
@@ -63,10 +63,46 @@ keywords:
 Follow these testing best practices.
 ```
 
-Keyword matching uses word boundaries, so:
+#### Keyword Matching Behavior
 
-- "test" matches "testing" (prefix match)
-- "test" does NOT match "contest" (mid-word)
+The matching system is language-aware and supports wildcards:
+
+**English Keywords:**
+- Word-boundary matching is applied (e.g., "test" matches "testing")
+- Does NOT match mid-word (e.g., "test" does NOT match "contest")
+
+**Chinese/CJK Keywords:**
+- Substring matching by default (no word boundaries in CJK languages)
+- `开发技能` matches "帮我开发技能吧", "开发技能很重要"
+
+**Wildcard Support (`*`):**
+Use `*` for flexible matching when you need to handle variations:
+
+```markdown
+---
+keywords:
+  - '开发*技能'
+  - 'deploy*skill'
+---
+```
+
+- `开发*技能` matches "请开发一个技能", "开发游戏技能"
+- `deploy*skill` matches "deploy my skill", "deploy an awesome skill"
+- `*deploy*` removes leading boundary, matches "autodeploy"
+
+**Mixed Language Keywords:**
+Boundary behavior is determined by the first character:
+- `app部署` (English first) → word boundary applies → matches "start app部署", NOT "testapp部署"
+- `部署app` (Chinese first) → no boundary → matches "自动部署app"
+
+#### Quick Reference
+
+| Pattern | Type | Example Match |
+|---------|------|---------------|
+| `test` | English | "testing code" ✓, "contest" ✗ |
+| `开发技能` | Chinese | "帮我开发技能吧" ✓ |
+| `开发*技能` | Wildcard | "开发一个新技能" ✓ |
+| `*test*` | Wildcard | "contest", "testing" ✓ |
 
 ### Combined Conditions (OR logic)
 

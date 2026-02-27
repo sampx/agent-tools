@@ -4,13 +4,13 @@
  * Discovers markdown rule files and injects them into the system prompt.
  */
 
-import type { PluginInput } from '@opencode-ai/plugin';
-import { discoverRuleFiles } from './utils.js';
-import { OpenCodeRulesRuntime } from './runtime.js';
-import { createSessionStore, type SessionState } from './session-store.js';
+import type { PluginInput } from "@opencode-ai/plugin";
+import { discoverRuleFiles } from "./utils.js";
+import { OpenCodeRulesRuntime } from "./runtime.js";
+import { createSessionStore, type SessionState } from "./session-store.js";
 
 const sessionStore = createSessionStore();
-import { createDebugLog } from './debug.js';
+import { createDebugLog } from "./debug.js";
 
 const debugLog = createDebugLog();
 
@@ -49,7 +49,7 @@ const __testOnly = Object.freeze(
     },
     upsertSessionState: (
       sessionID: string,
-      mutator: (state: SessionState) => void
+      mutator: (state: SessionState) => void,
     ): void => {
       sessionStore.upsert(sessionID, mutator);
     },
@@ -59,7 +59,7 @@ const __testOnly = Object.freeze(
     getSeedCount: (sessionID: string): number => {
       return sessionStore.get(sessionID)?.seedCount ?? 0;
     },
-  })
+  }),
 );
 
 export default openCodeRulesPlugin;

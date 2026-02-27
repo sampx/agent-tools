@@ -2,12 +2,12 @@
  * Utility functions for OpenCode Rules Plugin
  */
 
-import { stat, readFile, readdir } from 'fs/promises';
-import path from 'path';
-import os from 'os';
-import { minimatch } from 'minimatch';
-import { parse as parseYaml } from 'yaml';
-import { createDebugLog } from './debug.js';
+import { stat, readFile, readdir } from "fs/promises";
+import path from "path";
+import os from "os";
+import { minimatch } from "minimatch";
+import { parse as parseYaml } from "yaml";
+import { createDebugLog } from "./debug.js";
 
 const debugLog = createDebugLog();
 
@@ -45,7 +45,7 @@ export function clearRuleCache(): void {
  * @returns Cached rule data or undefined if file cannot be read
  */
 async function getCachedRule(
-  filePath: string
+  filePath: string,
 ): Promise<CachedRule | undefined> {
   try {
     const stats = await stat(filePath);
@@ -60,7 +60,7 @@ async function getCachedRule(
 
     // Read and cache the file
     debugLog(`Cache miss: ${filePath}`);
-    const content = await readFile(filePath, 'utf-8');
+    const content = await readFile(filePath, "utf-8");
     const metadata = parseRuleMetadata(content);
     const strippedContent = stripFrontmatter(content);
 
@@ -78,7 +78,7 @@ async function getCachedRule(
     ruleCache.delete(filePath);
     const message = error instanceof Error ? error.message : String(error);
     console.warn(
-      `[opencode-rules] Warning: Failed to read rule file ${filePath}: ${message}`
+      `[opencode-rules] Warning: Failed to read rule file ${filePath}: ${message}`,
     );
     return undefined;
   }
@@ -88,12 +88,16 @@ async function getCachedRule(
  * Check if a file path matches any of the given glob patterns
  */
 export function fileMatchesGlobs(filePath: string, globs: string[]): boolean {
-  return globs.some(glob => minimatch(filePath, glob, { matchBase: true }));
+  return globs.some((glob) => minimatch(filePath, glob, { matchBase: true }));
 }
 
 /**
  * Check if a user prompt matches any of the given keywords.
- * Uses case-insensitive word-boundary matching.
+ * Supports:
+ * - Case-insensitive matching
+ * - Wildcard `*` for flexible matching (e.g., "开发*技能" matches "开发一个技能")
+ * - Smart word boundary detection: English keywords use `\b`, Chinese/CJK use substring matching
+ * - Mixed language keywords: boundary behavior determined by first character
  *
  * @param prompt - The user's prompt text
  * @param keywords - Array of keywords to match
@@ -101,16 +105,33 @@ export function fileMatchesGlobs(filePath: string, globs: string[]): boolean {
  */
 export function promptMatchesKeywords(
   prompt: string,
-  keywords: string[]
+  keywords: string[],
 ): boolean {
   const lowerPrompt = prompt.toLowerCase();
 
-  return keywords.some(keyword => {
+  return keywords.some((keyword) => {
     const lowerKeyword = keyword.toLowerCase();
-    // Escape special regex characters in the keyword
-    const escaped = lowerKeyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    // Word boundary at start, but allow continuation at end (e.g., "test" matches "testing")
-    const regex = new RegExp(`\\b${escaped}`, 'i');
+
+    // Split by wildcard '*' and escape regex special characters in each part
+    const parts = lowerKeyword.split("*");
+    const escapedParts = parts.map((part) =>
+      part.replace(/[.+?^${}()|[\]\\]/g, "\\$&"),
+    );
+    let regexPattern = escapedParts.join(".*");
+
+    // Smart boundary handling:
+    // Only add leading word boundary (\b) if:
+    // 1. Keyword does NOT start with '*' (explicit wildcard means no boundary restriction)
+    // 2. First character is ASCII letter/number/underscore (English-style keyword)
+    // For Chinese/CJK characters or keywords starting with '*', use lenient matching
+    if (!lowerKeyword.startsWith("*")) {
+      const firstChar = lowerKeyword.charAt(0);
+      if (/^[a-z0-9_]/i.test(firstChar)) {
+        regexPattern = "\\b" + regexPattern;
+      }
+    }
+
+    const regex = new RegExp(regexPattern, "i");
     return regex.test(lowerPrompt);
   });
 }
@@ -125,14 +146,14 @@ export function promptMatchesKeywords(
  */
 export function toolsMatchAvailable(
   availableToolIDs: string[],
-  requiredTools: string[]
+  requiredTools: string[],
 ): boolean {
   if (requiredTools.length === 0) {
     return false;
   }
   // Create a Set for O(1) lookups
   const availableSet = new Set(availableToolIDs);
-  return requiredTools.some(tool => availableSet.has(tool));
+  return requiredTools.some((tool) => availableSet.has(tool));
 }
 
 /**
@@ -159,12 +180,12 @@ interface ParsedFrontmatter {
  */
 export function parseRuleMetadata(content: string): RuleMetadata | undefined {
   // Check if content starts with frontmatter
-  if (!content.startsWith('---')) {
+  if (!content.startsWith("---")) {
     return undefined;
   }
 
   // Find the closing --- marker
-  const endIndex = content.indexOf('---', 3);
+  const endIndex = content.indexOf("---", 3);
   if (endIndex === -1) {
     return undefined;
   }
@@ -178,7 +199,7 @@ export function parseRuleMetadata(content: string): RuleMetadata | undefined {
   try {
     // Parse YAML using the yaml package
     const parsed = parseYaml(frontmatter) as ParsedFrontmatter | null;
-    if (!parsed || typeof parsed !== 'object') {
+    if (!parsed || typeof parsed !== "object") {
       return undefined;
     }
 
@@ -187,9 +208,9 @@ export function parseRuleMetadata(content: string): RuleMetadata | undefined {
     // Extract globs array
     if (Array.isArray(parsed.globs)) {
       const globs = parsed.globs
-        .filter((g): g is string => typeof g === 'string')
-        .map(g => g.trim())
-        .filter(g => g.length > 0);
+        .filter((g): g is string => typeof g === "string")
+        .map((g) => g.trim())
+        .filter((g) => g.length > 0);
       if (globs.length > 0) {
         metadata.globs = globs;
       }
@@ -198,9 +219,9 @@ export function parseRuleMetadata(content: string): RuleMetadata | undefined {
     // Extract keywords array
     if (Array.isArray(parsed.keywords)) {
       const keywords = parsed.keywords
-        .filter((k): k is string => typeof k === 'string')
-        .map(k => k.trim())
-        .filter(k => k.length > 0);
+        .filter((k): k is string => typeof k === "string")
+        .map((k) => k.trim())
+        .filter((k) => k.length > 0);
       if (keywords.length > 0) {
         metadata.keywords = keywords;
       }
@@ -209,9 +230,9 @@ export function parseRuleMetadata(content: string): RuleMetadata | undefined {
     // Extract tools array
     if (Array.isArray(parsed.tools)) {
       const tools = parsed.tools
-        .filter((t): t is string => typeof t === 'string')
-        .map(t => t.trim())
-        .filter(t => t.length > 0);
+        .filter((t): t is string => typeof t === "string")
+        .map((t) => t.trim())
+        .filter((t) => t.length > 0);
       if (tools.length > 0) {
         metadata.tools = tools;
       }
@@ -223,7 +244,7 @@ export function parseRuleMetadata(content: string): RuleMetadata | undefined {
     // Log warning for YAML parsing errors
     const message = error instanceof Error ? error.message : String(error);
     console.warn(
-      `[opencode-rules] Warning: Failed to parse YAML frontmatter: ${message}`
+      `[opencode-rules] Warning: Failed to parse YAML frontmatter: ${message}`,
     );
     return undefined;
   }
@@ -235,11 +256,11 @@ export function parseRuleMetadata(content: string): RuleMetadata | undefined {
 function getGlobalRulesDir(): string | null {
   const xdgConfigHome = process.env.XDG_CONFIG_HOME;
   if (xdgConfigHome) {
-    return path.join(xdgConfigHome, 'opencode', 'rules');
+    return path.join(xdgConfigHome, "opencode", "rules");
   }
 
   const homeDir = process.env.HOME || os.homedir();
-  return path.join(homeDir, '.config', 'opencode', 'rules');
+  return path.join(homeDir, ".config", "opencode", "rules");
 }
 
 /**
@@ -251,7 +272,7 @@ function getGlobalRulesDir(): string | null {
  */
 async function scanDirectoryRecursively(
   dir: string,
-  baseDir: string
+  baseDir: string,
 ): Promise<Array<{ filePath: string; relativePath: string }>> {
   const results: Array<{ filePath: string; relativePath: string }> = [];
 
@@ -265,7 +286,7 @@ async function scanDirectoryRecursively(
     const entries = await readdir(dir, { withFileTypes: true });
     for (const entry of entries) {
       // Skip hidden files and directories
-      if (entry.name.startsWith('.')) {
+      if (entry.name.startsWith(".")) {
         continue;
       }
 
@@ -274,7 +295,7 @@ async function scanDirectoryRecursively(
       if (entry.isDirectory()) {
         // Recurse into subdirectory
         results.push(...(await scanDirectoryRecursively(fullPath, baseDir)));
-      } else if (entry.name.endsWith('.md') || entry.name.endsWith('.mdc')) {
+      } else if (entry.name.endsWith(".md") || entry.name.endsWith(".mdc")) {
         // Add markdown file
         const relativePath = path.relative(baseDir, fullPath);
         results.push({ filePath: fullPath, relativePath });
@@ -284,7 +305,7 @@ async function scanDirectoryRecursively(
     // Log directory read errors instead of silently ignoring
     const message = error instanceof Error ? error.message : String(error);
     console.warn(
-      `[opencode-rules] Warning: Failed to read directory ${dir}: ${message}`
+      `[opencode-rules] Warning: Failed to read directory ${dir}: ${message}`,
     );
   }
 
@@ -309,7 +330,7 @@ export interface DiscoveredRule {
  * Finds all .md and .mdc files including nested subdirectories.
  */
 export async function discoverRuleFiles(
-  projectDir?: string
+  projectDir?: string,
 ): Promise<DiscoveredRule[]> {
   const files: DiscoveredRule[] = [];
 
@@ -318,7 +339,7 @@ export async function discoverRuleFiles(
   if (globalRulesDir) {
     const globalRules = await scanDirectoryRecursively(
       globalRulesDir,
-      globalRulesDir
+      globalRulesDir,
     );
     for (const { filePath, relativePath } of globalRules) {
       debugLog(`Discovered global rule: ${relativePath} (${filePath})`);
@@ -328,10 +349,10 @@ export async function discoverRuleFiles(
 
   // Discover project-local rules (recursively) if project directory is provided
   if (projectDir) {
-    const projectRulesDir = path.join(projectDir, '.opencode', 'rules');
+    const projectRulesDir = path.join(projectDir, ".opencode", "rules");
     const projectRules = await scanDirectoryRecursively(
       projectRulesDir,
-      projectRulesDir
+      projectRulesDir,
     );
     for (const { filePath, relativePath } of projectRules) {
       debugLog(`Discovered project rule: ${relativePath} (${filePath})`);
@@ -347,12 +368,12 @@ export async function discoverRuleFiles(
  */
 function stripFrontmatter(content: string): string {
   // Check if content starts with frontmatter
-  if (!content.startsWith('---')) {
+  if (!content.startsWith("---")) {
     return content;
   }
 
   // Find the closing --- marker
-  const endIndex = content.indexOf('---', 3);
+  const endIndex = content.indexOf("---", 3);
   if (endIndex === -1) {
     return content;
   }
@@ -372,10 +393,10 @@ export async function readAndFormatRules(
   files: DiscoveredRule[],
   contextFilePaths?: string[],
   userPrompt?: string,
-  availableToolIDs?: string[]
+  availableToolIDs?: string[],
 ): Promise<string> {
   if (files.length === 0) {
-    return '';
+    return "";
   }
 
   const ruleContents: string[] = [];
@@ -402,8 +423,8 @@ export async function readAndFormatRules(
 
       // Check globs against context file paths
       if (metadata.globs && contextFilePaths && contextFilePaths.length > 0) {
-        globsMatch = contextFilePaths.some(contextPath =>
-          fileMatchesGlobs(contextPath, metadata.globs!)
+        globsMatch = contextFilePaths.some((contextPath) =>
+          fileMatchesGlobs(contextPath, metadata.globs!),
         );
       }
 
@@ -414,19 +435,19 @@ export async function readAndFormatRules(
 
       // Check tools against available tool IDs
       if (metadata.tools && availableToolSet) {
-        toolsMatch = metadata.tools.some(tool => availableToolSet.has(tool));
+        toolsMatch = metadata.tools.some((tool) => availableToolSet.has(tool));
       }
 
       // If rule has conditions but none match, skip it
       if (!globsMatch && !keywordsMatch && !toolsMatch) {
         debugLog(
-          `Skipping conditional rule: ${relativePath} (no matching paths, keywords, or tools)`
+          `Skipping conditional rule: ${relativePath} (no matching paths, keywords, or tools)`,
         );
         continue;
       }
 
       debugLog(
-        `Including conditional rule: ${relativePath} (globs: ${globsMatch}, keywords: ${keywordsMatch}, tools: ${toolsMatch})`
+        `Including conditional rule: ${relativePath} (globs: ${globsMatch}, keywords: ${keywordsMatch}, tools: ${toolsMatch})`,
       );
     }
 
@@ -436,12 +457,12 @@ export async function readAndFormatRules(
   }
 
   if (ruleContents.length === 0) {
-    return '';
+    return "";
   }
 
   return (
     `# OpenCode Rules\n\nPlease follow the following rules:\n\n` +
-    ruleContents.join('\n\n---\n\n')
+    ruleContents.join("\n\n---\n\n")
   );
 }
 
@@ -449,7 +470,7 @@ export async function readAndFormatRules(
  * Message part types from OpenCode plugin API
  */
 interface ToolInvocationPart {
-  type: 'tool-invocation';
+  type: "tool-invocation";
   toolInvocation: {
     toolName: string;
     args: Record<string, unknown>;
@@ -457,7 +478,7 @@ interface ToolInvocationPart {
 }
 
 interface TextPart {
-  type: 'text';
+  type: "text";
   text: string;
 }
 
@@ -481,13 +502,13 @@ export function extractFilePathsFromMessages(messages: Message[]): string[] {
   for (const message of messages) {
     for (const part of message.parts) {
       // Extract from tool invocations
-      if (part.type === 'tool-invocation') {
+      if (part.type === "tool-invocation") {
         const toolPart = part as ToolInvocationPart;
         extractPathsFromToolCall(toolPart, paths);
       }
 
       // Extract from text content
-      if (part.type === 'text') {
+      if (part.type === "text") {
         const textPart = part as TextPart;
         extractPathsFromText(textPart.text, paths);
       }
@@ -502,26 +523,26 @@ export function extractFilePathsFromMessages(messages: Message[]): string[] {
  */
 function extractPathsFromToolCall(
   part: ToolInvocationPart,
-  paths: Set<string>
+  paths: Set<string>,
 ): void {
   const { toolName, args } = part.toolInvocation;
 
   // Tools that have a direct file path argument
   const pathArgTools: Record<string, string[]> = {
-    read: ['filePath'],
-    edit: ['filePath'],
-    write: ['filePath'],
-    glob: ['pattern', 'path'],
-    grep: ['path'],
+    read: ["filePath"],
+    edit: ["filePath"],
+    write: ["filePath"],
+    glob: ["pattern", "path"],
+    grep: ["path"],
   };
 
   const argNames = pathArgTools[toolName];
   if (argNames) {
     for (const argName of argNames) {
       const value = args[argName];
-      if (typeof value === 'string' && value.length > 0) {
+      if (typeof value === "string" && value.length > 0) {
         // For glob patterns, extract the directory part
-        if (argName === 'pattern') {
+        if (argName === "pattern") {
           const dirPart = extractDirFromGlob(value);
           if (dirPart) paths.add(dirPart);
         } else {
@@ -537,7 +558,7 @@ function extractPathsFromToolCall(
  */
 function extractDirFromGlob(pattern: string): string | null {
   // Find the first glob character
-  const globChars = ['*', '?', '[', '{'];
+  const globChars = ["*", "?", "[", "{"];
   let firstGlobIndex = pattern.length;
 
   for (const char of globChars) {
@@ -551,7 +572,7 @@ function extractDirFromGlob(pattern: string): string | null {
 
   // Get the directory part before the glob
   const beforeGlob = pattern.substring(0, firstGlobIndex);
-  const lastSlash = beforeGlob.lastIndexOf('/');
+  const lastSlash = beforeGlob.lastIndexOf("/");
 
   if (lastSlash === -1) {
     // If no slash and pattern has glob characters, it's just a file prefix, not a directory
@@ -577,19 +598,19 @@ function extractPathsFromText(text: string, paths: Set<string>): void {
     let potentialPath = match[1];
 
     // Trim trailing punctuation that likely belongs to prose, not the path
-    potentialPath = potentialPath.replace(/[.,!?:;]+$/, '');
+    potentialPath = potentialPath.replace(/[.,!?:;]+$/, "");
 
     // Filter out URLs and other non-paths
     if (
-      potentialPath.includes('://') ||
-      potentialPath.startsWith('http') ||
-      potentialPath.includes('@')
+      potentialPath.includes("://") ||
+      potentialPath.startsWith("http") ||
+      potentialPath.includes("@")
     ) {
       continue;
     }
 
     // Must have a reasonable structure (not just slashes)
-    if (potentialPath.replace(/[/.]/g, '').length > 0) {
+    if (potentialPath.replace(/[/.]/g, "").length > 0) {
       paths.add(potentialPath);
     }
   }

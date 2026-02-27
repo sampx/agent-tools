@@ -78,7 +78,7 @@ export class SessionStore {
   }
 
   markCompacting(sessionID: string, nowMs: number): void {
-    this.upsert(sessionID, state => {
+    this.upsert(sessionID, (state) => {
       state.isCompacting = true;
       state.compactingSince = nowMs;
     });
@@ -87,7 +87,7 @@ export class SessionStore {
   shouldSkipInjection(
     sessionID: string,
     nowMs: number,
-    ttlMs = 30_000
+    ttlMs = 30_000,
   ): boolean {
     const state = this.stateMap.get(sessionID);
     if (!state?.isCompacting) return false;
@@ -102,7 +102,7 @@ export class SessionStore {
       return true;
     }
 
-    this.upsert(sessionID, s => {
+    this.upsert(sessionID, (s) => {
       s.isCompacting = false;
     });
 
