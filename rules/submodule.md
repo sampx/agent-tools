@@ -1,4 +1,6 @@
 ---
+trigger: model_decision
+description: 涉及到 git submodule 的版本管理任务时加载此规则。
 globs:
   - 'projects/python/**'
   - 'projects/web/**'

@@ -1,10 +1,10 @@
 ---
-keywords:
-  - 'git commit'
-  - '提交变更'
-  - '版本管理'
+trigger: always_on
 ---
-# Git 工作流与最佳实践
+# Git 工作流规则
+
+## **AI 代理约束**
+- 必须先提供代码或文件变更供用户在编辑器中评审，**只有在用户明确确认并要求 commit 的情况下**，才能执行 `git commit` 或 `git push` 操作，严禁私自自动提交。
 
 ## 提交规范
 使用 Conventional Commits 规范：

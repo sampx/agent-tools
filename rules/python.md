@@ -1,10 +1,14 @@
 ---
-trigger: always_on
+trigger: model_decision
+description: 开发 python 项目和 python 脚本时遵守此规则。
 globs: 
   - '**/*.py'
 ---
 
 # Python 开发规范
+
+## 项目和依赖管理
+- 使用 uv 管理项目和依赖
 
 ## 代码风格
 - 遵循 PEP 8 规范

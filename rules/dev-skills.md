@@ -1,9 +1,25 @@
 ---
 trigger: model_decision
 description: 用户要求开发 skill 技能时，严格遵循此流程规则。
+keywords:
+  - '开发技能'
+  - '实现技能'
+  - '添加技能'
+  - '部署技能'
+  - '优化技能'
+  - '查找技能'
+  - '搜索技能'
+  - '实现 skill'
+  - 'develop skill'
+  - 'deploy skill'
 ---
 
 # 技能（Skills）开发规范
+
+## 技能开发工具
+- **复杂技能请务必使用 skill-creator 技能来了解详细开发规范**
+- **查找搜索和下载技能使用 skills-research 来提升你的效率**
+- **安装技能你应该使用 skill-deployer** 
 
 ## 技能结构
 每个技能必须包含：
@@ -34,8 +50,6 @@ description: 技能描述（1-1024 字符）
 
 正则表达式：`^[a-z0-9]+(-[a-z0-9]+)*$`
 
-如果技能复杂，请务必使用 skill-creator 技能来了解详细开发规范。
-
 ## 脚本开发
 - 使用 Python 或 Shell 脚本
 - 如果使用 Python，要用 `#!/usr/bin/env python`，使其可以直接运行
@@ -49,6 +63,3 @@ description: 技能描述（1-1024 字符）
 ## 技能部署路径
 - 项目级：`.agents/skills/<name>/SKILL.md`
 - 全局级：`~/.agents/skills/<name>/SKILL.md`
-
-## 技能部署
-- 使用 skill-deployer 技能进行部署
