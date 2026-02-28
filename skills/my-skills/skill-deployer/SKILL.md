@@ -46,8 +46,8 @@ python3 scripts/deploy-skill.py -s <source> -d <target> [options]
 - `--force, -f` - Overwrite existing skill
 - `--name, -n` - Custom skill name (defaults to source directory name)
 
-**INBOX Auto-Archive:**
-Skills deployed from `projects/agent-tools/skills/download/INBOX/` are automatically moved to `projects/agent-tools/skills/download/universal/` after deployment. The `version.json` will record the archived path.
+**INBOX Auto-Move:**
+Skills deployed from `INBOX/` are automatically moved to `universal/` (sibling directory) after deployment, where `universal/` stores accepted/installed universal skills. The `version.json` will record the new source path in universal.
 
 ### list-skills.py
 

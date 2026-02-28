@@ -121,42 +121,48 @@ def _calculate_content_hash(skill_dir: Path, ignore_patterns: list[str]) -> str:
     return hasher.hexdigest()
 
 
-INBOX_DIR = Path("projects/agent-tools/skills/download/INBOX")
-UNIVERSAL_DIR = Path("projects/agent-tools/skills/download/universal")
+INBOX_DIR_NAME = "INBOX"
+UNIVERSAL_DIR_NAME = "universal"
 
 
 def _is_in_inbox(source: Path) -> bool:
     """Check if source is in INBOX directory."""
-    try:
-        cwd = Path.cwd()
-        inbox_abs = (cwd / INBOX_DIR).resolve()
-        source.resolve().relative_to(inbox_abs)
-        return True
-    except ValueError:
-        return False
+    return INBOX_DIR_NAME in source.resolve().parts
 
 
-def _archive_from_inbox(source: Path, skill_name: str) -> Path | None:
-    """Move skill from INBOX to universal directory.
+def _move_to_universal(source: Path, skill_name: str) -> Path | None:
+    """Move skill from INBOX to sibling universal directory.
+
+    Universal directory contains accepted/installed skills that are
+    ready for deployment. This works by replacing INBOX with universal
+    in the path.
 
     Args:
         source: Source directory in INBOX.
         skill_name: Name of the skill.
 
     Returns:
-        New path after archiving, or None if not moved.
+        New path in universal directory, or None if not moved.
     """
-    cwd = Path.cwd()
-    universal_dir = cwd / UNIVERSAL_DIR
+    source = source.resolve()
+    parts = list(source.parts)
+
+    if INBOX_DIR_NAME not in parts:
+        return None
+
+    inbox_idx = parts.index(INBOX_DIR_NAME)
+    parts[inbox_idx] = UNIVERSAL_DIR_NAME
+
+    universal_dir = Path(*parts[:-1])
     target_path = universal_dir / skill_name
 
     if target_path.exists():
-        print(f"Warning: Archive target already exists: {target_path}")
+        print(f"Warning: Target already exists in universal: {target_path}")
         return None
 
     universal_dir.mkdir(parents=True, exist_ok=True)
     shutil.move(str(source), str(target_path))
-    print(f"Archived skill: {source} -> {target_path}")
+    print(f"Moved to universal: {source} -> {target_path}")
     return target_path
 
 
@@ -166,7 +172,7 @@ def _generate_version_file(
     skill_name: str,
     symlink: bool,
     ignore_patterns: list[str],
-    archived_source: Path | None = None,
+    universal_source: Path | None = None,
 ) -> None:
     """Generate version.json file in target directory.
 
@@ -176,9 +182,9 @@ def _generate_version_file(
         skill_name: Name of the skill.
         symlink: Whether deployment is symlink mode.
         ignore_patterns: Patterns excluded from deployment.
-        archived_source: New path if skill was archived from INBOX.
+        universal_source: New path if skill was moved from INBOX to universal.
     """
-    actual_source = archived_source or source
+    actual_source = universal_source or source
     try:
         cwd = Path.cwd()
         source_rel = str(actual_source.resolve().relative_to(cwd))
@@ -246,22 +252,22 @@ def deploy_skill(
             print(f"Error: Skill already exists at {target}. Use --force to overwrite.")
             return False
 
-    archived_source = None
+    universal_source = None
     if _is_in_inbox(source):
-        archived_source = _archive_from_inbox(source, skill_name)
-        if archived_source:
-            source = archived_source
+        universal_source = _move_to_universal(source, skill_name)
+        if universal_source:
+            source = universal_source
 
     if symlink:
         target.symlink_to(source.resolve())
         print(f"Created symlink: {target} -> {source}")
-        _generate_version_file(source, target, skill_name, True, [], archived_source)
+        _generate_version_file(source, target, skill_name, True, [], universal_source)
     else:
         patterns = parse_skillignore(source)
         target.mkdir(exist_ok=True)
         copy_skill(source, target, patterns)
         _generate_version_file(
-            source, target, skill_name, False, patterns, archived_source
+            source, target, skill_name, False, patterns, universal_source
         )
         print(f"Deployed skill to: {target}")
         if patterns:
