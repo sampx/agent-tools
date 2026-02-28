@@ -115,6 +115,7 @@
 
 ### T1: {ACTION} {target_file}
 
+- [ ] **状态**: 待处理 (Pending) / 进行中 (In Progress) / 已完成 (Completed)
 - **IMPLEMENT**: {具体的实现细节}
 - **PATTERN**: {参考现有模式 - file:line}
 - **IMPORTS**: {需要的导入和依赖}
@@ -123,6 +124,7 @@
 
 ### T2: {ACTION} {target_file}
 
+- [ ] **状态**: 待处理 (Pending)
 - **IMPLEMENT**: {具体的实现细节}
 - **PATTERN**: {参考现有模式 - file:line}
 - **VALIDATE**: `{可执行的验证命令}`

@@ -95,6 +95,7 @@ description: 基于代码库深度分析创建详尽的功能实现计划 (Plan)
 - 任何另一位 Agent 甚至人类开发者无需额外上下文即可执行。
 - 任务严格按依赖顺序排列（从上到下执行无阻塞）。
 - 模式引用包含了具体的文件路径和行号。
+- **进度可追踪**: 每个子任务均自带 Checkbox 及状态标识（Pending/In Progress/Completed）。
 
 ### 3. 模式一致性 (Pattern Consistency)
 - 新任务遵循代码库现有的最佳实践。

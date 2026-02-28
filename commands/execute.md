@@ -1,100 +1,96 @@
 ---
-description: Execute an implementation plan
+description: 根据已有计划执行代码实现任务
 ---
 
-# Execute: Implement from Plan
+# 执行计划 (Execute Plan)
 
-## Plan to Execute
+## 待执行计划
 
-Read plan file: `$ARGUMENTS`
+读取计划文件: `$ARGUMENTS`
 
-## Execution Instructions
+> **注意**: 如果没有提供参数或找不到文件，请提醒用户使用 `/plan-feature` 生成计划或直接提供计划文件路径。推荐从主仓库的 `.agents/plans/` 目录中选择。
 
-### 1. Read and Understand
+## 执行指南 (Execution Instructions)
 
-- Read the ENTIRE plan carefully
-- Understand all tasks and their dependencies
-- Note the validation commands to run
-- Review the testing strategy
+### 1. 完整阅读与理解 (Read and Understand)
 
-### 2. Execute Tasks in Order
+- 仔细阅读完整的计划文档。
+- 理解所有任务、依赖关系及其所属阶段。
+- 记录需要运行的**验证命令 (Validation Commands)**。
+- 重点关注 "需遵循的代码模式 (Patterns to Follow)" 以及引用的源文件行号。实现时**必须先去查看这些原始文件**，确保与项目原有风格完全一致。
 
-For EACH task in "Step by Step Tasks":
+### 2. 按序执行任务与状态同步 (Execute Tasks in Order)
 
-#### a. Navigate to the task
-- Identify the file and action required
-- Read existing related files if modifying
+对于 "详细任务拆解 (Step-By-Step Tasks)" 中的**每一个任务**：
 
-#### b. Implement the task
-- Follow the detailed specifications exactly
-- Maintain consistency with existing code patterns
-- Include proper type hints and documentation
-- Add structured logging where appropriate
+#### a. 定位目标
+- 识别目标文件和需要的动作 (CREATE/UPDATE/REFACTOR 等)。
+- **必须**先使用工具（如 `read` 或 `glob`）读取现有的相关文件再进行修改，绝不猜测文件内容和结构。
+- **状态同步**: 开始执行该任务前，使用 `edit` 工具将任务状态更新为 `进行中 (In Progress)`。
 
-#### c. Verify as you go
-- After each file change, check syntax
-- Ensure imports are correct
-- Verify types are properly defined
+#### b. 实施修改
+- 严格遵循计划中描述的详细规范 (IMPLEMENT)。
+- 保持与现有代码模式的完全一致 (PATTERN)。
+- 包含正确的类型提示 (Type hints) 和必要的文档注释。
+- 处理依赖的导入 (IMPORTS)。
+- 绕过已知陷阱 (GOTCHA)。
 
-### 3. Implement Testing Strategy
+#### c. 逐步验证与完成标记
+- 每次文件修改后，使用项目的静态类型/Lint工具进行基本语法验证。
+- 确保导入路径正确无误。
+- **状态同步**: 验证通过后，**必须立即**使用 `edit` 工具将计划文档中该任务前方的 Checkbox 勾选 `[x]`，并将状态修改为 `已完成 (Completed)`。这样即使发生对话中断或环境重启，后续的执行 Agent 也能精准接续进度。
 
-After completing implementation tasks:
+### 3. 实现测试策略 (Implement Testing Strategy)
 
-- Create all test files specified in the plan
-- Implement all test cases mentioned
-- Follow the testing approach outlined
-- Ensure tests cover edge cases
+在完成核心实现任务后：
 
-### 4. Run Validation Commands
+- 按照计划创建所有指定的测试文件。
+- 实现提及的所有测试用例和边界条件。
+- 遵循计划大纲中约定的测试方式（如单元测试或集成测试）。
 
-Execute ALL validation commands from the plan in order:
+### 4. 运行全局验证 (Run Validation Commands)
 
-```bash
-# Run each command exactly as specified in plan
-```
+按照计划中的 "验证命令 (Validation Commands)" 表格，逐一执行：
 
-If any command fails:
-- Fix the issue
-- Re-run the command
-- Continue only when it passes
+如果任何命令失败：
+- 诊断并修复代码实现中的问题。
+- 重新运行该验证命令。
+- **只有当命令成功通过时，才继续下一步**。
 
-### 5. Final Verification
+### 5. 最终自检 (Final Verification)
 
-Before completing:
+在宣布完成前，确认以下核对表：
 
-- ✅ All tasks from plan completed
-- ✅ All tests created and passing
-- ✅ All validation commands pass
-- ✅ Code follows project conventions
-- ✅ Documentation added/updated as needed
+- ✅ 计划文档中的所有任务 Checkbox 都已被物理勾选 `[x]`，并被标记为 `已完成 (Completed)`
+- ✅ 计划中的所有任务已按序执行完毕
+- ✅ 所有测试已创建并且成功通过
+- ✅ 所有的验证命令无报错
+- ✅ 风格符合本项目的约束和 `AGENTS.md` 规范
+- ✅ 相关的代码文档/注释已经更新
 
-## Output Report
+---
 
-Provide summary:
+## 输出报告 (Output Report)
 
-### Completed Tasks
-- List of all tasks completed
-- Files created (with paths)
-- Files modified (with paths)
+请向用户提供一份执行摘要报告：
 
-### Tests Added
-- Test files created
-- Test cases implemented
-- Test results
+### 已完成的修改
+- [新建] `path/to/new.py`
+- [修改] `path/to/updated.js`
 
-### Validation Results
-```bash
-# Output from each validation command
-```
+### 测试与验证结果
+- 简述添加的测试用例及测试运行结果
+- 验证命令的最终通过状态
+- `bash 验证命令的输出摘要`
 
-### Ready for Commit
-- Confirm all changes are complete
-- Confirm all validations pass
-- Ready for `/commit` command
+### 准备提交
+- 确认所有修改已就绪，并且项目处于健康状态。
+- 提示用户如果不满意可以继续调整，如果没问题则可以手动执行代码提交或使用 `/commit` 助手。
 
-## Notes
+---
 
-- If you encounter issues not addressed in the plan, document them
-- If you need to deviate from the plan, explain why
-- If tests fail, fix implementation until they pass
-- Don't skip validation steps
+## 附加说明 (Notes)
+
+- 如果在执行过程中遇到计划中未提及的阻碍，应向用户说明情况并寻求决策，不要强行蛮干。
+- 如果不得不偏离原定计划（例如 API 不匹配），必须在最后的报告中明确解释原因。
+- **绝对不要跳过验证步骤**，如果测试或 Lint 失败，你必须修复你的实现直到它们通过。
