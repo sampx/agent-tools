@@ -4,9 +4,12 @@
 
 import argparse
 import fnmatch
+import hashlib
+import json
 import os
 import shutil
 import sys
+from datetime import datetime
 from pathlib import Path
 
 
@@ -82,6 +85,123 @@ def validate_skill_dir(path: Path) -> bool:
     return skill_md.exists()
 
 
+def _calculate_content_hash(skill_dir: Path, ignore_patterns: list[str]) -> str:
+    """Calculate SHA256 hash of skill directory contents.
+
+    Args:
+        skill_dir: Path to skill source directory.
+        ignore_patterns: Patterns to exclude from hash calculation.
+
+    Returns:
+        Hexadecimal hash string.
+    """
+    hasher = hashlib.sha256()
+    files = []
+
+    for item in skill_dir.rglob("*"):
+        if item.is_file():
+            rel_path = item.relative_to(skill_dir)
+            path_str = str(rel_path)
+            ignored = False
+            for pattern in ignore_patterns:
+                if fnmatch.fnmatch(path_str, pattern) or fnmatch.fnmatch(
+                    item.name, pattern
+                ):
+                    ignored = True
+                    break
+            if not ignored:
+                files.append((path_str, item))
+
+    files.sort(key=lambda x: x[0])
+
+    for path_str, file_path in files:
+        hasher.update(path_str.encode())
+        hasher.update(file_path.read_bytes())
+
+    return hasher.hexdigest()
+
+
+INBOX_DIR = Path("projects/agent-tools/skills/download/INBOX")
+UNIVERSAL_DIR = Path("projects/agent-tools/skills/download/universal")
+
+
+def _is_in_inbox(source: Path) -> bool:
+    """Check if source is in INBOX directory."""
+    try:
+        cwd = Path.cwd()
+        inbox_abs = (cwd / INBOX_DIR).resolve()
+        source.resolve().relative_to(inbox_abs)
+        return True
+    except ValueError:
+        return False
+
+
+def _archive_from_inbox(source: Path, skill_name: str) -> Path | None:
+    """Move skill from INBOX to universal directory.
+
+    Args:
+        source: Source directory in INBOX.
+        skill_name: Name of the skill.
+
+    Returns:
+        New path after archiving, or None if not moved.
+    """
+    cwd = Path.cwd()
+    universal_dir = cwd / UNIVERSAL_DIR
+    target_path = universal_dir / skill_name
+
+    if target_path.exists():
+        print(f"Warning: Archive target already exists: {target_path}")
+        return None
+
+    universal_dir.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(source), str(target_path))
+    print(f"Archived skill: {source} -> {target_path}")
+    return target_path
+
+
+def _generate_version_file(
+    source: Path,
+    target: Path,
+    skill_name: str,
+    symlink: bool,
+    ignore_patterns: list[str],
+    archived_source: Path | None = None,
+) -> None:
+    """Generate version.json file in target directory.
+
+    Args:
+        source: Original source directory path.
+        target: Target directory path.
+        skill_name: Name of the skill.
+        symlink: Whether deployment is symlink mode.
+        ignore_patterns: Patterns excluded from deployment.
+        archived_source: New path if skill was archived from INBOX.
+    """
+    actual_source = archived_source or source
+    try:
+        cwd = Path.cwd()
+        source_rel = str(actual_source.resolve().relative_to(cwd))
+    except ValueError:
+        source_rel = str(actual_source)
+
+    version_data = {
+        "name": skill_name,
+        "source_path": source_rel,
+        "content_hash": _calculate_content_hash(actual_source, ignore_patterns)
+        if not symlink
+        else "",
+        "deployed_at": datetime.now().isoformat(),
+        "deploy_type": "symlink" if symlink else "copy",
+    }
+
+    version_file = target / "version.json"
+    version_file.write_text(
+        json.dumps(version_data, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+
 def deploy_skill(
     source: Path,
     dest: Path,
@@ -89,7 +209,18 @@ def deploy_skill(
     force: bool = False,
     name: str | None = None,
 ) -> bool:
-    """Deploy skill from source to target directory."""
+    """Deploy skill from source to target directory.
+
+    Args:
+        source: Source directory containing SKILL.md.
+        dest: Target installation directory.
+        symlink: Create symlink instead of copying.
+        force: Overwrite existing skill.
+        name: Custom skill name.
+
+    Returns:
+        True if deployment succeeded.
+    """
     if not source.exists():
         print(f"Error: Source directory does not exist: {source}")
         return False
@@ -115,13 +246,23 @@ def deploy_skill(
             print(f"Error: Skill already exists at {target}. Use --force to overwrite.")
             return False
 
+    archived_source = None
+    if _is_in_inbox(source):
+        archived_source = _archive_from_inbox(source, skill_name)
+        if archived_source:
+            source = archived_source
+
     if symlink:
         target.symlink_to(source.resolve())
         print(f"Created symlink: {target} -> {source}")
+        _generate_version_file(source, target, skill_name, True, [], archived_source)
     else:
         patterns = parse_skillignore(source)
         target.mkdir(exist_ok=True)
         copy_skill(source, target, patterns)
+        _generate_version_file(
+            source, target, skill_name, False, patterns, archived_source
+        )
         print(f"Deployed skill to: {target}")
         if patterns:
             print(f"  Excluded {len(patterns)} pattern(s) from .skillignore")

@@ -46,6 +46,9 @@ python3 scripts/deploy-skill.py -s <source> -d <target> [options]
 - `--force, -f` - Overwrite existing skill
 - `--name, -n` - Custom skill name (defaults to source directory name)
 
+**INBOX Auto-Archive:**
+Skills deployed from `projects/agent-tools/skills/download/INBOX/` are automatically moved to `projects/agent-tools/skills/download/universal/` after deployment. The `version.json` will record the archived path.
+
 ### list-skills.py
 
 List all skills in a directory.
@@ -65,8 +68,59 @@ __pycache__/
 *.pyc
 ```
 
+## Version Tracking
+
+Each deployed skill includes a `version.json` file for tracking:
+
+```json
+{
+  "name": "skill-deployer",
+  "source_path": "projects/agent-tools/skills/my-skills/skill-deployer",
+  "content_hash": "a1b2c3d4...",
+  "deployed_at": "2026-02-28T14:15:00Z",
+  "deploy_type": "copy"
+}
+```
+
+**Fields:**
+- `name` - Skill name
+- `source_path` - Source directory (relative to project root)
+- `content_hash` - SHA256 hash of source contents
+- `deployed_at` - Deployment timestamp (ISO 8601)
+- `deploy_type` - `copy` or `symlink`
+
+### sync-skills.py
+
+Check which deployed skills have source updates:
+
+```bash
+# View sync status
+python3 scripts/sync-skills.py
+
+# Interactive update outdated skills
+python3 scripts/sync-skills.py --update
+
+# JSON output
+python3 scripts/sync-skills.py --json
+
+# Custom target directory
+python3 scripts/sync-skills.py --dest ~/.claude/skills/
+```
+
+**Options:**
+- `--dest, -d` - Deployed skills directory (default: `.agents/skills/`)
+- `--json` - Output in JSON format
+- `--update` - Interactive update for outdated skills
+
+**Sync States:**
+- `updated` - Source has changed, needs redeployment
+- `unchanged` - No changes detected
+- `orphaned` - Deployed but source path no longer exists
+- `untracked` - No version.json (deployed before sync feature)
+
 ## Notes
 
 - Use `--symlink` during development for live updates
 - Use copy mode (default) for production deployment
 - Source must contain a valid SKILL.md file
+- Symlink deployments are always marked as unchanged (no hash tracking needed)
