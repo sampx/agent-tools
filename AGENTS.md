@@ -13,7 +13,7 @@ agent-tools/
 ├── plugins/opencode/ # OpenCode 插件
 ├── skills/          # 技能
 │   ├── my-skills/   # 自研技能
-│   ├── good/        # 优质技能
+│   ├── installed/    # 已安装技能
 │   └── download/    # 下载技能
 ├── subagents/       # 子代理
 └── templates/       # 项目模板
