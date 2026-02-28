@@ -57,9 +57,6 @@ description: 技能描述（1-1024 字符）
 - 添加文档和使用示例
 - 处理错误并返回适当的退出码
 
-## 技能开发路径
--  `projects/agent-tools/skills/my-skills/<name>/SKILL.md`
-
 ## 技能部署路径
 - 项目级：`.agents/skills/<name>/SKILL.md`
 - 全局级：`~/.agents/skills/<name>/SKILL.md`

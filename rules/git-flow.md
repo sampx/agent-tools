@@ -43,3 +43,13 @@ docs: update installation guide
 - 使用 `.gitignore` 排除敏感文件
 - 不要提交 `.env` 文件
 - 不要提交 `__pycache__/`, `node_modules/` 等构建产物
+
+## 子模块工作流
+
+如果项目使用 Git Submodule，请遵循以下原则：
+
+- 修改子模块后需**逐层提交**（先子模块，后主仓库）
+- 开发前必须切换分支，避免 detached HEAD
+- 主仓库只记录里程碑版本指针
+
+> 详细指南请使用 `/git-submodule` 技能
