@@ -1,21 +1,22 @@
 ---
-description: Create a snapshot commit in the main repo referencing the latest submodule status.
+description: 在主仓库中创建一次快照提交，以指向子模块的最新状态。
 ---
 
-Create an architecture-level milestone snapshot for the specified submodule.
-This command is used when a submodule (e.g., `projects/web/wopal`) has reached a milestone (all local changes are committed and pushed), and we now need the main `ai-toolbox` monorepo to recognize and save this updated pointer.
+为指定的子模块创建架构级别的里程碑快照。
+此命令用于：当子模块（例如 `projects/web/wopal`）达到一个里程碑（所有本地更改均已提交并推送）时，我们需要在主仓库 `ai-toolbox` 中记录并保存该子模块的最新指针状态。
 
-1.  **Ask for Target:** Ask the user "Which submodule do you want to sync/snapshot?" (e.g., `wopal`, `flex-scheduler`, or `agent-tools`). Ask which branch they want to snapshot (default to `main`).
-2.  **Verify Submodule:**
-    Navigate into the corresponding directory. For example: `cd projects/web/wopal`.
-3.  **Ensure Branch & Clean:**
-    Run `git checkout <branch>` to ensure we are no longer in `detached HEAD`.
-    Run `git pull origin <branch>` to make sure the submodule is matched cleanly with the remote.
-    Check if the working tree is clean (`git status`). If uncommitted local changes exist inside the submodule, prompt the user to use `/commit` locally first.
-4.  **Update Main Repository Pointer:**
-    Navigate back to the monorepo root: `cd <root_dir>`.
-    Update the submodule state in Git by running: `git add <path/to/submodule>` (e.g. `git add projects/web/wopal`). Note: Do NOT add trailing slashes. 
-5.  **Commit the Snapshot:**
-    Run `git commit -m "chore: snapshot update <submodule> to latest milestone"`
-    Run `git push` to save this pointer record into `ai-toolbox`.
-6.  **Confirm:** Let the user know the new milestone reference pointer for `<submodule>` is successfully locked.
+1. **询问目标**: 询问用户“请问你想同步或创建快照的子模块是哪一个？”（例如：`wopal`, `flex-scheduler`, 或 `agent-tools`，默认为全部），并询问要快照的分支名称（默认为 `main`）。
+2. **验证子模块**: 
+   进入对应的目录。例如：`cd projects/web/wopal`。
+3. **确保分支及工作区干净**:
+   首先检查工作区是否干净（执行 `git status`）。如果子模块内存在未提交的本地更改，**停止执行**并提示用户先在本地使用 `/commit` 提交更改。
+   在确保工作区干净后，执行 `git checkout <branch>` 以确保不再处于 `detached HEAD` 状态。
+   执行 `git pull origin <branch>` 确保子模块与远程分支干净同步。
+4. **更新主仓库指针**:
+   返回 monorepo 的根目录：`cd <root_dir>`。
+   通过 `git add <path/to/submodule>` 更新 Git 中的子模块状态（例如：`git add projects/web/wopal`）。注意：路径末尾**不要**加斜杠。
+5. **审核与提交 (遵循规则)**:
+   向用户展示暂存区中的子模块指针更变内容（例如通过 `git diff --cached`）。
+   **核心步骤**: 在提交前，请停止操作并明确要求用户进行确认。
+   只有在获得用户允许后，才能执行 `git commit -m "chore: snapshot update <submodule> to latest milestone"` 以及 `git push`，把更新后的指针状态保存至 `ai-toolbox` 主仓库。
+6. **确认反馈**: 告知用户该 `<submodule>` 的最新里程碑引用指针已成功锁定！
