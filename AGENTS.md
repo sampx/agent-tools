@@ -30,7 +30,7 @@ agent-tools/
 | `init-py-project` | 初始化 Python 项目 |
 | `plan-feature` | 功能规划 |
 | `prime` | 加载项目上下文 |
-| `sync-submodule` | 同步子模块 |
+| `pin-submodule` | 创建子模块里程碑快照 |
 
 ## 规则文件
 
