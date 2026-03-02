@@ -4,7 +4,7 @@ trigger: always_on
 # Git 工作流规则
 
 ## AI 代理约束
-- 必须先提供代码或文件变更供用户在编辑器中评审，**只有在用户明确确认并要求 commit 的情况下**，才能执行 `git commit` 或 `git push` 操作
+- 必须先提供代码或文件变更列表供用户在编辑器中评审，**只有在用户明确确认并要求 commit 的情况下**，才能执行 `git commit` 或 `git push` 操作
 - **commit message 必须使用中文**，严格遵循 Conventional Commits 规范
 - 每次提交前确认不在 `detached HEAD` 状态
 
@@ -20,6 +20,19 @@ trigger: always_on
 | `docs` | 文档更新 | `docs: 更新安装指南` |
 | `test` | 测试相关 | `test: 添加单元测试` |
 | `chore` | 构建/工具 | `chore: 更新依赖版本` |
+
+### Message 规则
+
+- 使用祈使句：`添加` 而非 `添加了`
+- 首行不超过 50 字
+- 复杂变更添加 body 说明
+- 破坏性变更标注 `BREAKING CHANGE:`
+
+### 提交拆分
+
+- 相关变更合并为一个提交
+- 不相关变更拆分为多个提交
+- 拆分好处：原子提交、便于回滚和 bisect 排查
 
 ## 分支策略
 
