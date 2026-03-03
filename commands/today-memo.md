@@ -4,12 +4,15 @@ description: 记录短期记忆到 memory/YYYY-MM-DD.md
 
 # 今日备忘 (Today Memo)
 
-## 内容: $ARGUMENTS
+## 内容: `$ARGUMENTS`
 
 ## 操作步骤
 
-1. **提炼**：根据 `$ARGUMENTS` 或回顾会话，提取决策、进展、问题、待办
-2. **写入**：追加到 `memory/YYYY-MM-DD.md`
+0. 明确日期，确定目标日记文件：`memory/YYYY-MM-DD.md`
+1. **提炼**：根据 `$ARGUMENTS` 或回顾会话：
+  - 已输入： `$ARGUMENTS`, 直接记录此信息到短期记忆后结束。
+  - 否则： 提取会话中的关键信息，信息内容参见 “类型标记”
+2. **写入**：创建或追加到日记文件
 3. **确认**：`📝 已记录到今日备忘`
 
 ## 类型标记
@@ -22,7 +25,7 @@ description: 记录短期记忆到 memory/YYYY-MM-DD.md
 | `[TODO]` | 待办事项、需要跟进的 |
 | `[关键事务]` | 需要记住的重要信息 |
 
-## 格式
+## 日记格式
 
 ```
 ### HH:MM 主题
@@ -30,9 +33,3 @@ description: 记录短期记忆到 memory/YYYY-MM-DD.md
 - [类型] 要点 2
 ```
 
-## 触发场景
-
-| 方式 | 示例 |
-|------|------|
-| `/today-memo` | 自动回顾会话，提炼记录 |
-| `/today-memo [决策] 用 SQLite` | 记录具体决策 |

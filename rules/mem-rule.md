@@ -1,13 +1,14 @@
 ---
 trigger: model_decision
-description: 用户要求记录记忆时，按此规则执行记录流程。
+description: 用户要求记录记忆时，按此规则执行记录流程, 本规则系 AGENTS.md "记忆制度" 章节之实施细则。
 keywords:
   - '*记住*'
   - '*记下来*'
   - '*记录*'
-  - '*备忘*'
   - '*记住这个*'
   - '*请记住*'
+  - '*update-memory*'
+  - '*today-memo*'
 ---
 
 # 记忆管理规则

@@ -1,31 +1,33 @@
 ---
-description: 基于代码库分析创建全局规则 (AGENTS.md) 和项目文档 (README.md)
+description: 为子项目创建项目章程 (AGENTS.md) 和 README.md
 ---
 
-# 创建全局规则
+# 创建/更新项目章程
 
-通过分析代码库并提取模式，生成 AGENTS.md 和 README.md 文件。
+通过分析代码库并提取模式，为子项目生成 AGENTS.md（项目章程）和 README.md 文件。
+
+> **重要声明**: 主仓库 AGENTS.md 系工作空间宪法，应手动演进，不在此命令职责范围内。本命令仅用于子项目章程的创建与更新。
+
+---
 
 ## 使用方式
 
 ```bash
-/create-init-rules                         # 当前目录（生成 AGENTS.md + README.md）
-/create-init-rules --submodule wopal       # 为指定子模块生成
-/create-init-rules --main                  # 为主仓库生成
-/create-init-rules --all                   # 为主仓库 + 所有子模块生成
-/create-init-rules --agents-only           # 仅生成 AGENTS.md
-/create-init-rules --readme-only           # 仅生成 README.md
+/cupdate-project-charter                    # 当前项目（若在子项目内）
+/cupdate-project-charter --project <name>   # 指定项目
+/cupdate-project-charter --all              # 所有子项目
+/cupdate-project-charter --agents-only      # 仅章程
+/cupdate-project-charter --readme-only      # 仅 README
 ```
 
 ---
 
 ## 输出文件定位
 
-| 文件 | 面向 | 目的 | 核心内容 |
-|------|------|------|---------|
-| **README.md** | 人类开发者 | 项目介绍、快速上手 | 简介、快速开始、组件列表、文档链接 |
-| **AGENTS.md** | AI Agent | 项目上下文 | 项目概览、技术栈、结构、命令、关键文件 |
-| **rules/*.md** | AI Agent | 通用代码规范 | 命名约定、代码风格、错误处理、Git 工作流 |
+| 文件 | 面向 | 目的 |
+|------|------|------|
+| **README.md** | 人类开发者 | 项目介绍、快速上手 |
+| **AGENTS.md** | AI Agent | 项目章程（项目级规则） |
 
 **职责分离**:
 
@@ -45,7 +47,7 @@ description: 基于代码库分析创建全局规则 (AGENTS.md) 和项目文档
 
 ## 目标
 
-创建项目特定的全局规则，让 AI Agent 了解：
+创建项目章程，让 AI Agent 了解：
 - 这个项目是什么
 - 使用了哪些技术
 - 代码如何组织
@@ -56,7 +58,7 @@ description: 基于代码库分析创建全局规则 (AGENTS.md) 和项目文档
 
 ## Phase 0: 定位 (LOCATE)
 
-> **关键**: 首先确定当前在哪个位置，以及目标位置。
+> **关键**: 首先确定当前位置是否在子项目内。
 
 ### 检测当前位置
 
@@ -67,7 +69,8 @@ git rev-parse --is-inside-work-tree
 # 获取当前仓库根目录
 git rev-parse --show-toplevel
 
-# 检测是否在 submodule 中
+# 检测是否在子项目中
+# 方法：检查是否在 projects/ 目录下，或是否有父级 .git（主仓库）
 git rev-parse --show-superproject-working-tree
 ```
 
@@ -75,9 +78,9 @@ git rev-parse --show-superproject-working-tree
 
 | 位置判断方法 | 结果 |
 |-------------|------|
-| `show-superproject-working-tree` 非空 | 当前在 submodule 中 |
-| 存在 `projects/*/` 且包含 `.git` | 主仓库，有 submodule |
-| 无上述情况 | 单体项目 |
+| `show-superproject-working-tree` 非空 | 当前在子项目中 |
+| 当前路径包含 `projects/` | 当前在子项目中 |
+| 主仓库根目录 | 需要用户指定 `--project` 参数 |
 
 ### 确定目标
 
@@ -85,20 +88,19 @@ git rev-parse --show-superproject-working-tree
 
 | 参数 | 当前位置 | 目标 |
 |------|---------|------|
-| 无 | 主仓库 | 主仓库 AGENTS.md + README.md |
-| 无 | Submodule | 当前 submodule AGENTS.md + README.md |
-| `--main` | 任意 | 主仓库 |
-| `--submodule <name>` | 任意 | 指定 submodule |
-| `--all` | 任意 | 主仓库 + 所有 submodule |
+| 无 | 子项目内 | 当前项目 AGENTS.md + README.md |
+| 无 | 主仓库根目录 | 提示用户指定 `--project` |
+| `--project <name>` | 任意 | 指定项目 |
+| `--all` | 任意 | 所有子项目 |
 | `--agents-only` | 任意 | 仅 AGENTS.md |
 | `--readme-only` | 任意 | 仅 README.md |
 
-### 子模块列表
+### 子项目列表
 
-如需操作 submodule，先列出可用子模块：
+如需列出可用子项目：
 
 ```bash
-git submodule status
+ls -d projects/*/
 ```
 
 ---
@@ -172,12 +174,12 @@ vite.config.*      → 构建工具
 - 共享工具
 - 类型定义
 
-### Submodule 特有分析
+### 子项目特有分析
 
-如果在 submodule 中，额外识别：
-- 与主仓库的关系（共享什么？）
-- 独立的生命周期（CI/CD、发布）
-- 依赖主仓库的资源（规则、技能、命令）
+识别与主仓库的关系：
+- 共享什么资源（规则、技能、命令）？
+- 独立的生命周期（CI/CD、发布）？
+- 依赖主仓库的哪些资源？
 
 ---
 
@@ -187,30 +189,29 @@ vite.config.*      → 构建工具
 
 | 场景 | AGENTS 模板 | README 模板 |
 |------|-------------|-------------|
-| 主仓库 / 单体项目 | `templates/AGENTS-template.md` | `templates/README-template.md` |
-| Submodule | `templates/AGENTS-submodule-template.md` | `templates/README-submodule-template.md` |
+| 子项目章程 | `templates/AGENTS-project-template.md` | `templates/README-project-template.md` |
 
-### 创建 AGENTS.md
+### 创建 AGENTS.md（项目章程）
 
-**输出路径**: `<target>/AGENTS.md`
+**输出路径**: `<project>/AGENTS.md`
 
 **核心章节**:
 
-1. **Project Overview** - 这是什么，做什么用？
-2. **Tech Stack** - 使用了哪些技术？
-3. **Commands** - 如何开发、构建、测试、lint？
-4. **Structure** - 代码如何组织？
-5. **Applicable Rules** - 适用哪些通用规则？（引用 rules/）
-6. **Project-Specific Patterns** - 项目特有的模式（非通用规范）
-7. **Key Files** - 哪些文件需要了解？
+1. **项目概览** - 这是什么，做什么用？
+2. **技术栈** - 使用了哪些技术？
+3. **常用命令** - 如何开发、构建、测试、lint？
+4. **项目结构** - 代码如何组织？
+5. **适用规则** - 适用哪些通用规则？（引用工作空间 rules/）
+6. **项目特有模式** - 项目特有的模式（非通用规范）
+7. **关键文件** - 哪些文件需要了解？
 
-**Submodule 额外章节**:
-1. **与主仓库的关系** - 引用主仓库的共享规则
-2. **独立生命周期** - 独立的 CI/CD、发布流程
+**与主仓库的关系**:
+- 引用工作空间的共享规则
+- 说明依赖的共享资源
 
 ### 创建 README.md
 
-**输出路径**: `<target>/README.md`
+**输出路径**: `<project>/README.md`
 
 **核心章节**:
 
@@ -225,7 +226,7 @@ vite.config.*      → 构建工具
 - 使用表格展示组件/功能列表
 - 代码块展示命令
 - 中文撰写
-- **严禁包含内部架构信息**: README.md 面向外部开源社区，**绝对不要**在其中包含"这是一个子模块"、"主仓库是什么"、"Submodule 工作流"等纯粹为了内部代码库组织的结构信息。把这些留给 `AGENTS.md`。
+- **严禁包含内部架构信息**: README.md 面向外部开源社区，**绝对不要**在其中包含"这是一个子项目"、"主仓库是什么"等纯粹为了内部代码库组织的结构信息。把这些留给 `AGENTS.md`。
 
 ---
 
@@ -238,8 +239,8 @@ vite.config.*      → 构建工具
 
 | 文件 | 状态 | 说明 |
 |------|------|------|
-| `AGENTS.md` | ✅ 已创建 | AI Agent 编码指导 |
-| `README.md` | ✅ 已创建 | 项目介绍和快速开始 |
+| `AGENTS.md` | 已创建 | 项目章程 |
+| `README.md` | 已创建 | 项目介绍和快速开始 |
 
 ### 项目类型
 
@@ -263,14 +264,13 @@ vite.config.*      → 构建工具
 
 | 位置 | AGENTS.md | README.md | 项目类型 |
 |------|-----------|-----------|---------|
-| 主仓库 | ✅ | ✅ | Monorepo |
-| wopal | ✅ | ✅ | Web App (前端) |
-| flex-scheduler | ✅ | ✅ | API/Backend |
+| wopal | 已创建 | 已创建 | Web App (前端) |
+| flex-scheduler | 已创建 | 已创建 | API/Backend |
 
 ### 后续步骤
 
 1. 检查各生成的文档
-2. 确认 submodule 正确引用了主仓库规则
+2. 确认项目正确引用了工作空间规则
 3. 为各项目添加特定内容
 ```
 
@@ -278,8 +278,12 @@ vite.config.*      → 构建工具
 
 ## 提示 (Tips)
 
-- **README.md**: 面向人类，保持简洁，聚焦"是什么"和"怎么用"。将项目作为一个独立产品来介绍，**绝不要**提及它是子模块或属于某个 Monorepo。
+- **README.md**: 面向人类，保持简洁，聚焦"是什么"和"怎么用"。将项目作为一个独立产品来介绍，**绝不要**提及它是子项目或属于某个 Monorepo。
 - **AGENTS.md**: 面向 AI，可以详细，聚焦"怎么开发"
 - 不要在两者中重复相同内容（README 引用 AGENTS 获取详情）
 - 随项目演进及时更新
-- Submodule 的 `AGENTS.md` 文档应简洁，复杂通用规则引用主仓库
+- 项目的 `AGENTS.md` 应简洁，复杂通用规则引用工作空间规则
+
+---
+
+> Generated by `/cupdate-project-charter` command
