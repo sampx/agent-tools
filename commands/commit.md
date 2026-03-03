@@ -2,7 +2,7 @@
 description: 为未提交的更改创建 Git commit
 ---
 
-为所有未提交的更改创建符合规范的 commit，包括子模块内部的变更。
+为所有未提交的更改创建符合规范的 commit，包括子项目内部的变更。
 
 ## 阶段一：检查与分析（只读）
 
@@ -12,15 +12,15 @@ description: 为未提交的更改创建 Git commit
 git status && git diff HEAD && git status --porcelain && git rev-parse --show-toplevel
 ```
 
-### 1.2 检查子模块状态
+### 1.2 检查子项目状态
 
-**关键：** 如果发现子模块显示 `modified content` 或 `untracked content`，必须进入子模块内部检查：
+**关键：** 如果发现子项目显示 `modified content` 或 `untracked content`，必须进入子项目内部检查：
 
 ```bash
-# 列出所有子模块状态
+# 列出所有子项目状态
 git submodule status
 
-# 对每个 dirty 的子模块，进入检查
+# 对每个 dirty 的子项目，进入检查
 cd <submodule-path> && git status && git diff HEAD
 ```
 
@@ -34,32 +34,32 @@ cd <submodule-path> && git status && git diff HEAD
 - `test` - 测试相关
 - `chore` - 构建/工具
 
-## 阶段二：子模块提交（优先处理）
+## 阶段二：子项目提交（优先处理）
 
-**如果子模块内有变更，必须先在子模块内提交。**
+**如果子项目内有变更，必须先在子项目内提交。**
 
-### 2.1 暂存子模块变更
+### 2.1 暂存子项目变更
 
-进入子模块目录：
+进入子项目目录：
 ```bash
 cd <submodule-path> && git add <file1> <file2> ... && git diff --staged
 ```
 
 ⚠️ **安全拦截点**：
-- 展示子模块暂存的代码差异
+- 展示子项目暂存的代码差异
 - 提议符合规范的中文 commit message
 - 等待用户确认
 
-### 2.2 提交子模块变更
+### 2.2 提交子项目变更
 
-**只有在获得用户明确授权后**，在子模块内执行：
+**只有在获得用户明确授权后**，在子项目内执行：
 ```bash
 cd <submodule-path> && git commit -m "<审批过的提交信息>" && git status
 ```
 
-### 2.3 重复处理其他子模块
+### 2.3 重复处理其他子项目
 
-对所有有变更的子模块重复 2.1-2.2 步骤。
+对所有有变更的子项目重复 2.1-2.2 步骤。
 
 ## 阶段三：主仓库提交
 
@@ -83,27 +83,27 @@ git add <file1> <file2> ... && git diff --staged
 git commit -m "<审批过的提交信息>" && git status
 ```
 
-## 阶段四：子模块快照提示
+## 阶段四：子项目快照提示
 
-**如果刚才提交了子模块变更**，提醒用户：
+**如果刚才提交了子项目变更**，提醒用户：
 
-> ✅ 子模块 `<name>` 已提交。
+> ✅ 子项目 `<name>` 已提交。
 > 
-> 是否需要更新主仓库的子模块指针？如需要，请使用 `/pin-submodule` 命令。
+> 是否需要更新主仓库的子项目指针？如需要，请使用 `/pin-submodule` 命令。
 
 ## 环境检测
 
-检查是否在子模块中：
+检查是否在子项目中：
 ```bash
 git rev-parse --show-superproject-working-tree
 ```
 
-如果返回路径，说明当前在子模块内，提醒用户：
-> 当前在子模块中。提交后如需更新主项目快照，请切换到主项目使用 `/pin-submodule`。
+如果返回路径，说明当前在子项目内，提醒用户：
+> 当前在子项目中。提交后如需更新主项目快照，请切换到主项目使用 `/pin-submodule`。
 
 ## 重要原则
 
-1. **先子模块，后主仓库**：子模块变更必须在子模块内独立提交
+1. **先子项目，后主仓库**：子项目变更必须在子项目内独立提交
 2. **逐层提交**：不能跨模块污染 Git 历史
 3. **等待确认**：每次提交前必须展示差异并等待用户确认
 4. **中文 commit message**：遵循 Conventional Commits 规范

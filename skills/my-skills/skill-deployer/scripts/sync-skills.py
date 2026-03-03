@@ -80,15 +80,18 @@ def read_version_file(skill_dir: Path) -> dict | None:
     return json.loads(version_file.read_text(encoding="utf-8"))
 
 
-def check_sync(dest_dir: Path) -> dict:
+def check_sync(dest_dir: Path, root_dir: Path = None) -> dict:
     """Check sync status of all deployed skills.
 
     Args:
         dest_dir: Directory containing deployed skills.
+        root_dir: Root directory for resolving relative source paths (defaults to cwd).
 
     Returns:
         Dict with keys: updated, unchanged, orphaned, untracked.
     """
+    if root_dir is None:
+        root_dir = Path.cwd()
     result = {
         "updated": [],
         "unchanged": [],
@@ -119,7 +122,7 @@ def check_sync(dest_dir: Path) -> dict:
             result["unchanged"].append(skill_dir.name)
             continue
 
-        source_path = Path(version["source_path"])
+        source_path = root_dir / version["source_path"]
         if not source_path.exists():
             result["orphaned"].append(
                 {
@@ -246,13 +249,29 @@ def main():
         default=".agents/skills/",
         help="Deployed skills directory",
     )
+    parser.add_argument(
+        "--root",
+        "-r",
+        default=None,
+        help="Root directory for resolving relative source paths (defaults to auto-detect workspace root)",
+    )
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("--update", action="store_true", help="Interactive update")
 
     args = parser.parse_args()
 
     dest_dir = Path(args.dest)
-    result = check_sync(dest_dir)
+
+    if args.root:
+        root_dir = Path(args.root)
+    else:
+        root_dir = Path.cwd()
+        while root_dir.parent != root_dir:
+            if (root_dir / "projects").exists():
+                break
+            root_dir = root_dir.parent
+
+    result = check_sync(dest_dir, root_dir)
 
     if args.json:
         print(json.dumps(result, indent=2, ensure_ascii=False))

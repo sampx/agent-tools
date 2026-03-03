@@ -95,13 +95,13 @@ description: 基于代码库深度分析创建详尽的功能实现计划 (Plan)
 
 根据探索与思考的结果，使用模板生成功能计划文档。
 
-**计划模板**: 参考 `.agents/templates/PLAN-template.md` 的结构与要求。该模板提供了计划所需的所有核心章节（从用户故事到验证命令）。
+**计划模板**: 参考 `templates/PLAN-template.md` 的结构与要求。该模板提供了计划所需的所有核心章节（从用户故事到验证命令）。
 
 **文件命名与存放位置**:
 
 > **注意**: 本工作空间采用 Monorepo 工作空间 + 独立子项目架构，所有规划文件均集中存放以方便统一管理。
 
-1. 定位**主仓库**的根目录。即便你当前处于某个子项目中，计划文件也**必须**写入主仓库的 `.agents/plans/` 目录下（如果不存在则创建）
+1. 定位**工作空间**的根目录。即便你当前处于某个子项目中，计划文件也**必须**写入主仓库的 `plans/` 目录下（如果不存在则创建）
 
 2. **文件命名规范**（使用 kebab-case）：
    - 格式：`{project-name}-{feature-name}.md`
@@ -109,9 +109,9 @@ description: 基于代码库深度分析创建详尽的功能实现计划 (Plan)
    - `feature-name`：功能描述
 
 3. **示例**：
-   - `.agents/plans/wopal-add-oauth-login.md`
-   - `.agents/plans/flex-scheduler-cron-job.md`
-   - `.agents/plans/agent-tools-optimize-commit-command.md`
+   - `plans/wopal-add-oauth-login.md`
+   - `plans/flex-scheduler-cron-job.md`
+   - `plans/agent-tools-optimize-commit-command.md`
 
 ---
 

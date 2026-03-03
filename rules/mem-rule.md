@@ -40,13 +40,13 @@ keywords:
 | 3 | AGENTS.md | "规则"、"流程"、"规范"、"铁律"、"红线" | "这是关于**我如何工作**的规则吗？" |
 | 4 | MEMORY.md | "架构"、"结构"、"里程碑"、"技术选型" | "这是关于**工作空间本身**的信息吗？" |
 | 5 | memory/YYYY-MM-DD.md | 默认选项，如果不确定 | — |
-| 6 | 子模块 AGENTS.md | 特定项目名（"wopal"、"agent-tools"） | "这是**特定项目**的规则吗？" |
+| 6 | 子项目 AGENTS.md | 特定项目名（"wopal"、"agent-tools"） | "这是**特定项目**的规则吗？" |
 
 ### 步骤 2：提炼记录内容
 
 根据内容类型提炼记录格式：
 
-**长期记忆（SOUL.md / USER.md / AGENTS.md / MEMORY.md / 子模块 AGENTS.md）**：
+**长期记忆（SOUL.md / USER.md / AGENTS.md / MEMORY.md / 子项目 AGENTS.md）**：
 - 提炼为简洁的陈述句
 - 追加到对应章节
 - 格式：`- [内容]`

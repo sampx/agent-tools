@@ -41,12 +41,12 @@ trigger: always_on
 - `bugfix/*` - Bug 修复分支
 - `hotfix/*` - 紧急修复分支
 
-## 子模块工作流
+## 子项目工作流
 
-**核心原则**: 逐层提交，先子模块后主仓库
+**核心原则**: 逐层提交，先子项目后主仓库
 
 1. **开发前**: 确保 `git checkout <branch>` 脱离 detached HEAD
-2. **开发后**: 在子模块内完成 `git add` → `git commit` → `git push`
+2. **开发后**: 在子项目内完成 `git add` → `git commit` → `git push`
 3. **里程碑**: 在主仓库使用 `/pin-submodule` 更新指针
 
 > 详细指南请使用 `/git-submodule` 技能

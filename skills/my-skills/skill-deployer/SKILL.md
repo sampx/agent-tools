@@ -1,6 +1,6 @@
 ---
 name: skill-deployer
-description: Deploy AI agent skills from local source directories to specified agent skill directories. Use when user asks to deploy a skill, install a skill, copy a skill to an agent directory, or publish skills to different AI agents (Claude Code, OpenCode, etc.).
+description: This skill deploys skills from the workspace's source code directory for skill development to the corresponding agent skills directory. You should use this skill when the user requests to deploy, install, or synchronize a skill. Or, when the skill has undergone code optimization, you should inquire with the user about using this skill for installation and deployment.
 ---
 
 # Skill Deployer

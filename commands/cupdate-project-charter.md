@@ -254,7 +254,7 @@ vite.config.*      → 构建工具
 
 1. 检查生成的 `README.md` 和 `AGENTS.md`
 2. 添加任何项目特定的内容
-3. 可选：在 `docs/references/` 创建参考文档
+3. 可选：在 `docs/` 下创建参考文档
 ```
 
 ### 批量输出 (--all)

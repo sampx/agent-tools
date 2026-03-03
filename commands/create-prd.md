@@ -26,7 +26,7 @@ description: 为新产品创建产品需求文档 (PRD)
 
 **必读：**
 - `MEMORY.md` - 获取工作空间架构经验
-- `.agents/templates/PRD-template.md` - PRD 模板
+- `templates/PRD-template.md` - PRD 模板
 
 **可选：**
 - 如果有参考资料或讨论历史，从中提取需求
