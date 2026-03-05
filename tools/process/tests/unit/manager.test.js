@@ -16,12 +16,17 @@ describe('ProcessManager', () => {
   });
   
   afterEach(async () => {
-    // 清理时间延长
-    await new Promise(resolve => setTimeout(resolve, 50));
+    await new Promise(resolve => setTimeout(resolve, 100));
     const sessions = manager.list('all');
     for (const s of sessions) {
       try {
-        manager.remove(s.id);
+        if (s.exited) {
+          manager.clear(s.id);
+        } else {
+          manager.kill(s.id);
+          await new Promise(resolve => setTimeout(resolve, 50));
+          manager.remove(s.id);
+        }
       } catch (err) {
         // 忽略清理错误
       }
@@ -38,11 +43,11 @@ describe('ProcessManager', () => {
   it('should poll session status', async () => {
     const id = manager.start('echo test');
     
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, 200));
     
     const status = manager.poll(id);
     
-    assert.ok(status);
+    assert.ok(status, `Session ${id} should exist`);
     assert.strictEqual(status.running, false);
     assert.strictEqual(status.exitCode, 0);
     assert.ok(status.output.includes('test'));
@@ -65,14 +70,14 @@ describe('ProcessManager', () => {
   });
   
   it('should read log with options', async () => {
-    const id = manager.start('for i in {1..5}; do echo "line $i"; done');
+    const id = manager.start('echo "line 1"; echo "line 2"; echo "line 3"; echo "line 4"; echo "line 5"');
     
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, 200));
     
     const log = manager.log(id, { limit: 2 });
-    const lines = log.split('\n').filter(l => l);
+    const lines = log.split('\n').filter(l => l.trim());
     
-    assert.strictEqual(lines.length, 2);
+    assert.strictEqual(lines.length, 2, `Expected 2 lines but got ${lines.length}: ${lines.join(', ')}`);
   });
   
   it('should kill running session', async () => {

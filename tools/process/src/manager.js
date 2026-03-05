@@ -15,7 +15,7 @@ class ProcessManager {
   }
   
   start(command, options = {}) {
-    const id = `${process.pid}-${Date.now()}`;
+    const id = `${process.pid}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const session = new ProcessSession(id, command, options);
     
     let executor;

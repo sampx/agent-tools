@@ -1,6 +1,6 @@
 ---
 trigger: model_decision
-description: 使用技能以及用户要求开发和优化 skill 技能时，严格遵循此流程规则。
+description: 用户要求开发、创建、部署、优化技能时，严格遵循此流程规范。
 keywords:
   - '*开发*技能*'
   - '*实现*技能*'
@@ -8,44 +8,15 @@ keywords:
   - '*添加*技能*'
   - '*部署*技能*'
   - '*优化*技能*'
-  - '*查找*技能*'
-  - '*搜索*技能*'
-  - '*使用*技能*'
-  - '*调用*技能*'
   - '*测试*技能*'
   - '实现 skill'
   - 'develop skill'
   - 'deploy skill'
 ---
 
-# Skills 规范
+# 技能开发规范
 
-## 核心原则
-
-| 原则 | 说明 |
-|------|------|
-| **调用从部署站** | 必须从 `.agents/skills/<name>/` 调用已部署技能 |
-| **开发在源码** | 技能修改必须在源码中完成，然后部署 |
-| **禁止越界** | 不得直接从 `projects/agent-tools/skills/` 执行（测试除外） |
-
-## 技能调用
-
-### 环境变量
-
-需要环境变量的技能，执行前加载：
-```bash
-source "./scripts/load-env.sh"
-```
-
-### 执行方式
-
-- **进入目录**：执行前 `cd` 进入技能目录
-- **Python 脚本**：`./scripts/xxx.py` 或 `python scripts/xxx.py`
-- **Shell 脚本**：`./scripts/xxx.sh` 或 `bash scripts/xxx.sh`
-
-## 技能开发
-
-### 开发工具
+## 开发工具
 
 | 场景 | 工具 |
 |------|------|
@@ -53,7 +24,7 @@ source "./scripts/load-env.sh"
 | 搜索获取 | `skills-research` |
 | 部署技能 | `skill-deployer` |
 
-### 目录结构
+## 目录结构
 
 ```
 <skill-name>/
@@ -62,7 +33,7 @@ source "./scripts/load-env.sh"
 └── examples/         # 使用示例（可选）
 ```
 
-### SKILL.md 格式
+## SKILL.md 格式
 
 ```yaml
 ---
@@ -73,14 +44,14 @@ description: 技能描述（1-1024 字符）
 
 可选字段：`license`、`compatibility`、`metadata`
 
-### 命名规则
+## 命名规则
 
 - 1-64 字符，小写字母、数字、单连字符
 - 禁止 `-` 开头/结尾，禁止连续 `--`
 - 必须与目录名一致
 - 正则：`^[a-z0-9]+(-[a-z0-9]+)*$`
 
-### 代码要求
+## 代码要求
 
 - 使用 Python 或 Shell 编写
 - Python 脚本需 `#!/usr/bin/env python` 声明

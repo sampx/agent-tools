@@ -20,10 +20,13 @@ describe('ProcessRegistry', () => {
     testSessions = [];
   });
   
-  it('should list running sessions', () => {
+  it('should list running sessions', async () => {
     const testId = `running-${testCounter}-${Date.now()}`;
     const session = new ProcessSession(testId, 'sleep 10');
     testSessions.push(session);
+    
+    // 等待文件写入完成
+    await new Promise(resolve => setTimeout(resolve, 50));
     
     const running = ProcessRegistry.listRunning();
     const found = running.find(s => s.id === testId);
@@ -38,14 +41,18 @@ describe('ProcessRegistry', () => {
     const session = new ProcessSession(testId, 'exit 0');
     testSessions.push(session);
     
+    // 等待初始文件写入
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
     session.markExited(0);
     
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // 等待更新写入
+    await new Promise(resolve => setTimeout(resolve, 50));
     
     const finished = ProcessRegistry.listFinished();
     const found = finished.find(s => s.id === testId);
     
-    assert.ok(found);
+    assert.ok(found, `Session ${testId} should be in finished list`);
     assert.strictEqual(found.exited, true);
   });
   

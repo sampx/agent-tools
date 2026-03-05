@@ -11,20 +11,30 @@ const { ProcessSession, SESSION_DIR } = require('./session');
 class ProcessRegistry {
   static listRunning() {
     const sessions = [];
+    
+    if (!fs.existsSync(SESSION_DIR)) {
+      return sessions;
+    }
+    
     const files = fs.readdirSync(SESSION_DIR).filter(f => f.endsWith('.json'));
     
     for (const file of files) {
-      const meta = JSON.parse(fs.readFileSync(path.join(SESSION_DIR, file)));
-      if (!meta.exited) {
-        try {
-          const pid = parseInt(meta.id.split('-')[0]);
-          process.kill(pid, 0);
-          sessions.push(meta);
-        } catch {
-          meta.exited = true;
-          meta.finishedAt = Date.now();
-          fs.writeFileSync(path.join(SESSION_DIR, file), JSON.stringify(meta));
+      try {
+        const filePath = path.join(SESSION_DIR, file);
+        const meta = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+        if (!meta.exited) {
+          try {
+            const pid = parseInt(meta.id.split('-')[0]);
+            process.kill(pid, 0);
+            sessions.push(meta);
+          } catch {
+            meta.exited = true;
+            meta.finishedAt = Date.now();
+            fs.writeFileSync(filePath, JSON.stringify(meta, null, 2));
+          }
         }
+      } catch (err) {
+        // 忽略读取错误，继续处理下一个文件
       }
     }
     return sessions;
@@ -32,12 +42,21 @@ class ProcessRegistry {
   
   static listFinished() {
     const sessions = [];
+    
+    if (!fs.existsSync(SESSION_DIR)) {
+      return sessions;
+    }
+    
     const files = fs.readdirSync(SESSION_DIR).filter(f => f.endsWith('.json'));
     
     for (const file of files) {
-      const meta = JSON.parse(fs.readFileSync(path.join(SESSION_DIR, file)));
-      if (meta.exited) {
-        sessions.push(meta);
+      try {
+        const meta = JSON.parse(fs.readFileSync(path.join(SESSION_DIR, file), 'utf-8'));
+        if (meta.exited) {
+          sessions.push(meta);
+        }
+      } catch (err) {
+        // 忽略读取错误
       }
     }
     return sessions;

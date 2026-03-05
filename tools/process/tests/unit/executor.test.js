@@ -94,31 +94,33 @@ describe('Executor', () => {
   });
   
   it('should respect custom cwd', async () => {
-    const cwdSession = new ProcessSession('test-cwd', 'pwd', { cwd: '/tmp' });
+    const testId = `test-cwd-${testCounter}-${Date.now()}`;
+    const cwdSession = new ProcessSession(testId, 'pwd', { cwd: '/tmp' });
     const cwdExecutor = new Executor(cwdSession);
     
     cwdExecutor.start();
     
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, 200));
     
     const output = cwdSession.readOutput();
-    assert.ok(output.includes('/tmp'));
+    assert.ok(output.includes('/tmp'), `Expected output to include '/tmp', got: "${output}"`);
     
     cwdSession.delete();
   });
   
   it('should respect custom env', async () => {
-    const envSession = new ProcessSession('test-env', 'echo $MY_VAR', {
+    const testId = `test-env-${testCounter}-${Date.now()}`;
+    const envSession = new ProcessSession(testId, 'echo $MY_VAR', {
       env: { MY_VAR: 'custom_value' }
     });
     const envExecutor = new Executor(envSession);
     
     envExecutor.start();
     
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, 200));
     
     const output = envSession.readOutput();
-    assert.ok(output.includes('custom_value'));
+    assert.ok(output.includes('custom_value'), `Expected output to include 'custom_value', got: "${output}"`);
     
     envSession.delete();
   });

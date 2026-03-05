@@ -7,9 +7,50 @@
 - ✅ 后台执行命令
 - ✅ 会话生命周期管理(创建/查询/终止/清理)
 - ✅ 日志管理(实时输出、滚动窗口、自动截断)
-- ✅ PTY 支持(交互式进程)
+- ✅ PTY 支持(交互式进程，macOS 受限，见下文)
 - ✅ 输入交互(向运行中的进程发送输入)
 - ✅ 进程隔离(独立的环境变量和工作目录)
+
+## PTY 模式说明
+
+### 功能
+
+PTY（伪终端）模式支持交互式进程，允许向进程发送输入（如 REPL、交互式 CLI）。
+
+### macOS 限制
+
+**重要**: macOS 存在 PTY 设备数量限制（`kern.tty.ptmx_max`），可能导致 `posix_spawnp failed` 错误。
+
+**原因**:
+- macOS 系统级 PTY 设备限制
+- 默认限制较低，频繁创建 PTY 进程可能耗尽
+- 临时提高限制：`sudo sysctl kern.tty.ptmx_max=999`（最大值）
+
+**我们的处理策略**:
+1. `node-pty` 作为可选依赖，安装失败不影响核心功能
+2. PTY 模式启动失败时，自动降级到普通 spawn 模式
+3. 降级后不支持 `write()` 交互，但其他功能正常
+
+**建议**:
+- 后台任务无需 PTY 模式
+- 仅交互式进程使用 PTY
+- 定期清理已完成会话
+
+### PTY 使用示例
+
+```javascript
+// 启动 PTY 进程
+const id = manager.start('python', {
+  pty: true,  // 启用 PTY 模式
+  cwd: '/tmp'
+});
+
+// 向进程发送输入（仅 PTY 模式）
+manager.write(id, 'print("hello")\n');
+
+// 调整终端大小（仅 PTY 模式）
+manager.resize(id, 120, 40);
+```
 
 ## 安装
 
@@ -202,6 +243,31 @@ manager.clear(sessionId);
 - `filter` (string) - 筛选条件: 'all', 'running', 'finished'
 
 **返回:** `array`
+
+#### `write(sessionId, data)`
+
+向 PTY 会话发送输入（仅 PTY 模式可用）。
+
+**参数:**
+- `sessionId` (string) - 会话 ID
+- `data` (string) - 要发送的数据
+
+**返回:** `boolean`
+
+**注意:** 仅在 PTY 模式下有效，普通模式调用会返回 false 并打印警告。
+
+#### `resize(sessionId, cols, rows)`
+
+调整 PTY 终端大小（仅 PTY 模式可用）。
+
+**参数:**
+- `sessionId` (string) - 会话 ID
+- `cols` (number) - 列数
+- `rows` (number) - 行数
+
+**返回:** `boolean`
+
+**注意:** 仅在 PTY 模式下有效。
 
 ## 架构
 

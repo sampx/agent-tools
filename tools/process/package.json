@@ -7,9 +7,9 @@
     "process-adapter": "./bin/process-adapter"
   },
   "scripts": {
-    "test": "node --test tests/**/*.js",
-    "test:unit": "node --test tests/unit/**/*.js",
-    "test:integration": "node --test tests/integration/**/*.js"
+    "test": "node --test --test-concurrency=1 tests/**/*.js",
+    "test:unit": "node --test --test-concurrency=1 tests/unit/**/*.js",
+    "test:integration": "node --test --test-concurrency=1 tests/integration/**/*.js"
   },
   "keywords": [
     "process",

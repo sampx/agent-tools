@@ -78,12 +78,12 @@ class ProcessSession {
     if (!fs.existsSync(this.logFile)) return '';
     
     const content = fs.readFileSync(this.logFile, 'utf-8');
-    const lines = content.split('\n');
+    const allLines = content.split('\n').filter(line => line.length > 0);
     
     if (offset > 0) {
-      return lines.slice(offset, offset + limit).join('\n');
+      return allLines.slice(offset, offset + limit).join('\n');
     } else {
-      return lines.slice(-limit).join('\n');
+      return allLines.slice(-limit).join('\n');
     }
   }
   
