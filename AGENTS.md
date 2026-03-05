@@ -19,7 +19,8 @@ agent-tools/
 │   ├── claude-code/ # Claude Code 子代理（9个）
 │   └── opencode/    # OpenCode 子代理（3个）
 ├── tools/           # 工具脚本
-│   └── process/     # 进程管理工具
+│   ├── process/     # 进程管理工具
+│   └── wopal-cli/   # Wopal Skills CLI
 └── templates/       # 项目模板
 ```
 
@@ -80,6 +81,25 @@ agent-tools/
 
 - 位置：`tools/process/`
 - 文档：`tools/process/README.md`
+
+### wopal-cli - Wopal Skills CLI
+
+技能管理命令行工具，实现 INBOX 隔离工作流（下载 → 扫描 → 评估 → 安装）。
+
+**技术栈**：TypeScript + ES modules + commander.js
+
+**功能**：
+- INBOX 管理：`wopal inbox list/show/remove`
+- 技能列表：`wopal list [--info]`
+- 透传搜索：`wopal find [query]`
+
+**配置**：
+- 环境变量：`SKILL_INBOX_DIR`（默认 `~/.wopal/skills/INBOX`）
+- 调试模式：`-d/--debug`（加载 cwd/.env，日志输出到 cwd/logs/）
+
+**位置**：`tools/wopal-cli/`
+
+**后续扩展**：download、scan、install、check、update 命令
 
 ## 子代理配置
 
