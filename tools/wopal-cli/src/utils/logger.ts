@@ -2,21 +2,17 @@ import { appendFileSync, mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
 
 export class Logger {
-  private debug: boolean;
+  private debugMode: boolean;
   private logDir: string;
 
-  constructor(debug: boolean = false) {
-    this.debug = debug;
+  constructor(debugMode: boolean = false) {
+    this.debugMode = debugMode;
     this.logDir = join(process.cwd(), 'logs');
   }
 
-  log(message: string): void {
-    if (!this.debug) return;
-
+  private writeLog(level: string, message: string): void {
     const timestamp = new Date().toISOString();
-    const logLine = `[${timestamp}] ${message}\n`;
-
-    console.log(logLine.trim());
+    const logLine = `[${timestamp}] [${level}] ${message}\n`;
 
     if (!existsSync(this.logDir)) {
       mkdirSync(this.logDir, { recursive: true });
@@ -25,17 +21,28 @@ export class Logger {
     appendFileSync(join(this.logDir, 'wopal-cli.log'), logLine);
   }
 
+  debug(message: string): void {
+    if (!this.debugMode) return;
+    this.writeLog('DEBUG', message);
+    console.log(`[DEBUG] ${message}`);
+  }
+
+  info(message: string): void {
+    this.writeLog('INFO', message);
+    console.log(message);
+  }
+
+  warn(message: string): void {
+    this.writeLog('WARN', message);
+    console.warn(`[WARN] ${message}`);
+  }
+
   error(message: string): void {
-    const timestamp = new Date().toISOString();
-    const logLine = `[${timestamp}] ERROR: ${message}\n`;
+    this.writeLog('ERROR', message);
+    console.error(`[ERROR] ${message}`);
+  }
 
-    console.error(logLine.trim());
-
-    if (this.debug) {
-      if (!existsSync(this.logDir)) {
-        mkdirSync(this.logDir, { recursive: true });
-      }
-      appendFileSync(join(this.logDir, 'wopal-cli.log'), logLine);
-    }
+  log(message: string): void {
+    this.info(message);
   }
 }

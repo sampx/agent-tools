@@ -10,6 +10,7 @@ import { registerInboxCommand, setLogger as setInboxLogger } from './commands/in
 import { registerListCommand, setLogger as setListLogger } from './commands/list.js';
 import { registerPassthroughCommand, setLogger as setPassthroughLogger } from './commands/passthrough.js';
 import { registerDownloadCommand, setLogger as setDownloadLogger } from './commands/download.js';
+import { createInstallCommand } from './commands/install.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -58,6 +59,7 @@ registerInboxCommand(skillsCommand);
 registerListCommand(skillsCommand);
 registerPassthroughCommand(skillsCommand);
 registerDownloadCommand(skillsCommand);
+skillsCommand.addCommand(createInstallCommand());
 
 program
   .command('help [command...]')
