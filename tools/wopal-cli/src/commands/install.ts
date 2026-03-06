@@ -58,7 +58,7 @@ async function installSkill(
   const scope: InstallScope = options.global ? 'global' : 'project';
   logger.debug(`Install scope: ${scope}`);
 
-  const isLocal = source.includes('/') || source.includes(path.sep);
+  const isLocal = source.includes('/') || source.includes('\\') || source.includes(path.sep);
   
   if (isLocal) {
     await installLocalSkill(source, scope, options, logger);
