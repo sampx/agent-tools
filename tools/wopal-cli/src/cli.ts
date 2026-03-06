@@ -9,6 +9,7 @@ import { Logger } from './utils/logger.js';
 import { registerInboxCommand, setLogger as setInboxLogger } from './commands/inbox.js';
 import { registerListCommand, setLogger as setListLogger } from './commands/list.js';
 import { registerPassthroughCommand, setLogger as setPassthroughLogger } from './commands/passthrough.js';
+import { registerDownloadCommand, setLogger as setDownloadLogger } from './commands/download.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -44,9 +45,9 @@ program
     setInboxLogger(logger);
     setListLogger(logger);
     setPassthroughLogger(logger);
+    setDownloadLogger(logger);
 
     logger.log('Debug mode enabled');
-    logger.log(`INBOX directory: ${process.env.SKILL_INBOX_DIR || '~/.wopal/skills/INBOX'}`);
   });
 
 const skillsCommand = program
@@ -56,6 +57,7 @@ const skillsCommand = program
 registerInboxCommand(skillsCommand);
 registerListCommand(skillsCommand);
 registerPassthroughCommand(skillsCommand);
+registerDownloadCommand(skillsCommand);
 
 program
   .command('help [command...]')

@@ -3,15 +3,32 @@ import { join } from 'path';
 import { homedir } from 'os';
 import dotenv from 'dotenv';
 
-export function loadEnv(debug: boolean = false): void {
-  const envPath = debug
-    ? join(process.cwd(), '.env')
-    : join(homedir(), '.wopal', '.env');
+function expandHomeDir(path: string): string {
+  return path.replace(/^~(?=$|\/|\\)/, homedir());
+}
 
-  if (existsSync(envPath)) {
-    const result = dotenv.config({ path: envPath });
+export function loadEnv(debug: boolean = false): void {
+  const cwdEnvPath = join(process.cwd(), '.env');
+  const globalEnvPath = join(homedir(), '.wopal', '.env');
+
+  if (debug && existsSync(cwdEnvPath)) {
+    const result = dotenv.config({ path: cwdEnvPath });
     if (result.error) {
-      console.error(`Failed to load .env from ${envPath}:`, result.error);
+      console.error(`Failed to load .env from ${cwdEnvPath}:`, result.error);
+    }
+  }
+
+  if (existsSync(globalEnvPath)) {
+    const result = dotenv.config({ path: globalEnvPath });
+    if (result.error) {
+      console.error(`Failed to load .env from ${globalEnvPath}:`, result.error);
+    }
+  }
+
+  for (const key of Object.keys(process.env)) {
+    const value = process.env[key];
+    if (value && value.includes('~')) {
+      process.env[key] = expandHomeDir(value);
     }
   }
 }
