@@ -93,6 +93,12 @@ agent-tools/
 - 技能列表：`wopal list [--info]`
 - 透传搜索：`wopal find [query]`
 - 技能下载：`wopal skills download <sources...> [--branch|--tag] [--force]`
+- 安全扫描：`wopal skills scan [skill-name] [--all] [--json] [--output <file>]`
+  - 20 项静态安全检查（9 项严重 + 11 项警告）
+  - 风险评分机制（严重 × 25 + 警告 × 10）
+  - 白名单过滤（减少误报）
+  - IOC 数据库支持（`WOPAL_SKILL_IOCDB_DIR` 环境变量）
+  - 退出码机制（0/1/2）用于 CI/CD 集成
 
 **版本指纹机制**：
 - **GitHub Tree SHA**：技能文件夹级别的哈希（`skillFolderHash`），任何文件变化都会改变
@@ -102,11 +108,12 @@ agent-tools/
 
 **配置**：
 - 环境变量：`SKILL_INBOX_DIR`（默认 `~/.wopal/skills/INBOX`）
+- IOC 路径：`WOPAL_SKILL_IOCDB_DIR`（默认 `projects/agent-tools/skills/download/openclaw/openclaw-security-monitor/ioc/`）
 - 调试模式：`-d/--debug`（加载 cwd/.env，日志输出到 cwd/logs/）
 
 **位置**：`tools/wopal-cli/`
 
-**后续扩展**：scan、install、check、update 命令
+**后续扩展**：install、check、update 命令
 
 ## 子代理配置
 
