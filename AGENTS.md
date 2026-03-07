@@ -107,9 +107,9 @@ agent-tools/
 - **GitHub Token**：支持 `GITHUB_TOKEN`/`GH_TOKEN`/`gh auth token` 认证（提高 API 速率限制）
 
 **配置**：
-- 环境变量：`SKILL_INBOX_DIR`（默认 `~/.wopal/skills/INBOX`）
-- IOC 路径：`WOPAL_SKILL_IOCDB_DIR`（默认 `projects/agent-tools/skills/download/openclaw/openclaw-security-monitor/ioc/`）
-- 调试模式：`-d/--debug`（加载 cwd/.env，日志输出到 cwd/logs/）
+- 环境变量：`WOPAL_SKILL_INBOX_DIR`（默认 `~/.wopal/skills/INBOX`）
+- IOC 路径：`WOPAL_SKILL_IOCDB_DIR`（绝对路径，默认 `projects/agent-tools/skills/download/openclaw/openclaw-security-monitor/ioc/`）
+- 调试模式：`-d/--debug`（日志输出到 cwd/logs/）
 
 **位置**：`tools/wopal-cli/`
 
