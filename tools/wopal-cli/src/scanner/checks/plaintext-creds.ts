@@ -1,5 +1,5 @@
-import { Check, IOCData, Finding } from '../types';
-import { scanDirectory, findPatternInFile } from '../scanner-utils.js';
+import { Check, IOCData, Finding } from "../types";
+import { scanDirectory, findPatternInFile } from "../scanner-utils.js";
 
 const API_KEY_PATTERNS = [
   /sk-[a-zA-Z0-9]{20,}/,
@@ -11,25 +11,32 @@ const API_KEY_PATTERNS = [
 ];
 
 export const check: Check = {
-  id: 'plaintext_creds',
-  name: '硬编码 API 密钥',
-  severity: 'warning',
-  async run(skillPath: string, iocData: IOCData, whitelist: string[]): Promise<Finding[]> {
+  id: "plaintext_creds",
+  name: "硬编码 API 密钥",
+  severity: "warning",
+  async run(
+    skillPath: string,
+    iocData: IOCData,
+    whitelist: string[],
+  ): Promise<Finding[]> {
     const findings: Finding[] = [];
-    
-    const fileFindings = await scanDirectory(skillPath, async (filePath, content) => {
-      const fileFindings: Finding[] = [];
-      
-      for (const pattern of API_KEY_PATTERNS) {
-        const patternFindings = findPatternInFile(content, pattern, filePath);
-        fileFindings.push(...patternFindings);
-      }
-      
-      return fileFindings;
-    });
-    
+
+    const fileFindings = await scanDirectory(
+      skillPath,
+      async (filePath, content) => {
+        const fileFindings: Finding[] = [];
+
+        for (const pattern of API_KEY_PATTERNS) {
+          const patternFindings = findPatternInFile(content, pattern, filePath);
+          fileFindings.push(...patternFindings);
+        }
+
+        return fileFindings;
+      },
+    );
+
     findings.push(...fileFindings);
-    
+
     return findings;
   },
 };

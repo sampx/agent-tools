@@ -8,7 +8,7 @@ export interface Skill {
 }
 
 export interface ParsedSource {
-  type: 'github' | 'gitlab' | 'git' | 'local' | 'well-known';
+  type: "github" | "gitlab" | "git" | "local" | "well-known";
   url: string;
   subpath?: string;
   localPath?: string;

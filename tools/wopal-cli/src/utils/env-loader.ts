@@ -1,24 +1,22 @@
-import { existsSync } from 'fs';
-import { join } from 'path';
-import { homedir } from 'os';
-import dotenv from 'dotenv';
+import { existsSync } from "fs";
+import { join } from "path";
+import { homedir } from "os";
+import dotenv from "dotenv";
 
 function expandHomeDir(path: string): string {
   return path.replace(/^~(?=$|\/|\\)/, homedir());
 }
 
 export function loadEnv(debug: boolean = false): void {
-  const cwdEnvPath = join(process.cwd(), '.env');
-  const globalEnvPath = join(homedir(), '.wopal', '.env');
+  const cwdEnvPath = join(process.cwd(), ".env");
+  const globalEnvPath = join(homedir(), ".wopal", ".env");
 
-  if (debug && existsSync(cwdEnvPath)) {
+  if (existsSync(cwdEnvPath)) {
     const result = dotenv.config({ path: cwdEnvPath });
     if (result.error) {
       console.error(`Failed to load .env from ${cwdEnvPath}:`, result.error);
     }
-  }
-
-  if (existsSync(globalEnvPath)) {
+  } else if (existsSync(globalEnvPath)) {
     const result = dotenv.config({ path: globalEnvPath });
     if (result.error) {
       console.error(`Failed to load .env from ${globalEnvPath}:`, result.error);
@@ -27,7 +25,7 @@ export function loadEnv(debug: boolean = false): void {
 
   for (const key of Object.keys(process.env)) {
     const value = process.env[key];
-    if (value && value.includes('~')) {
+    if (value && value.includes("~")) {
       process.env[key] = expandHomeDir(value);
     }
   }

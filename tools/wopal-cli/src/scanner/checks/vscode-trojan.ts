@@ -1,6 +1,6 @@
-import * as path from 'path';
-import * as fs from 'fs';
-import { Check, IOCData, Finding } from '../types';
+import * as path from "path";
+import * as fs from "fs";
+import { Check, IOCData, Finding } from "../types";
 
 const SUSPICIOUS_PATTERNS = [
   /<Installer>/i,
@@ -12,26 +12,30 @@ const SUSPICIOUS_PATTERNS = [
 ];
 
 export const check: Check = {
-  id: 'vscode_trojan',
-  name: '可疑 VS Code 扩展',
-  severity: 'critical',
-  async run(skillPath: string, iocData: IOCData, whitelist: string[]): Promise<Finding[]> {
+  id: "vscode_trojan",
+  name: "可疑 VS Code 扩展",
+  severity: "critical",
+  async run(
+    skillPath: string,
+    iocData: IOCData,
+    whitelist: string[],
+  ): Promise<Finding[]> {
     const findings: Finding[] = [];
-    
+
     const vscodeFiles = [
-      path.join(skillPath, 'extension.vsixmanifest'),
-      path.join(skillPath, 'package.json'),
+      path.join(skillPath, "extension.vsixmanifest"),
+      path.join(skillPath, "package.json"),
     ];
-    
+
     for (const filePath of vscodeFiles) {
       if (!fs.existsSync(filePath)) {
         continue;
       }
-      
+
       try {
-        const content = fs.readFileSync(filePath, 'utf-8');
-        const lines = content.split('\n');
-        
+        const content = fs.readFileSync(filePath, "utf-8");
+        const lines = content.split("\n");
+
         lines.forEach((line, index) => {
           for (const pattern of SUSPICIOUS_PATTERNS) {
             if (pattern.test(line)) {
@@ -48,7 +52,7 @@ export const check: Check = {
         // Skip files that can't be read
       }
     }
-    
+
     return findings;
   },
 };

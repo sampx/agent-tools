@@ -1,11 +1,11 @@
-import fs from 'fs-extra';
-import path from 'path';
-import os from 'os';
-import type { SkillLockFile, SkillLockEntry } from '../types/lock.js';
+import fs from "fs-extra";
+import path from "path";
+import os from "os";
+import type { SkillLockFile, SkillLockEntry } from "../types/lock.js";
 
 /**
  * 锁文件管理器
- * 
+ *
  * 管理项目级和全局级两个锁文件，统一使用 v3 格式
  */
 export class LockManager {
@@ -13,8 +13,12 @@ export class LockManager {
   private globalLockPath: string;
 
   constructor(projectRoot: string = process.cwd()) {
-    this.projectLockPath = path.join(projectRoot, 'skills-lock.json');
-    this.globalLockPath = path.join(os.homedir(), '.agents', '.skill-lock.json');
+    this.projectLockPath = path.join(projectRoot, "skills-lock.json");
+    this.globalLockPath = path.join(
+      os.homedir(),
+      ".agents",
+      ".skill-lock.json",
+    );
   }
 
   /**
@@ -48,7 +52,10 @@ export class LockManager {
   /**
    * 同时更新两个锁文件
    */
-  async addSkillToBothLocks(skillName: string, entry: SkillLockEntry): Promise<void> {
+  async addSkillToBothLocks(
+    skillName: string,
+    entry: SkillLockEntry,
+  ): Promise<void> {
     const [projectLock, globalLock] = await Promise.all([
       this.readProjectLock(),
       this.readGlobalLock(),
@@ -80,7 +87,7 @@ export class LockManager {
 
       const content = await fs.readJson(lockPath);
 
-      if (!content || typeof content !== 'object') {
+      if (!content || typeof content !== "object") {
         return this.createEmptyLockFile();
       }
 
@@ -100,7 +107,7 @@ export class LockManager {
   private async writeLockFile(
     lockPath: string,
     lockFile: SkillLockFile,
-    sortSkills: boolean
+    sortSkills: boolean,
   ): Promise<void> {
     const dir = path.dirname(lockPath);
     await fs.ensureDir(dir);

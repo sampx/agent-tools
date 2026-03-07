@@ -1,5 +1,5 @@
-import { Check, IOCData, Finding } from '../types';
-import { scanDirectory, findPatternInFile } from '../scanner-utils.js';
+import { Check, IOCData, Finding } from "../types";
+import { scanDirectory, findPatternInFile } from "../scanner-utils.js";
 
 const MEMORY_PATTERNS = [
   /MEMORY\.md/i,
@@ -11,25 +11,32 @@ const MEMORY_PATTERNS = [
 ];
 
 export const check: Check = {
-  id: 'memory_poison',
-  name: '修改内存文件',
-  severity: 'critical',
-  async run(skillPath: string, iocData: IOCData, whitelist: string[]): Promise<Finding[]> {
+  id: "memory_poison",
+  name: "修改内存文件",
+  severity: "critical",
+  async run(
+    skillPath: string,
+    iocData: IOCData,
+    whitelist: string[],
+  ): Promise<Finding[]> {
     const findings: Finding[] = [];
-    
-    const fileFindings = await scanDirectory(skillPath, async (filePath, content) => {
-      const fileFindings: Finding[] = [];
-      
-      for (const pattern of MEMORY_PATTERNS) {
-        const patternFindings = findPatternInFile(content, pattern, filePath);
-        fileFindings.push(...patternFindings);
-      }
-      
-      return fileFindings;
-    });
-    
+
+    const fileFindings = await scanDirectory(
+      skillPath,
+      async (filePath, content) => {
+        const fileFindings: Finding[] = [];
+
+        for (const pattern of MEMORY_PATTERNS) {
+          const patternFindings = findPatternInFile(content, pattern, filePath);
+          fileFindings.push(...patternFindings);
+        }
+
+        return fileFindings;
+      },
+    );
+
     findings.push(...fileFindings);
-    
+
     return findings;
   },
 };

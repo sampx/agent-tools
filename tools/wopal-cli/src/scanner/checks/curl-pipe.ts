@@ -1,5 +1,5 @@
-import { Check, IOCData, Finding } from '../types';
-import { scanDirectory, findPatternInFile } from '../scanner-utils.js';
+import { Check, IOCData, Finding } from "../types";
+import { scanDirectory, findPatternInFile } from "../scanner-utils.js";
 
 const CURL_PIPE_PATTERNS = [
   /curl.*\|\s*bash/i,
@@ -11,25 +11,32 @@ const CURL_PIPE_PATTERNS = [
 ];
 
 export const check: Check = {
-  id: 'curl_pipe',
-  name: 'Curl-Pipe 攻击模式',
-  severity: 'warning',
-  async run(skillPath: string, iocData: IOCData, whitelist: string[]): Promise<Finding[]> {
+  id: "curl_pipe",
+  name: "Curl-Pipe 攻击模式",
+  severity: "warning",
+  async run(
+    skillPath: string,
+    iocData: IOCData,
+    whitelist: string[],
+  ): Promise<Finding[]> {
     const findings: Finding[] = [];
-    
-    const fileFindings = await scanDirectory(skillPath, async (filePath, content) => {
-      const fileFindings: Finding[] = [];
-      
-      for (const pattern of CURL_PIPE_PATTERNS) {
-        const patternFindings = findPatternInFile(content, pattern, filePath);
-        fileFindings.push(...patternFindings);
-      }
-      
-      return fileFindings;
-    });
-    
+
+    const fileFindings = await scanDirectory(
+      skillPath,
+      async (filePath, content) => {
+        const fileFindings: Finding[] = [];
+
+        for (const pattern of CURL_PIPE_PATTERNS) {
+          const patternFindings = findPatternInFile(content, pattern, filePath);
+          fileFindings.push(...patternFindings);
+        }
+
+        return fileFindings;
+      },
+    );
+
     findings.push(...fileFindings);
-    
+
     return findings;
   },
 };

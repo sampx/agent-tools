@@ -1,9 +1,14 @@
-import { existsSync, rmSync, readdirSync, statSync, readFileSync } from 'fs';
-import { join } from 'path';
-import { Command } from 'commander';
-import pc from 'picocolors';
-import { getInboxDir, getDirectorySize, formatSize, buildDirectoryTree } from '../utils/inbox-utils.js';
-import { Logger } from '../utils/logger.js';
+import { existsSync, rmSync, readdirSync, statSync, readFileSync } from "fs";
+import { join } from "path";
+import { Command } from "commander";
+import pc from "picocolors";
+import {
+  getInboxDir,
+  getDirectorySize,
+  formatSize,
+  buildDirectoryTree,
+} from "../utils/inbox-utils.js";
+import { Logger } from "../utils/logger.js";
 
 let logger: Logger;
 
@@ -13,26 +18,28 @@ export function setLogger(l: Logger): void {
 
 export function registerInboxCommand(program: Command): void {
   const inbox = program
-    .command('inbox')
-    .description('Manage skills in INBOX (downloaded but not yet installed)');
+    .command("inbox")
+    .description("Manage skills in INBOX (downloaded but not yet installed)");
 
   inbox
-    .command('list')
-    .description('List all skills in INBOX')
+    .command("list")
+    .description("List all skills in INBOX")
     .action(async () => {
       await listInboxSkills();
     });
 
   inbox
-    .command('show <skill>')
-    .description('Show skill details (SKILL.md content and directory structure)')
+    .command("show <skill>")
+    .description(
+      "Show skill details (SKILL.md content and directory structure)",
+    )
     .action(async (skillName: string) => {
       await showInboxSkill(skillName);
     });
 
   inbox
-    .command('remove <skill>')
-    .description('Remove a single skill from INBOX')
+    .command("remove <skill>")
+    .description("Remove a single skill from INBOX")
     .action(async (skillName: string) => {
       await removeInboxSkill(skillName);
     });
@@ -43,7 +50,7 @@ async function listInboxSkills(): Promise<void> {
   logger?.log(`Listing INBOX skills from: ${inboxDir}`);
 
   if (!existsSync(inboxDir)) {
-    console.log(pc.yellow('INBOX 为空'));
+    console.log(pc.yellow("INBOX 为空"));
     return;
   }
 
@@ -53,11 +60,11 @@ async function listInboxSkills(): Promise<void> {
   });
 
   if (skills.length === 0) {
-    console.log(pc.yellow('INBOX 为空'));
+    console.log(pc.yellow("INBOX 为空"));
     return;
   }
 
-  console.log(pc.bold('INBOX 技能列表：\n'));
+  console.log(pc.bold("INBOX 技能列表：\n"));
   for (const skill of skills) {
     const skillPath = join(inboxDir, skill);
     const size = getDirectorySize(skillPath);
@@ -68,7 +75,7 @@ async function listInboxSkills(): Promise<void> {
 async function showInboxSkill(skillName: string): Promise<void> {
   const inboxDir = getInboxDir();
   const skillDir = join(inboxDir, skillName);
-  const skillMdPath = join(skillDir, 'SKILL.md');
+  const skillMdPath = join(skillDir, "SKILL.md");
 
   logger?.log(`Showing skill: ${skillName} at ${skillDir}`);
 
@@ -78,14 +85,14 @@ async function showInboxSkill(skillName: string): Promise<void> {
   }
 
   if (!existsSync(skillMdPath)) {
-    console.warn(pc.yellow('无效的技能目录（缺少 SKILL.md）'));
+    console.warn(pc.yellow("无效的技能目录（缺少 SKILL.md）"));
     return;
   }
 
-  const content = readFileSync(skillMdPath, 'utf-8');
+  const content = readFileSync(skillMdPath, "utf-8");
   console.log(content);
 
-  console.log(pc.bold('\n目录结构：'));
+  console.log(pc.bold("\n目录结构："));
   const tree = buildDirectoryTree(skillDir);
   console.log(tree);
 }

@@ -1,13 +1,13 @@
-import { readdir, readFile, stat } from 'fs/promises';
-import { join, basename, dirname, resolve } from 'path';
-import matter from 'gray-matter';
-import type { Skill } from './types.ts';
+import { readdir, readFile, stat } from "fs/promises";
+import { join, basename, dirname, resolve } from "path";
+import matter from "gray-matter";
+import type { Skill } from "./types.ts";
 
-const SKIP_DIRS = ['node_modules', '.git', 'dist', 'build', '__pycache__'];
+const SKIP_DIRS = ["node_modules", ".git", "dist", "build", "__pycache__"];
 
 async function hasSkillMd(dir: string): Promise<boolean> {
   try {
-    const skillPath = join(dir, 'SKILL.md');
+    const skillPath = join(dir, "SKILL.md");
     const stats = await stat(skillPath);
     return stats.isFile();
   } catch {
@@ -17,17 +17,17 @@ async function hasSkillMd(dir: string): Promise<boolean> {
 
 export async function parseSkillMd(
   skillMdPath: string,
-  options?: { includeInternal?: boolean }
+  options?: { includeInternal?: boolean },
 ): Promise<Skill | null> {
   try {
-    const content = await readFile(skillMdPath, 'utf-8');
+    const content = await readFile(skillMdPath, "utf-8");
     const { data } = matter(content);
 
     if (!data.name || !data.description) {
       return null;
     }
 
-    if (typeof data.name !== 'string' || typeof data.description !== 'string') {
+    if (typeof data.name !== "string" || typeof data.description !== "string") {
       return null;
     }
 
@@ -48,7 +48,11 @@ export async function parseSkillMd(
   }
 }
 
-async function findSkillDirs(dir: string, depth = 0, maxDepth = 5): Promise<string[]> {
+async function findSkillDirs(
+  dir: string,
+  depth = 0,
+  maxDepth = 5,
+): Promise<string[]> {
   if (depth > maxDepth) return [];
 
   try {
@@ -61,8 +65,12 @@ async function findSkillDirs(dir: string, depth = 0, maxDepth = 5): Promise<stri
 
     const subDirResults = await Promise.all(
       entries
-        .filter((entry) => entry.isDirectory() && !SKIP_DIRS.includes(entry.name))
-        .map((entry) => findSkillDirs(join(dir, entry.name), depth + 1, maxDepth))
+        .filter(
+          (entry) => entry.isDirectory() && !SKIP_DIRS.includes(entry.name),
+        )
+        .map((entry) =>
+          findSkillDirs(join(dir, entry.name), depth + 1, maxDepth),
+        ),
     );
 
     return [...currentDir, ...subDirResults.flat()];
@@ -79,14 +87,14 @@ export interface DiscoverSkillsOptions {
 export async function discoverSkills(
   basePath: string,
   subpath?: string,
-  options?: DiscoverSkillsOptions
+  options?: DiscoverSkillsOptions,
 ): Promise<Skill[]> {
   const skills: Skill[] = [];
   const seenNames = new Set<string>();
   const searchPath = subpath ? join(basePath, subpath) : basePath;
 
   if (await hasSkillMd(searchPath)) {
-    let skill = await parseSkillMd(join(searchPath, 'SKILL.md'), options);
+    let skill = await parseSkillMd(join(searchPath, "SKILL.md"), options);
     if (skill) {
       skills.push(skill);
       seenNames.add(skill.name);
@@ -98,34 +106,34 @@ export async function discoverSkills(
 
   const prioritySearchDirs = [
     searchPath,
-    join(searchPath, 'skills'),
-    join(searchPath, 'skills/.curated'),
-    join(searchPath, 'skills/.experimental'),
-    join(searchPath, 'skills/.system'),
-    join(searchPath, '.agent/skills'),
-    join(searchPath, '.agents/skills'),
-    join(searchPath, '.claude/skills'),
-    join(searchPath, '.cline/skills'),
-    join(searchPath, '.codebuddy/skills'),
-    join(searchPath, '.codex/skills'),
-    join(searchPath, '.commandcode/skills'),
-    join(searchPath, '.continue/skills'),
-    join(searchPath, '.github/skills'),
-    join(searchPath, '.goose/skills'),
-    join(searchPath, '.iflow/skills'),
-    join(searchPath, '.junie/skills'),
-    join(searchPath, '.kilocode/skills'),
-    join(searchPath, '.kiro/skills'),
-    join(searchPath, '.mux/skills'),
-    join(searchPath, '.neovate/skills'),
-    join(searchPath, '.opencode/skills'),
-    join(searchPath, '.openhands/skills'),
-    join(searchPath, '.pi/skills'),
-    join(searchPath, '.qoder/skills'),
-    join(searchPath, '.roo/skills'),
-    join(searchPath, '.trae/skills'),
-    join(searchPath, '.windsurf/skills'),
-    join(searchPath, '.zencoder/skills'),
+    join(searchPath, "skills"),
+    join(searchPath, "skills/.curated"),
+    join(searchPath, "skills/.experimental"),
+    join(searchPath, "skills/.system"),
+    join(searchPath, ".agent/skills"),
+    join(searchPath, ".agents/skills"),
+    join(searchPath, ".claude/skills"),
+    join(searchPath, ".cline/skills"),
+    join(searchPath, ".codebuddy/skills"),
+    join(searchPath, ".codex/skills"),
+    join(searchPath, ".commandcode/skills"),
+    join(searchPath, ".continue/skills"),
+    join(searchPath, ".github/skills"),
+    join(searchPath, ".goose/skills"),
+    join(searchPath, ".iflow/skills"),
+    join(searchPath, ".junie/skills"),
+    join(searchPath, ".kilocode/skills"),
+    join(searchPath, ".kiro/skills"),
+    join(searchPath, ".mux/skills"),
+    join(searchPath, ".neovate/skills"),
+    join(searchPath, ".opencode/skills"),
+    join(searchPath, ".openhands/skills"),
+    join(searchPath, ".pi/skills"),
+    join(searchPath, ".qoder/skills"),
+    join(searchPath, ".roo/skills"),
+    join(searchPath, ".trae/skills"),
+    join(searchPath, ".windsurf/skills"),
+    join(searchPath, ".zencoder/skills"),
   ];
 
   for (const dir of prioritySearchDirs) {
@@ -136,7 +144,7 @@ export async function discoverSkills(
         if (entry.isDirectory()) {
           const skillDir = join(dir, entry.name);
           if (await hasSkillMd(skillDir)) {
-            let skill = await parseSkillMd(join(skillDir, 'SKILL.md'), options);
+            let skill = await parseSkillMd(join(skillDir, "SKILL.md"), options);
             if (skill && !seenNames.has(skill.name)) {
               skills.push(skill);
               seenNames.add(skill.name);
@@ -153,7 +161,7 @@ export async function discoverSkills(
     const allSkillDirs = await findSkillDirs(searchPath);
 
     for (const skillDir of allSkillDirs) {
-      let skill = await parseSkillMd(join(skillDir, 'SKILL.md'), options);
+      let skill = await parseSkillMd(join(skillDir, "SKILL.md"), options);
       if (skill && !seenNames.has(skill.name)) {
         skills.push(skill);
         seenNames.add(skill.name);
@@ -175,6 +183,8 @@ export function filterSkills(skills: Skill[], inputNames: string[]): Skill[] {
     const name = skill.name.toLowerCase();
     const displayName = getSkillDisplayName(skill).toLowerCase();
 
-    return normalizedInputs.some((input) => input === name || input === displayName);
+    return normalizedInputs.some(
+      (input) => input === name || input === displayName,
+    );
   });
 }

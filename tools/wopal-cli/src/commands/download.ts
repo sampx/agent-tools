@@ -1,14 +1,18 @@
-import { Command } from 'commander';
-import { join, basename } from 'path';
-import { cp, mkdir } from 'fs/promises';
-import { existsSync } from 'fs';
-import { homedir } from 'os';
-import { parseSource, getOwnerRepo } from '../utils/source-parser.js';
-import { cloneRepo, cleanupTempDir, GitCloneError } from '../utils/git.js';
-import { discoverSkills, filterSkills, getSkillDisplayName } from '../utils/skills.js';
-import { writeMetadata, type SkillMetadata } from '../utils/metadata.js';
-import { fetchSkillFolderHash, getGitHubToken } from '../utils/skill-lock.js';
-import { Logger } from '../utils/logger.js';
+import { Command } from "commander";
+import { join, basename } from "path";
+import { cp, mkdir } from "fs/promises";
+import { existsSync } from "fs";
+import { homedir } from "os";
+import { parseSource, getOwnerRepo } from "../utils/source-parser.js";
+import { cloneRepo, cleanupTempDir, GitCloneError } from "../utils/git.js";
+import {
+  discoverSkills,
+  filterSkills,
+  getSkillDisplayName,
+} from "../utils/skills.js";
+import { writeMetadata, type SkillMetadata } from "../utils/metadata.js";
+import { fetchSkillFolderHash, getGitHubToken } from "../utils/skill-lock.js";
+import { Logger } from "../utils/logger.js";
 
 let logger: Logger;
 
@@ -37,27 +41,33 @@ function parseSources(sources: string[]): ParsedSkillSource[] {
     }
 
     const parsed = parseSource(sourceWithoutSkill);
-    
-    if (parsed.type === 'local') {
-      throw new Error('Local paths are not supported by download command.\nUse \'wopal skills install <path>\' to install local skills.');
+
+    if (parsed.type === "local") {
+      throw new Error(
+        "Local paths are not supported by download command.\nUse 'wopal skills install <path>' to install local skills.",
+      );
     }
 
     if (!skillFilter) {
-      throw new Error(`Missing skill name in source: ${source}\nUse format: owner/repo@skill-name\nExample: owner/repo@my-skill`);
+      throw new Error(
+        `Missing skill name in source: ${source}\nUse format: owner/repo@skill-name\nExample: owner/repo@my-skill`,
+      );
     }
 
     const ownerRepo = getOwnerRepo(parsed);
-    
+
     if (!ownerRepo) {
-      throw new Error(`Invalid source format: ${source}\nUse format: owner/repo@skill-name`);
+      throw new Error(
+        `Invalid source format: ${source}\nUse format: owner/repo@skill-name`,
+      );
     }
 
-    const skillNames = skillFilter.split(',').map((s) => s.trim());
+    const skillNames = skillFilter.split(",").map((s) => s.trim());
 
     for (const skill of skillNames) {
       result.push({
-        owner: ownerRepo.split('/')[0]!,
-        repo: ownerRepo.split('/')[1]!,
+        owner: ownerRepo.split("/")[0]!,
+        repo: ownerRepo.split("/")[1]!,
         skill,
         originalSource: `${ownerRepo}@${skill}`,
       });
@@ -68,9 +78,12 @@ function parseSources(sources: string[]): ParsedSkillSource[] {
 }
 
 function groupByRepo(
-  sources: ParsedSkillSource[]
+  sources: ParsedSkillSource[],
 ): Map<string, Array<{ skill: string; originalSource: string }>> {
-  const grouped = new Map<string, Array<{ skill: string; originalSource: string }>>();
+  const grouped = new Map<
+    string,
+    Array<{ skill: string; originalSource: string }>
+  >();
 
   for (const source of sources) {
     const key = `${source.owner}/${source.repo}`;
@@ -91,17 +104,27 @@ async function downloadFromRepo(
   skills: Array<{ skill: string; originalSource: string }>,
   inboxPath: string,
   force: boolean,
-  ref?: string
-): Promise<{ success: string[]; failed: Array<{ skill: string; error: string }> }> {
-  const result = { success: [] as string[], failed: [] as Array<{ skill: string; error: string }> };
+  ref?: string,
+): Promise<{
+  success: string[];
+  failed: Array<{ skill: string; error: string }>;
+}> {
+  const result = {
+    success: [] as string[],
+    failed: [] as Array<{ skill: string; error: string }>,
+  };
 
   logger?.log(`Parsing source: https://github.com/${repo}`);
   const parsed = parseSource(`https://github.com/${repo}`);
-  if (parsed.type === 'local') {
-    throw new Error('Local paths are not supported by download command.\nUse \'wopal skills install <path>\' to install local skills.');
+  if (parsed.type === "local") {
+    throw new Error(
+      "Local paths are not supported by download command.\nUse 'wopal skills install <path>' to install local skills.",
+    );
   }
 
-  logger?.log(`Source URL: ${parsed.url}, ref: ${ref || parsed.ref || 'default'}`);
+  logger?.log(
+    `Source URL: ${parsed.url}, ref: ${ref || parsed.ref || "default"}`,
+  );
   let tempDir: string | null = null;
   let commitSha: string | null = null;
 
@@ -120,12 +143,18 @@ async function downloadFromRepo(
 
     const skillNames = skills.map((s) => s.skill);
     const targetSkills = filterSkills(discoveredSkills, skillNames);
-    logger?.log(`Filtered ${targetSkills.length} target skills: ${targetSkills.map(s => s.name).join(', ')}`);
+    logger?.log(
+      `Filtered ${targetSkills.length} target skills: ${targetSkills.map((s) => s.name).join(", ")}`,
+    );
 
-    const foundSkillNames = new Set(targetSkills.map((s) => s.name.toLowerCase()));
+    const foundSkillNames = new Set(
+      targetSkills.map((s) => s.name.toLowerCase()),
+    );
     for (const requested of skillNames) {
       if (!foundSkillNames.has(requested.toLowerCase())) {
-        const availableSkills = discoveredSkills.map((s) => `  - ${getSkillDisplayName(s)}`).join('\n');
+        const availableSkills = discoveredSkills
+          .map((s) => `  - ${getSkillDisplayName(s)}`)
+          .join("\n");
         result.failed.push({
           skill: requested,
           error: `Skill '${requested}' not found in repository '${repo}'\nAvailable skills:\n${availableSkills}`,
@@ -143,18 +172,28 @@ async function downloadFromRepo(
           skill: skillName,
           error: `Skill '${skillName}' already exists in INBOX\nUse --force to overwrite`,
         });
-        logger?.log(`Skill '${skillName}' already exists in INBOX (use --force to overwrite)`);
+        logger?.log(
+          `Skill '${skillName}' already exists in INBOX (use --force to overwrite)`,
+        );
         continue;
       }
 
-      logger?.log(`Copying skill '${skillName}' from ${skill.path} to ${skillDestPath}`);
+      logger?.log(
+        `Copying skill '${skillName}' from ${skill.path} to ${skillDestPath}`,
+      );
       await mkdir(skillDestPath, { recursive: true });
       await cp(skill.path, skillDestPath, { recursive: true });
 
       const token = getGitHubToken();
-      const skillRelativePath = skill.path.replace(tempDir!, '');
-      logger?.log(`Fetching skill folder hash for ${repo}/${skillRelativePath}`);
-      const skillFolderHash = await fetchSkillFolderHash(repo, skillRelativePath, token);
+      const skillRelativePath = skill.path.replace(tempDir!, "");
+      logger?.log(
+        `Fetching skill folder hash for ${repo}/${skillRelativePath}`,
+      );
+      const skillFolderHash = await fetchSkillFolderHash(
+        repo,
+        skillRelativePath,
+        token,
+      );
 
       if (skillFolderHash) {
         logger?.log(`Got skill folder hash: ${skillFolderHash}`);
@@ -184,10 +223,14 @@ async function downloadFromRepo(
       logger?.log(`Skill '${skillName}' successfully downloaded`);
     }
   } catch (error) {
-    logger?.log(`Error during download: ${error instanceof Error ? error.message : String(error)}`);
+    logger?.log(
+      `Error during download: ${error instanceof Error ? error.message : String(error)}`,
+    );
     if (error instanceof GitCloneError) {
       if (error.isAuthError) {
-        throw new Error(`Repository '${repo}' not found or access denied\nCheck repository name and your access permissions`);
+        throw new Error(
+          `Repository '${repo}' not found or access denied\nCheck repository name and your access permissions`,
+        );
       }
       throw error;
     }
@@ -204,58 +247,88 @@ async function downloadFromRepo(
 
 export function registerDownloadCommand(program: Command) {
   const command = program
-    .command('download <sources...>')
-    .description('Download skills to INBOX for security scanning before installation')
-    .option('--force', 'Overwrite existing skills in INBOX')
-    .option('--branch <branch>', 'Download from specific branch')
-    .option('--tag <tag>', 'Download from specific tag')
-    .action(async (sources: string[], options: { force?: boolean; branch?: string; tag?: string }) => {
-      try {
-        const inboxPath = process.env.SKILL_INBOX_DIR || join(homedir(), '.wopal', 'skills', 'INBOX');
-        logger?.log(`INBOX directory: ${inboxPath}`);
-        logger?.log(`Parsing sources: ${sources.join(', ')}`);
+    .command("download <sources...>")
+    .description(
+      "Download skills to INBOX for security scanning before installation",
+    )
+    .option("--force", "Overwrite existing skills in INBOX")
+    .option("--branch <branch>", "Download from specific branch")
+    .option("--tag <tag>", "Download from specific tag")
+    .action(
+      async (
+        sources: string[],
+        options: { force?: boolean; branch?: string; tag?: string },
+      ) => {
+        try {
+          const inboxPath =
+            process.env.SKILL_INBOX_DIR ||
+            join(homedir(), ".wopal", "skills", "INBOX");
+          logger?.log(`INBOX directory: ${inboxPath}`);
+          logger?.log(`Parsing sources: ${sources.join(", ")}`);
 
-        const parsedSources = parseSources(sources);
-        logger?.log(`Parsed ${parsedSources.length} skill sources`);
+          const parsedSources = parseSources(sources);
+          logger?.log(`Parsed ${parsedSources.length} skill sources`);
 
-        const grouped = groupByRepo(parsedSources);
-        logger?.log(`Grouped into ${grouped.size} repositories`);
+          const grouped = groupByRepo(parsedSources);
+          logger?.log(`Grouped into ${grouped.size} repositories`);
 
-        const allResults: Array<{ success: string[]; failed: Array<{ skill: string; error: string }> }> = [];
+          const allResults: Array<{
+            success: string[];
+            failed: Array<{ skill: string; error: string }>;
+          }> = [];
 
-        for (const [repo, skills] of grouped.entries()) {
-          console.log(`Downloading from ${repo}${options.branch ? `@${options.branch}` : ''}${options.tag ? `@${options.tag}` : ''}...`);
-          logger?.log(`Processing repository: ${repo} with ${skills.length} skills`);
-          const ref = options.tag || options.branch;
-          const result = await downloadFromRepo(repo, skills, inboxPath, options.force || false, ref);
-          allResults.push(result);
-        }
-
-        const totalSuccess = allResults.flatMap((r) => r.success);
-        const totalFailed = allResults.flatMap((r) => r.failed);
-
-        if (totalSuccess.length > 0) {
-          if (totalSuccess.length === 1) {
-            console.log(`✓ Downloaded skill '${totalSuccess[0]}' to INBOX${options.force ? ' (overwritten)' : ''}`);
-          } else {
-            console.log(`✓ Downloaded ${totalSuccess.length} skills to INBOX${options.force ? ' (overwritten)' : ''}`);
+          for (const [repo, skills] of grouped.entries()) {
+            console.log(
+              `Downloading from ${repo}${options.branch ? `@${options.branch}` : ""}${options.tag ? `@${options.tag}` : ""}...`,
+            );
+            logger?.log(
+              `Processing repository: ${repo} with ${skills.length} skills`,
+            );
+            const ref = options.tag || options.branch;
+            const result = await downloadFromRepo(
+              repo,
+              skills,
+              inboxPath,
+              options.force || false,
+              ref,
+            );
+            allResults.push(result);
           }
-        }
 
-        if (totalFailed.length > 0) {
-          for (const failure of totalFailed) {
-            console.error(`\n✗ Failed to download '${failure.skill}':`);
-            console.error(failure.error);
+          const totalSuccess = allResults.flatMap((r) => r.success);
+          const totalFailed = allResults.flatMap((r) => r.failed);
+
+          if (totalSuccess.length > 0) {
+            if (totalSuccess.length === 1) {
+              console.log(
+                `✓ Downloaded skill '${totalSuccess[0]}' to INBOX${options.force ? " (overwritten)" : ""}`,
+              );
+            } else {
+              console.log(
+                `✓ Downloaded ${totalSuccess.length} skills to INBOX${options.force ? " (overwritten)" : ""}`,
+              );
+            }
           }
+
+          if (totalFailed.length > 0) {
+            for (const failure of totalFailed) {
+              console.error(`\n✗ Failed to download '${failure.skill}':`);
+              console.error(failure.error);
+            }
+            process.exit(1);
+          }
+        } catch (error) {
+          console.error(
+            `\nError: ${error instanceof Error ? error.message : String(error)}`,
+          );
           process.exit(1);
         }
-      } catch (error) {
-        console.error(`\nError: ${error instanceof Error ? error.message : String(error)}`);
-        process.exit(1);
-      }
-    });
+      },
+    );
 
-  command.addHelpText('after', `
+  command.addHelpText(
+    "after",
+    `
 
 SOURCE FORMAT:
   owner/repo@skill-name            Download single skill
@@ -306,5 +379,6 @@ WORKFLOW:
   2. Download:      wopal skills download <source>...
   3. Scan:          wopal skills scan <skill-name>
   4. Install:       wopal skills install <skill-name>
-`);
+`,
+  );
 }

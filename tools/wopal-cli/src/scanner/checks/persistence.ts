@@ -1,5 +1,5 @@
-import { Check, IOCData, Finding } from '../types';
-import { scanDirectory, findPatternInFile } from '../scanner-utils.js';
+import { Check, IOCData, Finding } from "../types";
+import { scanDirectory, findPatternInFile } from "../scanner-utils.js";
 
 const PERSISTENCE_PATTERNS = [
   /crontab.*-e/i,
@@ -11,25 +11,32 @@ const PERSISTENCE_PATTERNS = [
 ];
 
 export const check: Check = {
-  id: 'persistence',
-  name: '持久化机制',
-  severity: 'warning',
-  async run(skillPath: string, iocData: IOCData, whitelist: string[]): Promise<Finding[]> {
+  id: "persistence",
+  name: "持久化机制",
+  severity: "warning",
+  async run(
+    skillPath: string,
+    iocData: IOCData,
+    whitelist: string[],
+  ): Promise<Finding[]> {
     const findings: Finding[] = [];
-    
-    const fileFindings = await scanDirectory(skillPath, async (filePath, content) => {
-      const fileFindings: Finding[] = [];
-      
-      for (const pattern of PERSISTENCE_PATTERNS) {
-        const patternFindings = findPatternInFile(content, pattern, filePath);
-        fileFindings.push(...patternFindings);
-      }
-      
-      return fileFindings;
-    });
-    
+
+    const fileFindings = await scanDirectory(
+      skillPath,
+      async (filePath, content) => {
+        const fileFindings: Finding[] = [];
+
+        for (const pattern of PERSISTENCE_PATTERNS) {
+          const patternFindings = findPatternInFile(content, pattern, filePath);
+          fileFindings.push(...patternFindings);
+        }
+
+        return fileFindings;
+      },
+    );
+
     findings.push(...fileFindings);
-    
+
     return findings;
   },
 };

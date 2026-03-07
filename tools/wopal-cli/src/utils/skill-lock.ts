@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+import { execSync } from "child_process";
 
 /**
  * Get GitHub token from user's environment.
@@ -19,9 +19,9 @@ export function getGitHubToken(): string | null {
   }
 
   try {
-    const token = execSync('gh auth token', {
-      encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe'],
+    const token = execSync("gh auth token", {
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
     }).trim();
 
     if (token) {
@@ -47,37 +47,37 @@ export function getGitHubToken(): string | null {
 export async function fetchSkillFolderHash(
   ownerRepo: string,
   skillPath: string,
-  token?: string | null
+  token?: string | null,
 ): Promise<string | null> {
-  let folderPath = skillPath.replace(/\\/g, '/');
+  let folderPath = skillPath.replace(/\\/g, "/");
 
   // Remove leading slash
-  if (folderPath.startsWith('/')) {
+  if (folderPath.startsWith("/")) {
     folderPath = folderPath.slice(1);
   }
 
-  if (folderPath.endsWith('/SKILL.md')) {
+  if (folderPath.endsWith("/SKILL.md")) {
     folderPath = folderPath.slice(0, -9);
-  } else if (folderPath.endsWith('SKILL.md')) {
+  } else if (folderPath.endsWith("SKILL.md")) {
     folderPath = folderPath.slice(0, -8);
   }
 
-  if (folderPath.endsWith('/')) {
+  if (folderPath.endsWith("/")) {
     folderPath = folderPath.slice(0, -1);
   }
 
-  const branches = ['main', 'master'];
+  const branches = ["main", "master"];
 
   for (const branch of branches) {
     try {
       const url = `https://api.github.com/repos/${ownerRepo}/git/trees/${branch}?recursive=1`;
       const headers: Record<string, string> = {
-        Accept: 'application/vnd.github.v3+json',
-        'User-Agent': 'wopal-cli',
+        Accept: "application/vnd.github.v3+json",
+        "User-Agent": "wopal-cli",
       };
 
       if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+        headers["Authorization"] = `Bearer ${token}`;
       }
 
       const response = await fetch(url, { headers });
@@ -96,7 +96,7 @@ export async function fetchSkillFolderHash(
       }
 
       const folderEntry = data.tree.find(
-        (entry) => entry.type === 'tree' && entry.path === folderPath
+        (entry) => entry.type === "tree" && entry.path === folderPath,
       );
 
       if (folderEntry) {

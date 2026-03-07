@@ -1,5 +1,5 @@
-import { Check, IOCData, Finding } from '../types';
-import { scanDirectory, findPatternInFile } from '../scanner-utils.js';
+import { Check, IOCData, Finding } from "../types";
+import { scanDirectory, findPatternInFile } from "../scanner-utils.js";
 
 const BINARY_DOWNLOAD_PATTERNS = [
   /curl.*\.exe/i,
@@ -11,25 +11,32 @@ const BINARY_DOWNLOAD_PATTERNS = [
 ];
 
 export const check: Check = {
-  id: 'binary_download',
-  name: '外部二进制下载',
-  severity: 'warning',
-  async run(skillPath: string, iocData: IOCData, whitelist: string[]): Promise<Finding[]> {
+  id: "binary_download",
+  name: "外部二进制下载",
+  severity: "warning",
+  async run(
+    skillPath: string,
+    iocData: IOCData,
+    whitelist: string[],
+  ): Promise<Finding[]> {
     const findings: Finding[] = [];
-    
-    const fileFindings = await scanDirectory(skillPath, async (filePath, content) => {
-      const fileFindings: Finding[] = [];
-      
-      for (const pattern of BINARY_DOWNLOAD_PATTERNS) {
-        const patternFindings = findPatternInFile(content, pattern, filePath);
-        fileFindings.push(...patternFindings);
-      }
-      
-      return fileFindings;
-    });
-    
+
+    const fileFindings = await scanDirectory(
+      skillPath,
+      async (filePath, content) => {
+        const fileFindings: Finding[] = [];
+
+        for (const pattern of BINARY_DOWNLOAD_PATTERNS) {
+          const patternFindings = findPatternInFile(content, pattern, filePath);
+          fileFindings.push(...patternFindings);
+        }
+
+        return fileFindings;
+      },
+    );
+
     findings.push(...fileFindings);
-    
+
     return findings;
   },
 };

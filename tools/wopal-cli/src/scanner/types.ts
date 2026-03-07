@@ -1,4 +1,4 @@
-export type Severity = 'critical' | 'warning';
+export type Severity = "critical" | "warning";
 
 export interface Finding {
   file: string;
@@ -11,14 +11,18 @@ export interface Check {
   id: string;
   name: string;
   severity: Severity;
-  run(skillPath: string, iocData: IOCData, whitelist: string[]): Promise<Finding[]>;
+  run(
+    skillPath: string,
+    iocData: IOCData,
+    whitelist: string[],
+  ): Promise<Finding[]>;
 }
 
 export interface CheckResult {
   id: string;
   name: string;
   severity: Severity;
-  status: 'pass' | 'fail';
+  status: "pass" | "fail";
   findings: Finding[];
 }
 
@@ -26,7 +30,7 @@ export interface ScanResult {
   skillName: string;
   scanTime: string;
   riskScore: number;
-  status: 'pass' | 'fail';
+  status: "pass" | "fail";
   checks: Record<string, CheckResult>;
   summary: {
     critical: number;

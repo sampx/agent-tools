@@ -1,14 +1,19 @@
-import { existsSync, statSync, readdirSync } from 'fs';
-import { join } from 'path';
-import { homedir } from 'os';
+import { existsSync, statSync, readdirSync } from "fs";
+import { join } from "path";
+import { homedir } from "os";
 
 export function getInboxDir(): string {
-  return process.env.SKILL_INBOX_DIR || join(homedir(), '.wopal', 'skills', 'INBOX');
+  return (
+    process.env.WOPAL_SKILL_INBOX_DIR ||
+    join(homedir(), ".wopal", "skills", "INBOX")
+  );
 }
 
 export function isInboxPath(skillPath: string): boolean {
   const inboxDir = getInboxDir();
-  const absolutePath = skillPath.startsWith('/') ? skillPath : join(process.cwd(), skillPath);
+  const absolutePath = skillPath.startsWith("/")
+    ? skillPath
+    : join(process.cwd(), skillPath);
   return absolutePath.startsWith(inboxDir);
 }
 
@@ -33,7 +38,7 @@ export function getDirectorySize(dirPath: string): number {
 }
 
 export function formatSize(bytes: number): string {
-  const units = ['B', 'KB', 'MB', 'GB'];
+  const units = ["B", "KB", "MB", "GB"];
   let size = bytes;
   let unitIndex = 0;
 
@@ -45,22 +50,25 @@ export function formatSize(bytes: number): string {
   return `${size.toFixed(1)} ${units[unitIndex]}`;
 }
 
-export function buildDirectoryTree(dirPath: string, prefix: string = ''): string {
-  if (!existsSync(dirPath)) return '';
+export function buildDirectoryTree(
+  dirPath: string,
+  prefix: string = "",
+): string {
+  if (!existsSync(dirPath)) return "";
 
   const files = readdirSync(dirPath);
-  let tree = '';
+  let tree = "";
 
   files.forEach((file, index) => {
     const filePath = join(dirPath, file);
     const stats = statSync(filePath);
     const isLast = index === files.length - 1;
-    const connector = isLast ? '└── ' : '├── ';
+    const connector = isLast ? "└── " : "├── ";
 
     tree += `${prefix}${connector}${file}\n`;
 
     if (stats.isDirectory()) {
-      const newPrefix = prefix + (isLast ? '    ' : '│   ');
+      const newPrefix = prefix + (isLast ? "    " : "│   ");
       tree += buildDirectoryTree(filePath, newPrefix);
     }
   });

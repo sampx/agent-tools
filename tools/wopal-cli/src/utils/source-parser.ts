@@ -1,5 +1,5 @@
-import { isAbsolute, resolve } from 'path';
-import type { ParsedSource } from './types.ts';
+import { isAbsolute, resolve } from "path";
+import type { ParsedSource } from "./types.ts";
 
 /**
  * Extract owner/repo (or group/subgroup/repo for GitLab) from a parsed source
@@ -8,7 +8,7 @@ import type { ParsedSource } from './types.ts';
  * Supports any Git host with an owner/repo URL structure, including GitLab subgroups.
  */
 export function getOwnerRepo(parsed: ParsedSource): string | null {
-  if (parsed.type === 'local') {
+  if (parsed.type === "local") {
     return null;
   }
 
@@ -16,17 +16,17 @@ export function getOwnerRepo(parsed: ParsedSource): string | null {
   const sshMatch = parsed.url.match(/^git@[^:]+:(.+)$/);
   if (sshMatch) {
     let path = sshMatch[1]!;
-    path = path.replace(/\.git$/, '');
+    path = path.replace(/\.git$/, "");
 
     // Must have at least owner/repo (one slash)
-    if (path.includes('/')) {
+    if (path.includes("/")) {
       return path;
     }
     return null;
   }
 
   // Handle HTTP(S) URLs
-  if (!parsed.url.startsWith('http://') && !parsed.url.startsWith('https://')) {
+  if (!parsed.url.startsWith("http://") && !parsed.url.startsWith("https://")) {
     return null;
   }
 
@@ -34,10 +34,10 @@ export function getOwnerRepo(parsed: ParsedSource): string | null {
     const url = new URL(parsed.url);
     // Get pathname, remove leading slash and trailing .git
     let path = url.pathname.slice(1);
-    path = path.replace(/\.git$/, '');
+    path = path.replace(/\.git$/, "");
 
     // Must have at least owner/repo (one slash)
-    if (path.includes('/')) {
+    if (path.includes("/")) {
       return path;
     }
   } catch {
@@ -51,7 +51,9 @@ export function getOwnerRepo(parsed: ParsedSource): string | null {
  * Extract owner and repo from an owner/repo string.
  * Returns null if the format is invalid.
  */
-export function parseOwnerRepo(ownerRepo: string): { owner: string; repo: string } | null {
+export function parseOwnerRepo(
+  ownerRepo: string,
+): { owner: string; repo: string } | null {
   const match = ownerRepo.match(/^([^/]+)\/([^/]+)$/);
   if (match) {
     return { owner: match[1]!, repo: match[2]! };
@@ -64,7 +66,10 @@ export function parseOwnerRepo(ownerRepo: string): { owner: string; repo: string
  * Returns true if private, false if public, null if unable to determine.
  * Only works for GitHub repositories (GitLab not supported).
  */
-export async function isRepoPrivate(owner: string, repo: string): Promise<boolean | null> {
+export async function isRepoPrivate(
+  owner: string,
+  repo: string,
+): Promise<boolean | null> {
   try {
     const res = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
 
@@ -87,10 +92,10 @@ export async function isRepoPrivate(owner: string, repo: string): Promise<boolea
 function isLocalPath(input: string): boolean {
   return (
     isAbsolute(input) ||
-    input.startsWith('./') ||
-    input.startsWith('../') ||
-    input === '.' ||
-    input === '..' ||
+    input.startsWith("./") ||
+    input.startsWith("../") ||
+    input === "." ||
+    input === ".." ||
     // Windows absolute paths like C:\ or D:\
     /^[a-zA-Z]:[/\\]/.test(input)
   );
@@ -102,7 +107,7 @@ function isLocalPath(input: string): boolean {
  */
 // Source aliases: map common shorthand to canonical source
 const SOURCE_ALIASES: Record<string, string> = {
-  'coinbase/agentWallet': 'coinbase/agentic-wallet-skills',
+  "coinbase/agentWallet": "coinbase/agentic-wallet-skills",
 };
 
 export function parseSource(input: string): ParsedSource {
@@ -117,18 +122,20 @@ export function parseSource(input: string): ParsedSource {
     const resolvedPath = resolve(input);
     // Return local type even if path doesn't exist - we'll handle validation in main flow
     return {
-      type: 'local',
+      type: "local",
       url: resolvedPath, // Store resolved path in url for consistency
       localPath: resolvedPath,
     };
   }
 
   // GitHub URL with path: https://github.com/owner/repo/tree/branch/path/to/skill
-  const githubTreeWithPathMatch = input.match(/github\.com\/([^/]+)\/([^/]+)\/tree\/([^/]+)\/(.+)/);
+  const githubTreeWithPathMatch = input.match(
+    /github\.com\/([^/]+)\/([^/]+)\/tree\/([^/]+)\/(.+)/,
+  );
   if (githubTreeWithPathMatch) {
     const [, owner, repo, ref, subpath] = githubTreeWithPathMatch;
     return {
-      type: 'github',
+      type: "github",
       url: `https://github.com/${owner}/${repo}.git`,
       ref,
       subpath,
@@ -136,11 +143,13 @@ export function parseSource(input: string): ParsedSource {
   }
 
   // GitHub URL with branch only: https://github.com/owner/repo/tree/branch
-  const githubTreeMatch = input.match(/github\.com\/([^/]+)\/([^/]+)\/tree\/([^/]+)$/);
+  const githubTreeMatch = input.match(
+    /github\.com\/([^/]+)\/([^/]+)\/tree\/([^/]+)$/,
+  );
   if (githubTreeMatch) {
     const [, owner, repo, ref] = githubTreeMatch;
     return {
-      type: 'github',
+      type: "github",
       url: `https://github.com/${owner}/${repo}.git`,
       ref,
     };
@@ -150,9 +159,9 @@ export function parseSource(input: string): ParsedSource {
   const githubRepoMatch = input.match(/github\.com\/([^/]+)\/([^/]+)/);
   if (githubRepoMatch) {
     const [, owner, repo] = githubRepoMatch;
-    const cleanRepo = repo!.replace(/\.git$/, '');
+    const cleanRepo = repo!.replace(/\.git$/, "");
     return {
-      type: 'github',
+      type: "github",
       url: `https://github.com/${owner}/${cleanRepo}.git`,
     };
   }
@@ -161,14 +170,15 @@ export function parseSource(input: string): ParsedSource {
   // Key identifier is the "/-/tree/" path pattern unique to GitLab.
   // Supports subgroups by using a non-greedy match for the repository path.
   const gitlabTreeWithPathMatch = input.match(
-    /^(https?):\/\/([^/]+)\/(.+?)\/-\/tree\/([^/]+)\/(.+)/
+    /^(https?):\/\/([^/]+)\/(.+?)\/-\/tree\/([^/]+)\/(.+)/,
   );
   if (gitlabTreeWithPathMatch) {
-    const [, protocol, hostname, repoPath, ref, subpath] = gitlabTreeWithPathMatch;
-    if (hostname !== 'github.com' && repoPath) {
+    const [, protocol, hostname, repoPath, ref, subpath] =
+      gitlabTreeWithPathMatch;
+    if (hostname !== "github.com" && repoPath) {
       return {
-        type: 'gitlab',
-        url: `${protocol}://${hostname}/${repoPath.replace(/\.git$/, '')}.git`,
+        type: "gitlab",
+        url: `${protocol}://${hostname}/${repoPath.replace(/\.git$/, "")}.git`,
         ref,
         subpath,
       };
@@ -176,13 +186,15 @@ export function parseSource(input: string): ParsedSource {
   }
 
   // GitLab URL with branch only (any GitLab instance): https://gitlab.com/owner/repo/-/tree/branch
-  const gitlabTreeMatch = input.match(/^(https?):\/\/([^/]+)\/(.+?)\/-\/tree\/([^/]+)$/);
+  const gitlabTreeMatch = input.match(
+    /^(https?):\/\/([^/]+)\/(.+?)\/-\/tree\/([^/]+)$/,
+  );
   if (gitlabTreeMatch) {
     const [, protocol, hostname, repoPath, ref] = gitlabTreeMatch;
-    if (hostname !== 'github.com' && repoPath) {
+    if (hostname !== "github.com" && repoPath) {
       return {
-        type: 'gitlab',
-        url: `${protocol}://${hostname}/${repoPath.replace(/\.git$/, '')}.git`,
+        type: "gitlab",
+        url: `${protocol}://${hostname}/${repoPath.replace(/\.git$/, "")}.git`,
         ref,
       };
     }
@@ -195,9 +207,9 @@ export function parseSource(input: string): ParsedSource {
   if (gitlabRepoMatch) {
     const repoPath = gitlabRepoMatch[1]!;
     // Must have at least owner/repo (one slash)
-    if (repoPath.includes('/')) {
+    if (repoPath.includes("/")) {
       return {
-        type: 'gitlab',
+        type: "gitlab",
         url: `https://gitlab.com/${repoPath}.git`,
       };
     }
@@ -207,20 +219,30 @@ export function parseSource(input: string): ParsedSource {
   // Exclude paths that start with . or / to avoid matching local paths
   // First check for @skill syntax: owner/repo@skill-name
   const atSkillMatch = input.match(/^([^/]+)\/([^/@]+)@(.+)$/);
-  if (atSkillMatch && !input.includes(':') && !input.startsWith('.') && !input.startsWith('/')) {
+  if (
+    atSkillMatch &&
+    !input.includes(":") &&
+    !input.startsWith(".") &&
+    !input.startsWith("/")
+  ) {
     const [, owner, repo, skillFilter] = atSkillMatch;
     return {
-      type: 'github',
+      type: "github",
       url: `https://github.com/${owner}/${repo}.git`,
       skillFilter,
     };
   }
 
   const shorthandMatch = input.match(/^([^/]+)\/([^/]+)(?:\/(.+))?$/);
-  if (shorthandMatch && !input.includes(':') && !input.startsWith('.') && !input.startsWith('/')) {
+  if (
+    shorthandMatch &&
+    !input.includes(":") &&
+    !input.startsWith(".") &&
+    !input.startsWith("/")
+  ) {
     const [, owner, repo, subpath] = shorthandMatch;
     return {
-      type: 'github',
+      type: "github",
       url: `https://github.com/${owner}/${repo}.git`,
       subpath,
     };
@@ -230,14 +252,14 @@ export function parseSource(input: string): ParsedSource {
   // This is the final fallback for URLs - we'll check for /.well-known/skills/index.json
   if (isWellKnownUrl(input)) {
     return {
-      type: 'well-known',
+      type: "well-known",
       url: input,
     };
   }
 
   // Fallback: treat as direct git URL
   return {
-    type: 'git',
+    type: "git",
     url: input,
   };
 }
@@ -248,7 +270,7 @@ export function parseSource(input: string): ParsedSource {
  * Also excludes URLs that look like git repos (.git suffix).
  */
 function isWellKnownUrl(input: string): boolean {
-  if (!input.startsWith('http://') && !input.startsWith('https://')) {
+  if (!input.startsWith("http://") && !input.startsWith("https://")) {
     return false;
   }
 
@@ -256,13 +278,17 @@ function isWellKnownUrl(input: string): boolean {
     const parsed = new URL(input);
 
     // Exclude known git hosts that have their own handling
-    const excludedHosts = ['github.com', 'gitlab.com', 'raw.githubusercontent.com'];
+    const excludedHosts = [
+      "github.com",
+      "gitlab.com",
+      "raw.githubusercontent.com",
+    ];
     if (excludedHosts.includes(parsed.hostname)) {
       return false;
     }
 
     // Don't match URLs that look like git repos (should be handled by git type)
-    if (input.endsWith('.git')) {
+    if (input.endsWith(".git")) {
       return false;
     }
 

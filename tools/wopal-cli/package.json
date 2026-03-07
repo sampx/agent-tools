@@ -8,6 +8,8 @@
   "scripts": {
     "build": "tsc && chmod +x bin/cli.js",
     "dev": "node --loader ts-node/esm src/cli.ts",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\"",
     "test": "vitest",
     "test:run": "vitest run"
   },
@@ -22,6 +24,7 @@
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
     "@types/node": "^22.19.15",
+    "prettier": "^3.6.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"

@@ -1,6 +1,6 @@
-import * as path from 'path';
-import * as fs from 'fs';
-import { Check, IOCData, Finding } from '../types';
+import * as path from "path";
+import * as fs from "fs";
+import { Check, IOCData, Finding } from "../types";
 
 const MCP_PATTERNS = [
   /systemPrompt.*http/i,
@@ -11,22 +11,26 @@ const MCP_PATTERNS = [
 ];
 
 export const check: Check = {
-  id: 'mcp_security',
-  name: 'MCP 配置提示注入',
-  severity: 'critical',
-  async run(skillPath: string, iocData: IOCData, whitelist: string[]): Promise<Finding[]> {
+  id: "mcp_security",
+  name: "MCP 配置提示注入",
+  severity: "critical",
+  async run(
+    skillPath: string,
+    iocData: IOCData,
+    whitelist: string[],
+  ): Promise<Finding[]> {
     const findings: Finding[] = [];
-    
-    const mcpConfigPath = path.join(skillPath, 'mcp-config.json');
-    
+
+    const mcpConfigPath = path.join(skillPath, "mcp-config.json");
+
     if (!fs.existsSync(mcpConfigPath)) {
       return findings;
     }
-    
+
     try {
-      const content = fs.readFileSync(mcpConfigPath, 'utf-8');
-      const lines = content.split('\n');
-      
+      const content = fs.readFileSync(mcpConfigPath, "utf-8");
+      const lines = content.split("\n");
+
       lines.forEach((line, index) => {
         for (const pattern of MCP_PATTERNS) {
           if (pattern.test(line)) {
@@ -42,7 +46,7 @@ export const check: Check = {
     } catch (error) {
       // Skip files that can't be read
     }
-    
+
     return findings;
   },
 };
