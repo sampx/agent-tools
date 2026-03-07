@@ -31,6 +31,10 @@ import { setLogger as setIOCLogger } from "./scanner/ioc-loader.js";
 import { setLogger as setWhitelistLogger } from "./scanner/whitelist.js";
 import { setLogger as setScannerUtilsLogger } from "./scanner/scanner-utils.js";
 import { createInstallCommand } from "./commands/install.js";
+import {
+  registerCheckCommand,
+  setLogger as setCheckLogger,
+} from "./commands/check.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -72,6 +76,7 @@ program
     setIOCLogger(logger);
     setWhitelistLogger(logger);
     setScannerUtilsLogger(logger);
+    setCheckLogger(logger);
 
     logger.log("Debug mode enabled");
   });
@@ -85,6 +90,7 @@ registerListCommand(skillsCommand);
 registerPassthroughCommand(skillsCommand);
 registerDownloadCommand(skillsCommand);
 registerScanCommand(skillsCommand);
+registerCheckCommand(skillsCommand);
 skillsCommand.addCommand(createInstallCommand());
 
 program
