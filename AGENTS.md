@@ -99,6 +99,12 @@ agent-tools/
   - 白名单过滤（减少误报）
   - IOC 数据库支持（`WOPAL_SKILL_IOCDB_DIR` 环境变量）
   - 退出码机制（0/1/2）用于 CI/CD 集成
+- 版本检查：`wopal skills check [skill-name] [--local|--global] [--json]`
+  - 检查已安装技能的版本更新
+  - 支持 GitHub Tree SHA 和本地 hash 比对
+  - 并发控制（最大 5 个并发，3 次重试）
+  - 进度显示和详细报告
+  - JSON 格式输出（便于 CI/CD 集成）
 
 **版本指纹机制**：
 - **GitHub Tree SHA**：技能文件夹级别的哈希（`skillFolderHash`），任何文件变化都会改变
@@ -113,7 +119,7 @@ agent-tools/
 
 **位置**：`tools/wopal-cli/`
 
-**后续扩展**：install、check、update 命令
+**后续扩展**：update 命令
 
 ## 子代理配置
 
