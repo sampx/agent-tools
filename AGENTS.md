@@ -30,7 +30,7 @@ agent-tools/
 |------|------|
 | `commit` | Git 提交助手 |
 | `create-prd` | 创建产品需求文档 |
-| `cupdate-project-charter` | 更新项目章程 |
+| `cupdate-project-spec` | 更新项目规范 |
 | `evaluate-skill` | 评估技能质量 |
 | `execute` | 执行计划 |
 | `opsx` | OpenSpec 命令集 |
@@ -86,40 +86,26 @@ agent-tools/
 
 技能管理命令行工具，实现 INBOX 隔离工作流（下载 → 扫描 → 评估 → 安装）。
 
-**技术栈**：TypeScript + ES modules + commander.js
+**位置**：`tools/wopal-cli/`
 
-**功能**：
-- INBOX 管理：`wopal inbox list/show/remove`
-- 技能列表：`wopal list [--info]`
+**项目规范**：详见 `tools/wopal-cli/AGENTS.md`
+
+**核心功能**：
+- INBOX 管理：`wopal skills inbox list/show/remove`
+- 技能列表：`wopal skills list [--info]`
 - 透传搜索：`wopal find [query]`
 - 技能下载：`wopal skills download <sources...> [--branch|--tag] [--force]`
 - 安全扫描：`wopal skills scan [skill-name] [--all] [--json] [--output <file>]`
-  - 20 项静态安全检查（9 项严重 + 11 项警告）
-  - 风险评分机制（严重 × 25 + 警告 × 10）
-  - 白名单过滤（减少误报）
-  - IOC 数据库支持（`WOPAL_SKILL_IOCDB_DIR` 环境变量）
-  - 退出码机制（0/1/2）用于 CI/CD 集成
 - 版本检查：`wopal skills check [skill-name] [--local|--global] [--json]`
-  - 检查已安装技能的版本更新
-  - 支持 GitHub Tree SHA 和本地 hash 比对
-  - 并发控制（最大 5 个并发，3 次重试）
-  - 进度显示和详细报告
-  - JSON 格式输出（便于 CI/CD 集成）
+- 技能安装：`wopal skills install <skill-name> [--target] [--force]`
 
-**版本指纹机制**：
-- **GitHub Tree SHA**：技能文件夹级别的哈希（`skillFolderHash`），任何文件变化都会改变
-- **Commit SHA**：用于追溯具体提交（`commit`）
-- **分支/标签记录**：记录用户指定的版本（`ref`/`tag`）
-- **GitHub Token**：支持 `GITHUB_TOKEN`/`GH_TOKEN`/`gh auth token` 认证（提高 API 速率限制）
-
-**配置**：
-- 环境变量：`WOPAL_SKILL_INBOX_DIR`（默认 `~/.wopal/skills/INBOX`）
-- IOC 路径：`WOPAL_SKILL_IOCDB_DIR`（绝对路径，默认 `projects/agent-tools/skills/download/openclaw/openclaw-security-monitor/ioc/`）
-- 调试模式：`-d/--debug`（日志输出到 cwd/logs/）
-
-**位置**：`tools/wopal-cli/`
-
-**后续扩展**：update 命令
+**开发命令**：
+```bash
+pnpm build          # 编译 TypeScript
+pnpm dev            # 开发模式
+pnpm test           # 运行测试
+pnpm format         # 代码格式化
+```
 
 ## 子代理配置
 
