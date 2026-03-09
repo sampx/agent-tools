@@ -1,4 +1,4 @@
-# Capability: wopal-cli-skills-source-tracking
+# Capability: wopal-cli-skills-check
 
 技能源头追踪能力，用于检测已安装技能的版本变更。
 
@@ -8,21 +8,13 @@
 
 ## Requirements
 
-### Requirement: 统一版本指纹机制
+### Requirement: 版本指纹机制（引用）
 
-系统 MUST 使用统一的版本指纹机制追踪技能版本，无论安装到全局还是项目级。
+**WHEN** 系统需要使用版本指纹机制追踪技能版本，**THEN** 系统按照 `wopal-cli-skills-lock-management` 规格中的"版本指纹完整机制"章节（line 172-222）定义处理。
 
-#### Scenario: 远程技能版本指纹
-- **WHEN** 安装 GitHub 技能
-- **THEN** 系统必须使用 GitHub Tree SHA 作为版本指纹
-- **AND** 全局锁和项目级锁使用相同的 Tree SHA
-- **AND** 系统通过 `fetchSkillFolderHash(ownerRepo, skillPath, token)` 获取
-
-#### Scenario: 本地技能版本指纹
-- **WHEN** 安装 my-skills 技能
-- **THEN** 系统必须使用源码 hash 作为版本指纹
-- **AND** 全局锁和项目级锁使用相同的 hash
-- **AND** 系统通过 `computeSkillFolderHash(my-skills/skill-name)` 计算
+#### Scenario: 使用统一的版本指纹机制
+- **WHEN** 检测技能更新
+- **THEN** 系统使用 lock-management 规格中定义的版本指纹机制（GitHub Tree SHA 或本地 hash）
 
 ### Requirement: 检测远程技能更新（使用 GitHub Tree SHA）
 
@@ -109,10 +101,6 @@
 - **WHEN** 所有技能都是最新版本
 - **THEN** 系统显示 "All skills are up to date"
 
-#### Scenario: 建议更新操作
-- **WHEN** 检测到技能有更新
-- **THEN** 系统在变更报告中建议更新命令
-- **AND** 系统显示 "To update: wopal skills update skill-name"
 
 #### Scenario: 详细报告格式
 - **WHEN** 检查完成且有变更
