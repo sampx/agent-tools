@@ -36,7 +36,7 @@ RUN curl -o- "https://raw.githubusercontent.com/nvm-sh/nvm/${NVM_VERSION}/instal
     nvm alias default node && \
     nvm use default && \
     ln -sf \$(dirname \$(which node)) $NVM_DIR/default && \
-    npm install -g @ast-grep/cli opencode-ai@latest"
+    npm install -g @ast-grep/cli"
 
 # 安装 uv 和 Bun
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
@@ -54,6 +54,13 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no
 
 # 安装 Flutter
 RUN git clone https://github.com/flutter/flutter.git -b stable /home/coder/.flutter-sdk
+
+# -----------------
+# 频繁变动层分离
+# 因为属于常更新的底层工具，为了避免破坏上方环境的层缓存被置于最后构建
+# -----------------
+ARG OPENCODE_BUILD_TIME=0
+RUN bash -c "source $NVM_DIR/nvm.sh && npm install -g opencode-ai@latest"
 
 # 针对基础环境目录进行权限平权
 USER root
