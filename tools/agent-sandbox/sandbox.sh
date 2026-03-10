@@ -49,28 +49,39 @@ find_workspace_root() {
 validate_target_dir() {
     local target="$1"
     
-    if [ ! -d "$target" ]; then
-        echo "Error: Directory '$target' does not exist." >&2
-        exit 1
+    # 将执行发生时的原始用户输入目录作为基准试图捕获
+    local abs_target
+    
+    # 尝试一: 如果是用户直接给的一个相对目前所在敲指令终端位置能找到的（或直接就是绝对路径），优先用它。
+    # 比如在 /wopal 目录下执行 run projects/agent-tools
+    if [ -d "$target" ]; then
+        abs_target="$(cd "$target" && pwd)"
+    else
+        # 尝试二: 可能用户传入的是一种“相对于工作空间大根部”的语法。
+        # 我们先向上找根工作空间。如果找得到并且在其下面存在这个组合目录，我们就切过去。
+        local ws_root
+        if ws_root="$(find_workspace_root "$PWD")" && [ -d "$ws_root/$target" ]; then
+            abs_target="$(cd "$ws_root/$target" && pwd)"
+        else
+            echo "Error: Directory '$target' does not exist." >&2
+            exit 1
+        fi
     fi
     
-    # 将指定路径转化为系统绝对路径
-    local abs_target="$(cd "$target" && pwd)"
-    
-    local ws_root
-    if ! ws_root="$(find_workspace_root "$abs_target")"; then
+    local final_ws_root
+    if ! final_ws_root="$(find_workspace_root "$abs_target")"; then
         exit 1
     fi
     
     # 【安全拦截 1号】：如果要挂载的就是 Wopal 大盘子根目录，直接断供报错，确保结界的存在意义。
-    if [ "$abs_target" == "$ws_root" ]; then
+    if [ "$abs_target" == "$final_ws_root" ]; then
         echo "Error: Mounting the workspace root is strictly prohibited! The sandbox must target a specific subproject." >&2
         exit 1
     fi
 
     # 【安全拦截 2号】：如果要挂载的压根就在工作空间包围圈外，直接阻拦。
-    if [[ ! "$abs_target" == "$ws_root"/* ]]; then
-        echo "Error: Target directory '$abs_target' is outside the workspace root '$ws_root'." >&2
+    if [[ ! "$abs_target" == "$final_ws_root"/* ]]; then
+        echo "Error: Target directory '$abs_target' is outside the workspace root '$final_ws_root'." >&2
         exit 1
     fi
     
