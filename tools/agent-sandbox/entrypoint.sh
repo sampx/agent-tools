@@ -46,14 +46,22 @@ if [ "$TARGET_UID" != "$CURRENT_UID" ] || [ "$TARGET_GID" != "$CURRENT_GID" ]; t
     # 因为这些文件哪怕属于 1000:1000 （即使未对准），由于其带有 +r 权限，也能在沙箱内被正常读取运行，并极大减缓存写复制风暴。
 fi
 
-# 特别注意: 绝对不接触和修改 /workspace 挂载点下的权限。
-# 该目录是源自于宿主的源码子项目，在桥接好 UID/GID 之后，内部程序读写它如同宿主用户亲临，无需再额外夺权。
+# --- 3. 创建 .opencode 符号链接 ---
+# /shared/opencode 由 Dockerfile 预创建，挂载后包含全局工具
+# 创建符号链接让 opencode 能在 /workspace/.opencode 发现这些工具
+ln -sf /shared/opencode /workspace/.opencode
 
-# --- 3. 环境变量固定与执行权交接 ---
+# --- 4. 环境变量固定与执行权交接 ---
 # 确保接下来跑起来的程序的相对家目录指向 /home/coder 
 export HOME=/home/coder
 export USER=coder
 export NVM_DIR="/home/coder/.nvm"
+export OPENCODE_CONFIG_CONTENT='{
+  "plugin": [
+    "./.opencode/plugins/rules-plugin/src/index.ts"
+  ],
+  "permission": "allow"
+}'
 
 # 使用 setpriv 剥离 root 最高身份，平权并附加上所有的附加组权限（包括前面拿到的 docker socket 组）；
 # 并在接管前 source nvm 脚本当作环境热身，接着把控制权 (exec) 以子用户的身份正式移交给用户传入的命令（例如 opencode）。

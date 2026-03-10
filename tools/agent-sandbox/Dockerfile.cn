@@ -77,6 +77,7 @@ RUN git clone https://gitee.com/mirrors/Flutter.git -b stable /home/coder/.flutt
 # -----------------
 ARG OPENCODE_BUILD_TIME=0
 RUN bash -c "source $NVM_DIR/nvm.sh && npm install -g opencode-ai@latest"
+RUN bash -c "source $NVM_DIR/nvm.sh && npm install -g @fission-ai/openspec@latest"
 
 # 针对基础环境目录进行权限平权
 USER root
@@ -86,7 +87,12 @@ RUN mkdir -p /home/coder/.config/opencode \
     /home/coder/.cache/oh-my-opencode \
     /home/coder/.npm \
     /home/coder/go \
-    && chown -R coder:coder /home/coder
+    /shared/opencode/commands \
+    /shared/opencode/plugins \
+    /shared/opencode/rules \
+    /shared/opencode/skills \
+    /shared/opencode/agents \
+    && chown -R coder:coder /home/coder /shared
 
 # 将 /workspace 指定为容器进入后的默认工作目录（此目录会作为宿主机的项目挂载点）
 WORKDIR /workspace

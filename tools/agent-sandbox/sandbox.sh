@@ -7,15 +7,21 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 IMAGE_NAME="wopal-agent-sandbox-cn:latest"
 USE_CN_MIRROR=true
+SANDBOX_TARGET_DIR=""  # 全局变量，用于 trap 清理
 
-# 检查是否传入了 --no-cn 标志来显式停用加速
+# 提取参数，支持 --no-cn 关闭中国代理模式。无需 --cn 标志，现已默认为 cn 模式。
+CLEANED_ARGS=()
 for arg in "$@"; do
     if [ "$arg" == "--no-cn" ]; then
         IMAGE_NAME="wopal-agent-sandbox:latest"
         USE_CN_MIRROR=false
-        break
+    else
+        CLEANED_ARGS+=("$arg")
     fi
 done
+
+# 将清理后的全局参数覆盖回原有环境变量阵列中
+set -- "${CLEANED_ARGS[@]}"
 
 # 打印帮助信息函数
 show_help() {
@@ -26,10 +32,14 @@ Wopal Agent Sandbox CLI
 
 命令选项:
     run <子项目路径> [被执行指令]  将指定的项目挂载至安全沙箱中执行 OpenCode 或其余指定命令
-    build [--no-cn]   构建 Wopal Agent 沙箱专用的 Docker 运行镜像，当前默认开启国内加速源，使用 --no-cn 停用
-    auth [--no-cn]    快速进入沙箱进行 OpenCode 登录验证并保存授权
-    clean             删除机器上现有的沙箱 Docker 镜像
-    help              显示这条帮助信息
+    serve <子项目路径>            启动后台 OpenCode serve 服务
+    stop-serve <项目标识>         停止后台 serve 服务（项目标识格式：<basename>-<port>）
+    list-serve                    列出运行中的 serve 实例
+    build [--no-cn]               构建 Wopal Agent 沙箱专用的 Docker 运行镜像
+    auth [--no-cn]                快速进入沙箱进行 OpenCode 登录验证并保存授权
+    help                          显示这条帮助信息
+
+注: 以上所有命令都默认使用加速源。你可以随时在命令任意位置添加 --no-cn 显式停用加速。
 
 关于 'run' 命令的参数说明:
     <子项目路径>  要隔离的子孙级项目或 worktree 的路径。(警告: 绝对不可以是工作空间的根目录)
@@ -37,9 +47,21 @@ Wopal Agent Sandbox CLI
     [被执行指令]  (可选) 进入沙箱后执行的命令。如果不提供，默认将执行 'opencode' 智能体。
                    你也可以传入 'bash' 来亲自进入沙箱终端体验交互。
 
+关于 'serve' 命令的参数说明:
+    <子项目路径>  要启动 serve 服务的子项目路径。支持相对路径和 '.' 表示当前目录。
+
+关于 'stop-serve' 命令的参数说明:
+    <项目标识>    要停止的 serve 实例标识，格式为 <basename>-<port>。
+                   例如：wopal-20001 或 flex-scheduler-20005
+                   使用 'list-serve' 命令查看所有运行中的实例及其标识。
+
 调用示例:
     $0 run projects/python/flex-scheduler
-    $0 run --cn .worktrees/cli-feature-sandbox
+    $0 run .worktrees/cli-feature-sandbox
+    $0 serve projects/web/wopal
+    $0 serve .
+    $0 stop-serve wopal-20001
+    $0 list-serve
 EOF
 }
 
@@ -105,23 +127,198 @@ validate_target_dir() {
 # 执行镜像构建指令
 build_image() {
     if [ "$USE_CN_MIRROR" = true ]; then
-        echo -e "${BLUE}Building ${IMAGE_NAME} with Dockerfile.cn (CN Mirror: true)...${NC}"
+        echo "Building ${IMAGE_NAME} with Dockerfile.cn (CN Mirror: true)..."
         docker build -f "$SCRIPT_DIR/Dockerfile.cn" --build-arg OPENCODE_BUILD_TIME=$(date +%Y%m%d) -t "$IMAGE_NAME" "$SCRIPT_DIR"
     else
-        echo -e "${BLUE}Building ${IMAGE_NAME} with Dockerfile (CN Mirror: false)...${NC}"
+        echo "Building ${IMAGE_NAME} with Dockerfile (CN Mirror: false)..."
         docker build -f "$SCRIPT_DIR/Dockerfile" --build-arg OPENCODE_BUILD_TIME=$(date +%Y%m%d) -t "$IMAGE_NAME" "$SCRIPT_DIR"
     fi
 }
 
-# 摘除删除镜像指令
-clean_image() {
-    if docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
-        echo "Removing Docker image '$IMAGE_NAME'..."
-        docker rmi "$IMAGE_NAME"
-    else
-        echo "Docker image '$IMAGE_NAME' does not exist."
-    fi
+# 查找 20000-30000 范围内的可用端口
+find_available_port() {
+    for port in $(seq 20000 30000); do
+        if ! lsof -i :$port >/dev/null 2>&1; then
+            echo $port
+            return 0
+        fi
+    done
+    echo "Error: No available port in range 20000-30000" >&2
+    return 1
 }
+
+# 启动后台 serve 服务
+run_serve() {
+    local target_dir="$1"
+    if [ -z "$target_dir" ]; then
+        echo "Error: Target directory is required."
+        echo "Usage: $0 serve <子项目路径>"
+        exit 1
+    fi
+    
+    local abs_target
+    if ! abs_target="$(validate_target_dir "$target_dir")"; then
+        echo "$abs_target" >&2
+        exit 1
+    fi
+    
+    local project_name=$(basename "$abs_target")
+    
+    # 无镜像时自动构建
+    if ! docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
+        echo "Image not found. Building first..."
+        build_image
+    fi
+    
+    # 查找可用端口
+    local port
+    if ! port="$(find_available_port)"; then
+        exit 1
+    fi
+    
+    local container_name="sandbox-serve-${project_name}-${port}"
+    
+    # 检查同名容器是否已存在
+    if docker ps -a --format '{{.Names}}' | grep -q "^${container_name}$"; then
+        echo "Error: Container '$container_name' already exists."
+        echo "Use '$0 stop-serve ${project_name}-${port}' to stop it first."
+        exit 1
+    fi
+    
+    # 创建必备目录
+    mkdir -p "$HOME/.local/share/opencode"
+    mkdir -p "$HOME/.config/opencode"
+    mkdir -p "$HOME/.cache/opencode"
+    
+    # 追溯工作空间根目录
+    local final_ws_root
+    if ! final_ws_root="$(find_workspace_root "$abs_target")"; then
+        echo "Failed to resolve final workspace root." >&2
+        exit 1
+    fi
+    
+    echo "Starting serve for '$project_name' on port $port..."
+    
+    # 后台启动容器
+    docker run -d \
+        --name "$container_name" \
+        --network host \
+        --restart unless-stopped \
+        -e "HOST_UID=$(id -u)" \
+        -e "HOST_GID=$(id -g)" \
+        -v "$final_ws_root/.wopal/commands:/shared/opencode/commands:ro" \
+        -v "$final_ws_root/.wopal/plugins/opencode:/shared/opencode/plugins:ro" \
+        -v "$final_ws_root/.wopal/rules:/shared/opencode/rules:ro" \
+        -v "$final_ws_root/.agents/skills:/shared/opencode/skills:ro" \
+        -v "$final_ws_root/.wopal/subagents/opencode:/shared/opencode/agents:ro" \
+        -v "$HOME/.local/share/opencode:/home/coder/.local/share/opencode:rw" \
+        -v "$HOME/.cache/opencode:/home/coder/.cache/opencode:rw" \
+        -v "$HOME/.config/opencode:/home/coder/.config/opencode:ro" \
+        -v "$HOME/.gitconfig:/home/coder/.gitconfig:ro" \
+        -v "/var/run/docker.sock:/var/run/docker.sock:rw" \
+        -v "$abs_target:/workspace:rw" \
+        "$IMAGE_NAME" opencode serve --port "$port" --hostname 0.0.0.0 --print-logs
+    
+    # 等待服务启动
+    local url="http://127.0.0.1:$port"
+    local ready=false
+    
+    echo "Waiting for serve to start..."
+    for i in {1..30}; do
+        if curl -s "$url" >/dev/null 2>&1; then
+            ready=true
+            break
+        fi
+        sleep 1
+    done
+    
+    if [ "$ready" = false ]; then
+        echo "Error: Serve failed to start within 30 seconds"
+        echo "Container logs:"
+        docker logs "$container_name" 2>&1 | tail -20
+        exit 1
+    fi
+    
+    echo ""
+    echo "✓ Serve is running!"
+    echo "  URL:       $url"
+    echo "  Container: $container_name"
+    echo "  Project:   $project_name"
+    echo ""
+    echo "To stop: $0 stop-serve ${project_name}-${port}"
+    echo "To list: $0 list-serve"
+    
+    # 打开浏览器
+    open "$url"
+}
+
+# 停止 serve 服务
+stop_serve() {
+    local serve_id="$1"
+    if [ -z "$serve_id" ]; then
+        echo "Error: Serve identifier is required."
+        echo "Usage: $0 stop-serve <项目标识>"
+        echo ""
+        echo "Use '$0 list-serve' to see running instances."
+        echo "Format: <basename>-<port> (e.g., wopal-20001)"
+        exit 1
+    fi
+    
+    local container_name
+    # 支持两种格式：wopal-20001 或 sandbox-serve-wopal-20001
+    if [[ "$serve_id" == sandbox-serve-* ]]; then
+        container_name="$serve_id"
+    else
+        container_name="sandbox-serve-${serve_id}"
+    fi
+    
+    # 检查容器是否存在
+    if ! docker ps -a --format '{{.Names}}' | grep -q "^${container_name}$"; then
+        echo "Error: Container '$container_name' not found."
+        echo "Use '$0 list-serve' to see running instances."
+        exit 1
+    fi
+    
+    # 检查是否在运行
+    local status=$(docker inspect -f '{{.State.Status}}' "$container_name" 2>/dev/null)
+    
+    echo "Stopping '$container_name'..."
+    
+    if [ "$status" = "running" ]; then
+        docker stop "$container_name" >/dev/null
+    fi
+    
+    docker rm "$container_name" >/dev/null
+    
+    echo "✓ Container '$container_name' stopped and removed."
+}
+
+# 列出运行中的 serve 实例
+list_serve() {
+    local containers=$(docker ps --filter "name=sandbox-serve-" --format "{{.Names}}\t{{.Status}}" 2>/dev/null)
+    
+    if [ -z "$containers" ]; then
+        echo "No running serve instances."
+        return 0
+    fi
+    
+    echo "Running serve instances:"
+    echo ""
+    printf "  %-40s %-10s %s\n" "CONTAINER" "PORT" "STATUS"
+    echo "  ------------------------------------------------------------------------"
+    
+    while IFS=$'\t' read -r name status; do
+        # 从容器名解析端口：sandbox-serve-<project>-<port>
+        local port=$(echo "$name" | grep -oE '[0-9]+$')
+        local project=$(echo "$name" | sed 's/sandbox-serve-//' | sed "s/-${port}$//")
+        
+        printf "  %-40s %-10s %s\n" "$name" "$port" "$status"
+    done <<< "$containers"
+    
+    echo ""
+    echo "Stop command: $0 stop-serve <project>-<port>"
+}
+
 
 # 执行孤立授权：当需要输入 provider API Key 等信息登录时提供的一键式认证通道
 run_auth() {
@@ -154,14 +351,7 @@ run_sandbox() {
     shift  # 移出第一项，留下的参数全是被注入的后缀执行令
     
     local abs_target
-    local args=()
-    
-    # 过滤掉 --cn 参数与新的 --no-cn 参数，不传递给容器内执行命令
-    for arg in "$@"; do
-        if [ "$arg" != "--cn" ] && [ "$arg" != "--no-cn" ]; then
-            args+=("$arg")
-        fi
-    done
+    local args=("$@")
     
     # 如果路径检查失败（返回非 0 报错），则停止执行直接抛错并退出栈
     if ! abs_target="$(validate_target_dir "$target_dir")"; then
@@ -179,6 +369,17 @@ run_sandbox() {
     # 判断并创建必备的跨沙箱环境本地授权共享文件夹
     mkdir -p "$HOME/.local/share/opencode"
     mkdir -p "$HOME/.config/opencode"
+    
+    # 设置清理陷阱：容器退出后删除符号链接
+    SANDBOX_TARGET_DIR="$abs_target"
+    trap 'rm -f "$SANDBOX_TARGET_DIR/.opencode" 2>/dev/null' EXIT
+    
+    # 追溯寻找 Wopal 全局根目录，备用于挂载共享工具与规则集
+    local final_ws_root
+    if ! final_ws_root="$(find_workspace_root "$abs_target")"; then
+        echo "Failed to resolve final workspace root." >&2
+        exit 1
+    fi
     
     # 生成防冲突且直观的沙箱启动随机实例名称
     local container_name="sandbox-$(basename "$abs_target")-$RANDOM"
@@ -205,11 +406,17 @@ run_sandbox() {
         -e "HOST_UID=$(id -u)" \
         -e "HOST_GID=$(id -g)" \
         -e "TERM=${TERM:-xterm-256color}" \
-        -v "$abs_target:/workspace:rw" \
+        -v "$final_ws_root/.wopal/commands:/shared/opencode/commands:ro" \
+        -v "$final_ws_root/.wopal/plugins/opencode:/shared/opencode/plugins:ro" \
+        -v "$final_ws_root/.wopal/rules:/shared/opencode/rules:ro" \
+        -v "$final_ws_root/.agents/skills:/shared/opencode/skills:ro" \
+        -v "$final_ws_root/.wopal/subagents/opencode:/shared/opencode/agents:ro" \
         -v "$HOME/.local/share/opencode:/home/coder/.local/share/opencode:rw" \
+        -v "$HOME/.cache/opencode:/home/coder/.cache/opencode:rw" \
         -v "$HOME/.config/opencode:/home/coder/.config/opencode:ro" \
         -v "$HOME/.gitconfig:/home/coder/.gitconfig:ro" \
         -v "/var/run/docker.sock:/var/run/docker.sock:rw" \
+        -v "$abs_target:/workspace:rw" \
         "$IMAGE_NAME" "${container_cmd[@]}"
 }
 
@@ -219,29 +426,24 @@ main() {
     case "$cmd" in
         run)
             shift
-            # 先执行一次过滤 --cn
-            local run_args=()
-            for arg in "$@"; do
-                if [ "$arg" == "--cn" ]; then
-                    continue
-                fi
-                run_args+=("$arg")
-            done
-            run_sandbox "${run_args[@]}"
+            run_sandbox "$@"
+            ;;
+        serve)
+            shift
+            run_serve "$@"
+            ;;
+        stop-serve)
+            shift
+            stop_serve "$@"
+            ;;
+        list-serve)
+            list_serve
             ;;
         build)
             build_image
             ;;
         auth)
             run_auth
-            ;;
-        clean)
-            clean_image
-            # 如果清理基础镜像也顺带清一清国内加速镜像
-            if docker image inspect "wopal-agent-sandbox-cn:latest" >/dev/null 2>&1; then
-                echo "Removing Docker image 'wopal-agent-sandbox-cn:latest'..."
-                docker rmi "wopal-agent-sandbox-cn:latest"
-            fi
             ;;
         help|--help|-h|"")
             show_help

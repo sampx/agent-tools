@@ -67,10 +67,12 @@ USER root
 RUN mkdir -p /home/coder/.config/opencode \
     /home/coder/.local/share/opencode \
     /home/coder/.cache/opencode \
-    /home/coder/.cache/oh-my-opencode \
     /home/coder/.npm \
     /home/coder/go \
-    && chown -R coder:coder /home/coder
+    /shared/opencode/commands \
+    /shared/opencode/plugins \
+    /shared/opencode/rules \
+    && chown -R coder:coder /home/coder /shared
 
 # 将 /workspace 指定为容器进入后的默认工作目录（此目录会作为宿主机的项目挂载点）
 WORKDIR /workspace
