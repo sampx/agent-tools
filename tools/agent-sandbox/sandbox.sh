@@ -15,14 +15,17 @@ Wopal Agent Sandbox CLI
 用法: $0 [命令] [参数]
 
 命令选项:
-    run <子项目路径>  将指定的项目挂载至安全沙箱中执行 OpenCode
+    run <子项目路径> [被执行指令]  将指定的项目挂载至安全沙箱中执行 OpenCode 或其余指定命令
     build             构建 Wopal Agent 沙箱专用的 Docker 运行镜像
     auth              快速进入沙箱进行 OpenCode 登录验证并保存授权
     clean             删除机器上现有的沙箱 Docker 镜像
     help              显示这条帮助信息
 
 关于 'run' 命令的参数说明:
-    <子项目路径>   要隔离的子孙级项目或 worktree 的路径。(警告: 绝对不可以是工作空间的根目录)
+    <子项目路径>  要隔离的子孙级项目或 worktree 的路径。(警告: 绝对不可以是工作空间的根目录)
+                   路径可以相对于当前执行路径，也可以相对于 Wopal 工作空间根目录。
+    [被执行指令]  (可选) 进入沙箱后执行的命令。如果不提供，默认将执行 'opencode' 智能体。
+                   你也可以传入 'bash' 来亲自进入沙箱终端体验交互。
 
 调用示例:
     $0 run projects/python/flex-scheduler
