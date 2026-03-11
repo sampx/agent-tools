@@ -3,13 +3,32 @@
   "version": "1.0.0",
   "description": "OpenCode SDK and CLI",
   "type": "module",
-  "main": "index.ts",
-  "types": "index.ts",
+  "main": "index.js",
+  "types": "index.d.ts",
   "bin": {
-    "oc-cli": "./bin.js"
+    "oc-cli": "./dist/cli/index.js"
+  },
+  "exports": {
+    ".": {
+      "import": "./index.js"
+    },
+    "./cli": {
+      "import": "./dist/cli/index.js"
+    }
   },
   "scripts": {
-    "cli": "npx tsx cli/index.ts"
+    "build": "tsc -p tsconfig.cli.json",
+    "dev": "npx tsx cli/index.ts",
+    "cli": "node dist/cli/index.js",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "coverage": "vitest run --coverage",
+    "lint": "eslint . --ext .ts",
+    "lint:fix": "eslint . --ext .ts --fix",
+    "format": "prettier --write \"**/*.ts\"",
+    "format:check": "prettier --check \"**/*.ts\"",
+    "clean": "rm -rf dist/",
+    "prepublishOnly": "pnpm run clean && pnpm run build"
   },
   "dependencies": {
     "axios": "^1.13.6",
@@ -21,7 +40,36 @@
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.2.0",
     "tsx": "^4.7.0",
-    "typescript": "^5.3.0"
-  }
+    "typescript": "^5.3.0",
+    "vitest": "^1.5.0"
+  },
+  "files": [
+    "dist/",
+    "index.js",
+    "index.d.ts",
+    "api.js",
+    "api.d.ts",
+    "base.js",
+    "base.d.ts",
+    "common.js",
+    "common.d.ts",
+    "configuration.js",
+    "configuration.d.ts",
+    "README.md",
+    "package.json"
+  ],
+  "keywords": [
+    "opencode",
+    "sdk",
+    "cli",
+    "ai",
+    "openapi"
+  ],
+  "license": "MIT"
 }

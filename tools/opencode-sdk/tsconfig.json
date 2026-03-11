@@ -4,18 +4,22 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "lib": ["ES2022"],
-    "strict": false,
+    "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "skipDefaultLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "declaration": false,
-    "outDir": "./dist/cli",
-    "rootDir": "./cli",
-    "noEmitOnError": false
+    "outDir": "./dist",
+    "rootDir": "."
   },
-  "include": ["cli/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts"],
-  "references": []
+  "include": [
+    "cli/**/*",
+    "tests/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    ".openapi-generator"
+  ]
 }
