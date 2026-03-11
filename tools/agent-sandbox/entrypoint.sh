@@ -55,7 +55,6 @@ ln -sf /shared/opencode /workspace/.opencode
 # 确保接下来跑起来的程序的相对家目录指向 /home/coder 
 export HOME=/home/coder
 export USER=coder
-export NVM_DIR="/home/coder/.nvm"
 export OPENCODE_CONFIG_CONTENT='{
   "plugin": [
     "./.opencode/plugins/rules-plugin/src/index.ts"
@@ -63,8 +62,31 @@ export OPENCODE_CONFIG_CONTENT='{
   "permission": "allow"
 }'
 
+# --- 5. 常用别名注入 ---
+# 写入 aliases 到 .bashrc（仅首次）
+if [ ! -f /home/coder/.bash_aliases_injected ]; then
+    cat >> /home/coder/.bashrc << 'BASHRC_ALIASES'
+
+# --- Wopal Sandbox Aliases ---
+# ls shortcuts
+alias ll='ls -laF'
+alias la='ls -A'
+alias l='ls -CF'
+# cd shortcuts
+alias ..='cd ..'
+alias ...='cd ../..'
+alias -- -='cd -'
+# uv python unified package management
+alias pip='uv pip'
+alias pip3='uv pip'
+alias python='python3'
+pipx() { uv tool "$@"; }
+BASHRC_ALIASES
+    touch /home/coder/.bash_aliases_injected
+    chown "$TARGET_UID:$TARGET_GID" /home/coder/.bashrc /home/coder/.bash_aliases_injected 2>/dev/null || true
+fi
+
 # 使用 setpriv 剥离 root 最高身份，平权并附加上所有的附加组权限（包括前面拿到的 docker socket 组）；
-# 并在接管前 source nvm 脚本当作环境热身，接着把控制权 (exec) 以子用户的身份正式移交给用户传入的命令（例如 opencode）。
-exec setpriv --reuid="$TARGET_UID" --regid="$TARGET_GID" --init-groups \
-    bash -c "source \$NVM_DIR/nvm.sh 2>/dev/null || true && exec \"\$@\"" \
-    -- "$@"
+# 并把控制权 (exec) 以子用户的身份正式移交给用户传入的命令（例如 opencode）。
+exec setpriv --reuid="$TARGET_UID" --regid="$TARGET_GID" --init-groups "$@"
+    
