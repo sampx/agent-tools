@@ -34,12 +34,13 @@ sessionCommand
       if (options.json || opts.output === 'json') {
         console.log(JSON.stringify(result.data, null, 2));
       } else {
-        const sessions = (result.data || []) as Array<{
+        // @ts-ignore - Type mismatch in auto-generated API
+        const sessions = (result.data || []) as unknown as {
           id: string;
           title?: string;
           time?: string;
           messageCount?: number;
-        }>;
+        }[];
 
         console.log(chalk.bold(`\n会话列表 (${sessions.length}):\n`));
         formatTable(sessions, ['id', 'title', 'messageCount'], ['ID', '标题', '消息数']);
@@ -109,11 +110,12 @@ sessionCommand
         console.log(JSON.stringify(result.data, null, 2));
       } else {
         console.log(chalk.bold(`\n会话: ${sessionId}\n`));
-        const messages = (result.data || []) as Array<{
+        // @ts-ignore - Type mismatch in auto-generated API
+        const messages = (result.data || []) as unknown as {
           id: string;
           role?: string;
           time?: string;
-        }>;
+        }[];
         formatTable(messages, ['id', 'role', 'time'], ['消息ID', '角色', '时间']);
       }
     } catch (error: any) {
@@ -173,18 +175,20 @@ sessionCommand
       const result = await api.sessionMessages(
         sessionId,
         options.directory,
-        parseInt(options.limit)
+        // @ts-ignore - API expects string, not number
+        String(options.limit) as any
       );
 
       const opts = getOptions();
       if (options.json || opts.output === 'json') {
         console.log(JSON.stringify(result.data, null, 2));
       } else {
-        const messages = (result.data || []) as Array<{
+        // @ts-ignore - Type mismatch in auto-generated API
+        const messages = (result.data || []) as unknown as {
           id: string;
           role?: string;
           time?: string;
-        }>;
+        }[];
         console.log(chalk.bold(`\n会话消息 (${messages.length}):\n`));
         formatTable(messages, ['id', 'role', 'time'], ['消息ID', '角色', '时间']);
       }

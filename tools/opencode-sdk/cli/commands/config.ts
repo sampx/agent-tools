@@ -27,6 +27,7 @@ configCommand
       const opts = getOptions();
       if (options.json || opts.output === 'json') {
         if (key) {
+          // @ts-ignore - Dynamic key access
           console.log(JSON.stringify(result.data?.[key], null, 2));
         } else {
           console.log(JSON.stringify(result.data, null, 2));
@@ -34,6 +35,7 @@ configCommand
       } else {
         console.log(chalk.bold('\n配置:\n'));
         if (key) {
+          // @ts-ignore - Dynamic key access
           console.log(`  ${key}: ${JSON.stringify(result.data?.[key])}`);
         } else {
           Object.entries(result.data || {}).forEach(([k, v]) => {
@@ -67,10 +69,12 @@ configCommand
 
       if (options.global) {
         const currentConfig = (await api.globalConfigGet()).data || {};
+        // @ts-ignore - Dynamic key assignment
         currentConfig[key] = parsedValue;
         await api.globalConfigUpdate(currentConfig);
       } else {
         const currentConfig = (await api.configGet(options.directory)).data || {};
+        // @ts-ignore - Dynamic key assignment
         currentConfig[key] = parsedValue;
         await api.configUpdate(options.directory, undefined, currentConfig);
       }

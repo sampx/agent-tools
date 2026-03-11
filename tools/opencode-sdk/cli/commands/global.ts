@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import { Command } from 'commander';
 import { getApi, getOptions } from '../api/client.js';
-import { formatTable, formatSuccess, formatError, formatList } from '../output/format.js';
+import { formatSuccess, formatError } from '../output/format.js';
 
 export const globalCommand = new Command('global')
   .description('全局命令');
@@ -43,7 +43,7 @@ globalCommand
       if (opts.output === 'json') {
         console.log(JSON.stringify(result.data, null, 2));
       } else {
-        const agents = result.data as Array<{ name: string; description?: string; mode?: string }>;
+        const agents = result.data as { name: string; description?: string; mode?: string }[];
         console.log(chalk.bold(`\n可用 Agents (${agents.length}):\n`));
 
         agents.forEach((agent) => {
@@ -73,7 +73,7 @@ globalCommand
       if (opts.output === 'json') {
         console.log(JSON.stringify(result.data, null, 2));
       } else {
-        const skills = result.data as Array<{ name: string; description?: string }>;
+        const skills = result.data as { name: string; description?: string }[];
         console.log(chalk.bold(`\n可用 Skills (${skills.length}):\n`));
 
         skills.forEach((skill) => {
@@ -103,7 +103,7 @@ globalCommand
       if (opts.output === 'json') {
         console.log(JSON.stringify(result.data, null, 2));
       } else {
-        const commands = result.data as Array<{ name: string; description?: string }>;
+        const commands = result.data as { name: string; description?: string }[];
         console.log(chalk.bold(`\n可用命令 (${commands.length}):\n`));
 
         commands.forEach((cmd) => {

@@ -87,7 +87,7 @@ export async function streamResponse(options: StreamOptions): Promise<EventSourc
           }
           break;
 
-        case 'session.error':
+        case 'session.error': {
           const errorMessage = data.properties?.error || '未知错误';
           if (onError) {
             onError(errorMessage);
@@ -96,6 +96,7 @@ export async function streamResponse(options: StreamOptions): Promise<EventSourc
           }
           eventSource.close();
           break;
+        }
       }
     } catch (e) {
       // 忽略解析错误

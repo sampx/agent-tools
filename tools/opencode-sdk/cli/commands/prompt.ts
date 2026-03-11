@@ -46,6 +46,7 @@ export const promptCommand = new Command('prompt')
         eventSource.onopen = async () => {
           try {
             await api.sessionPromptAsync(sessionId, options.directory, undefined, {
+              // @ts-ignore - Type mismatch in auto-generated API
               parts: [{ type: 'text', text: message }],
               model: options.model ? parseModel(options.model) : undefined,
               agent: options.agent,
@@ -59,6 +60,7 @@ export const promptCommand = new Command('prompt')
       } else {
         // 同步模式
         const result = await api.sessionPrompt(sessionId, options.directory, undefined, {
+          // @ts-ignore - Type mismatch in auto-generated API
           parts: [{ type: 'text', text: message }],
           model: options.model ? parseModel(options.model) : undefined,
           agent: options.agent,

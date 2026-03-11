@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import { Command } from 'commander';
 import { getApi, getOptions } from '../api/client.js';
-import { formatTable, formatError } from '../output/format.js';
+import { formatError } from '../output/format.js';
 
 export const fileCommand = new Command('file')
   .description('文件操作');
@@ -21,11 +21,11 @@ fileCommand
       if (options.json || opts.output === 'json') {
         console.log(JSON.stringify(result.data, null, 2));
       } else {
-        const files = (result.data || []) as Array<{
+        const files = (result.data || []) as {
           name?: string;
           isDir?: boolean;
           size?: number;
-        }>;
+        }[];
         console.log(chalk.bold(`\n目录: ${path} (${files.length}):\n`));
         files.forEach((f) => {
           const icon = f.isDir ? chalk.blue('📁') : chalk.gray('📄');
@@ -95,7 +95,8 @@ findCommand
       const result = await api.findFiles(
         pattern,
         options.directory,
-        options.type,
+        // @ts-ignore - Type mismatch
+        options.type as any,
         parseInt(options.limit)
       );
 

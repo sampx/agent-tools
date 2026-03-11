@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import { Command } from 'commander';
 import { getApi, getOptions } from '../api/client.js';
-import { formatTable, formatSuccess, formatError } from '../output/format.js';
+import { formatError } from '../output/format.js';
 
 export const providerCommand = new Command('provider')
   .description('AI 提供商管理');

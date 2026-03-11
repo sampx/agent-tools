@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import { Command } from 'commander';
 import { getApi, getOptions } from '../api/client.js';
-import { formatTable, formatSuccess, formatError } from '../output/format.js';
+import { formatTable, formatError } from '../output/format.js';
 
 export const projectCommand = new Command('project')
   .description('项目管理');
@@ -47,11 +47,11 @@ projectCommand
       if (options.json || opts.output === 'json') {
         console.log(JSON.stringify(result.data, null, 2));
       } else {
-        const projects = (result.data || []) as Array<{
+        const projects = (result.data || []) as {
           id: string;
           name?: string;
           path?: string;
-        }>;
+        }[];
         console.log(chalk.bold(`\n项目列表 (${projects.length}):\n`));
         formatTable(projects, ['id', 'name', 'path'], ['ID', '名称', '路径']);
       }
