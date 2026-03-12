@@ -204,10 +204,7 @@ description: 基于代码库深度分析创建详尽的功能实现计划 (Plan)
 
 ### 文件命名规范
 
-| 归属 | 路径 | 命名格式 |
-|------|------|---------|
-| 子项目 | `<project>/docs/products/plans/` | `{feature-name}.md` |
-| 工作空间 | `docs/products/plans/` | `{project-name}-{feature-name}.md` |
+- `{feature-name-plan}.md`
 
 ### 示例
 
