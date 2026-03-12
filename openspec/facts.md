@@ -618,7 +618,6 @@ Step 6: 持续同步
 
 - `projects/agent-tools/AGENTS.md` — 技能开发规范
 - `openspec/changes/wopal-cli-core/` — CLI 核心设计
-- `memory/working-context.md` — 工作上下文和最新发现
 - `playground/_good_repos/skills/src/` — Skills CLI 源码（git.ts、source-parser.ts、skills.ts、providers/wellknown.ts）
 
 ---
