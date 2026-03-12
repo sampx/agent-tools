@@ -187,19 +187,38 @@ description: 基于代码库深度分析创建详尽的功能实现计划 (Plan)
 
 ## 文件命名与存放位置
 
-> **注意**: 本项目采用 Monorepo 项目架构，所有规划文件均集中存放以方便统一管理。
+> **智能归属**: 本项目采用 Monorepo 架构，计划文件必须根据功能归属智能选择存放位置。
 
-1. 计划文件**必须**写入 `docs/products/plans/` 目录下（如果不存在则创建）
+### 归属判断逻辑
 
-2. **文件命名规范**（使用 kebab-case）：
-   - 格式：`{project-name}-{feature-name}.md`
-   - `project-name`：子项目名称（如 `wopal`、`flex-scheduler`、`agent-tools`）
-   - `feature-name`：功能描述
+**1. 子项目计划** → `<project>/docs/products/plans/`
+- 功能属于特定子项目（wopal、flex-scheduler、agent-tools）
+- 代码修改范围仅在单一子项目内
+- 受益范围为单一项目
 
-3. **示例**：
-   - `docs/products/plans/wopal-add-oauth-login.md`
-   - `docs/products/plans/flex-scheduler-cron-job.md`
-   - `docs/products/plans/agent-tools-optimize-commit-command.md`
+**2. 工作空间计划** → `docs/products/plans/`
+- 涉及跨项目协作
+- agent-tools 工具链升级（命令、规则、技能）
+- 基础设施变更
+- 所有项目受益的通用功能
+
+### 文件命名规范
+
+| 归属 | 路径 | 命名格式 |
+|------|------|---------|
+| 子项目 | `<project>/docs/products/plans/` | `{feature-name}.md` |
+| 工作空间 | `docs/products/plans/` | `{project-name}-{feature-name}.md` |
+
+### 示例
+
+**子项目计划**：
+- `projects/web/wopal/docs/products/plans/add-oauth-login.md`
+- `projects/python/flex-scheduler/docs/products/plans/cron-job.md`
+- `projects/agent-tools/docs/products/plans/optimize-commit-command.md`
+
+**工作空间计划**：
+- `docs/products/plans/agent-tools-optimize-commit-command.md`（工具链升级）
+- `docs/products/plans/workspace-add-worktree-manager.md`（基础设施）
 
 ---
 
