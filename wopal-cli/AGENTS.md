@@ -130,6 +130,7 @@ wopal find [query]                            # 透传搜索
 - **TypeScript**：严格模式，ES modules，显式类型注解，避免 `any`
 - **测试**：单元测试 `*.test.ts`
 - **Git**：Conventional Commits（`feat:`、`fix:`、`refactor:`、`test:`）
+- **格式化（必须）**：修改代码后必须运行 `pnpm format:check <file>` 检查，或 `pnpm format` 自动修复
 
 ### CLI UX 规范
 
