@@ -3,34 +3,34 @@
   "version": "1.0.0",
   "description": "OpenCode SDK and CLI",
   "type": "module",
-  "main": "index.js",
-  "types": "index.d.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "bin": {
-    "oc-cli": "./dist/cli/index.js"
+    "oc-cli": "./bin/oc-cli.js"
   },
   "exports": {
     ".": {
-      "import": "./index.js"
-    },
-    "./cli": {
-      "import": "./dist/cli/index.js"
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.cli.json",
-    "dev": "npx tsx cli/index.ts",
+    "build": "tsc",
+    "dev": "npx tsx src/cli/index.ts",
     "cli": "node dist/cli/index.js",
     "test": "vitest",
     "test:run": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "coverage": "vitest run --coverage",
-    "lint": "eslint . --ext .ts",
-    "lint:fix": "eslint . --ext .ts --fix",
-    "format": "prettier --write \"**/*.ts\"",
-    "format:check": "prettier --check \"**/*.ts\"",
+    "lint": "eslint src/ --ext .ts",
+    "lint:fix": "eslint src/ --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
     "clean": "rm -rf dist/",
     "prepublishOnly": "pnpm run clean && pnpm run build"
   },
   "dependencies": {
+    "@opencode-ai/sdk": "^1.2.24",
     "axios": "^1.13.6",
     "chalk": "^5.3.0",
     "cli-table3": "^0.6.3",
@@ -51,16 +51,6 @@
   },
   "files": [
     "dist/",
-    "index.js",
-    "index.d.ts",
-    "api.js",
-    "api.d.ts",
-    "base.js",
-    "base.d.ts",
-    "common.js",
-    "common.d.ts",
-    "configuration.js",
-    "configuration.d.ts",
     "README.md",
     "package.json"
   ],

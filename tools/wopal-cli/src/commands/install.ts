@@ -144,7 +144,7 @@ async function installLocalSkill(
   logger.debug(`Computed skill folder hash: ${skillFolderHash}`);
 
   await copySkill(absolutePath, targetDir, logger);
-  logger.info(`✓ Skill copied to: ${targetDir}`);
+  console.log(`✓ Skill copied to: ${targetDir}`);
 
   const lockEntry: SkillLockEntry = {
     source: `my-skills/${skillName}`,
@@ -158,9 +158,9 @@ async function installLocalSkill(
 
   const lockManager = new LockManager(getConfig());
   await lockManager.addSkillToBothLocks(skillName, lockEntry);
-  logger.info(`✓ Lock files updated`);
+  console.log(`✓ Lock files updated`);
 
-  logger.info(`✓ Installation complete: ${skillName}`);
+  console.log(`✓ Installation complete: ${skillName}`);
 }
 
 async function installInboxSkill(
@@ -190,7 +190,7 @@ async function installInboxSkill(
   await checkExistingSkill(skillName, targetDir, options.force, scope, logger);
 
   if (!options.skipScan) {
-    logger.info("Running security scan...");
+    console.log("Running security scan...");
     await runSecurityScan(skillName, skillDir, logger);
   } else {
     logger.debug("Skipping security scan (--skip-scan)");
@@ -222,7 +222,7 @@ async function installInboxSkill(
   logger.debug(`Skill folder hash: ${skillFolderHash}`);
 
   await copySkill(skillDir, targetDir, logger);
-  logger.info(`✓ Skill copied to: ${targetDir}`);
+  console.log(`✓ Skill copied to: ${targetDir}`);
 
   const lockEntry: SkillLockEntry = {
     source: metadata.source.split("@")[0],
@@ -236,12 +236,12 @@ async function installInboxSkill(
 
   const lockManager = new LockManager(getConfig());
   await lockManager.addSkillToBothLocks(skillName, lockEntry);
-  logger.info(`✓ Lock files updated`);
+  console.log(`✓ Lock files updated`);
 
   await fs.remove(skillDir);
   logger.debug(`✓ INBOX skill removed: ${skillDir}`);
 
-  logger.info(`✓ Installation complete: ${skillName}`);
+  console.log(`✓ Installation complete: ${skillName}`);
 }
 
 function getTargetDir(skillName: string, scope: InstallScope): string {
@@ -299,5 +299,5 @@ async function runSecurityScan(
     );
   }
 
-  logger.info(`Security scan passed (risk score: ${result.riskScore})`);
+  console.log(`✓ Security scan passed (risk score: ${result.riskScore})`);
 }
