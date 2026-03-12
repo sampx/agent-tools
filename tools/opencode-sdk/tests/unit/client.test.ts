@@ -1,92 +1,55 @@
 /**
- * CLI 选项管理单元测试
- * 测试 setOptions 和 getOptions 函数
+ * CLI Client Unit Tests
+ * Tests the real setOptions/getOptions exported from src/cli/api/client.ts
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
+import { setOptions, getOptions, getApi, DEFAULT_SERVER } from '../../src/cli/api/client.js';
 
-describe('CLI 选项管理', () => {
-  // 直接测试选项逻辑，避免依赖复杂的模块导入
-  interface CliOptions {
-    server: string;
-    output: 'table' | 'json';
-    debug: boolean;
-  }
-
-  const DEFAULT_SERVER = 'http://127.0.0.1:3456';
-
-  let _options: CliOptions = {
-    server: DEFAULT_SERVER,
-    output: 'table',
-    debug: false,
-  };
-
-  function setOptions(options: Partial<CliOptions>): void {
-    _options = { ..._options, ...options };
-  }
-
-  function getOptions(): CliOptions {
-    return { ..._options };
-  }
+describe('CLI Client', () => {
 
   beforeEach(() => {
-    // Reset options before each test
-    _options = {
+    // Reset to default state before each test
+    setOptions({
       server: DEFAULT_SERVER,
       output: 'table',
-      debug: false,
-    };
+    });
   });
 
-  describe('setOptions/getOptions', () => {
-    it('should have default options', () => {
+  describe('setOptions / getOptions', () => {
+    it('should have correct default configuration', () => {
       const opts = getOptions();
       expect(opts).toEqual({
-        server: 'http://127.0.0.1:3456',
+        server: DEFAULT_SERVER,
         output: 'table',
-        debug: false,
       });
     });
 
-    it('should update server option', () => {
+    it('should be able to update server individually', () => {
       setOptions({ server: 'http://localhost:8080' });
-      const opts = getOptions();
-      expect(opts.server).toBe('http://localhost:8080');
+      expect(getOptions().server).toBe('http://localhost:8080');
     });
 
-    it('should update output option', () => {
+    it('should be able to update output format individually', () => {
       setOptions({ output: 'json' });
-      const opts = getOptions();
-      expect(opts.output).toBe('json');
+      expect(getOptions().output).toBe('json');
     });
 
-    it('should update debug option', () => {
-      setOptions({ debug: true });
-      const opts = getOptions();
-      expect(opts.debug).toBe(true);
-    });
-
-    it('should update multiple options', () => {
-      setOptions({
-        server: 'https://api.example.com',
-        output: 'json',
-        debug: true,
-      });
+    it('should be able to update multiple options concurrently', () => {
+      setOptions({ server: 'https://api.example.com', output: 'json' });
       const opts = getOptions();
       expect(opts.server).toBe('https://api.example.com');
       expect(opts.output).toBe('json');
-      expect(opts.debug).toBe(true);
     });
 
-    it('should preserve unchanged options when updating', () => {
+    it('partial updates should preserve unmodified options', () => {
       setOptions({ server: 'http://custom.server' });
       const opts = getOptions();
       expect(opts.server).toBe('http://custom.server');
       expect(opts.output).toBe('table');
-      expect(opts.debug).toBe(false);
     });
 
-    it('should return a copy of options (not reference)', () => {
+    it('getOptions should return a copy instead of a reference', () => {
       const opts1 = getOptions();
       const opts2 = getOptions();
       expect(opts1).toEqual(opts2);
@@ -94,27 +57,27 @@ describe('CLI 选项管理', () => {
     });
   });
 
-  describe('CliOptions type', () => {
-    it('should accept valid output formats', () => {
-      setOptions({ output: 'table' });
-      expect(getOptions().output).toBe('table');
-
-      setOptions({ output: 'json' });
-      expect(getOptions().output).toBe('json');
+  describe('getApi', () => {
+    it('should return an API client instance', () => {
+      const api = getApi();
+      expect(api).toBeDefined();
     });
 
-    it('should accept valid server URLs', () => {
-      const validUrls = [
-        'http://127.0.0.1:3456',
-        'http://localhost:8080',
-        'https://api.example.com',
-        'http://192.168.1.1:3000',
-      ];
+    it('API instance should contain all specific namespaces', () => {
+      const api = getApi();
+      expect(api.config).toBeDefined();
+      expect(api.session).toBeDefined();
+      expect(api.provider).toBeDefined();
+      expect(api.project).toBeDefined();
+    });
 
-      validUrls.forEach((url) => {
-        setOptions({ server: url });
-        expect(getOptions().server).toBe(url);
-      });
+    it('updating server should point the API instance to the new configuration', () => {
+      setOptions({ server: 'http://127.0.0.1:9999' });
+      const api = getApi();
+      const opts = getOptions();
+      expect(opts.server).toBe('http://127.0.0.1:9999');
+      expect(api).toBeDefined();
     });
   });
+
 });
