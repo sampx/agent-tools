@@ -1,21 +1,6 @@
+import type { SpaceConfig } from "./config.js";
+
 export const HELP_TEXTS = {
-  sections: {
-    sourceFormat: (formats: string[]) =>
-      `\nSOURCE FORMAT:\n${formats.map((f) => `  ${f}`).join("\n")}`,
-
-    examples: (examples: string[]) =>
-      `\nEXAMPLES:\n${examples.map((e) => `  ${e}`).join("\n")}`,
-
-    options: (options: string[]) =>
-      `\nOPTIONS:\n${options.map((o) => `  ${o}`).join("\n")}`,
-
-    notes: (notes: string[]) =>
-      `\nNOTES:\n${notes.map((n) => `  - ${n}`).join("\n")}`,
-
-    workflow: (steps: string[]) =>
-      `\nWORKFLOW:\n${steps.map((s, i) => `  ${i + 1}. ${s}`).join("\n")}`,
-  },
-
   descriptions: {
     inbox: "Manage skills in INBOX (downloaded skills pending review)",
     inboxList: "List all skills in INBOX",
@@ -28,6 +13,33 @@ export const HELP_TEXTS = {
       "Download skills to INBOX for security scanning before installation",
     install: "Install a skill from INBOX or local path",
     init: "Initialize workspace with skills directory structure",
+  },
+
+  sections: {
+    sourceFormat: (formats: string[]): string => {
+      const lines = formats.map((f) => `  ${f}`);
+      return `\nSOURCE FORMAT:\n${lines.join("\n")}`;
+    },
+
+    examples: (examples: string[]): string => {
+      const lines = examples.map((e) => `  ${e}`);
+      return `\nEXAMPLES:\n${lines.join("\n")}`;
+    },
+
+    options: (options: string[]): string => {
+      const lines = options.map((o) => `  ${o}`);
+      return `\nOPTIONS:\n${lines.join("\n")}`;
+    },
+
+    notes: (notes: string[]): string => {
+      const lines = notes.map((n) => `  - ${n}`);
+      return `\nNOTES:\n${lines.join("\n")}`;
+    },
+
+    workflow: (steps: string[]): string => {
+      const lines = steps.map((s, i) => `  ${i + 1}. ${s}`);
+      return `\nWORKFLOW:\n${lines.join("\n")}`;
+    },
   },
 
   errors: {
@@ -57,13 +69,13 @@ export const HELP_TEXTS = {
 
   messages: {
     skillRemoved: (skillName: string) =>
-      `✓ Skill '${skillName}' removed from INBOX`,
+      `Skill '${skillName}' removed from INBOX`,
 
     skillInstalled: (skillName: string) =>
-      `✓ Skill '${skillName}' installed successfully`,
+      `Skill '${skillName}' installed successfully`,
 
     skillDownloaded: (skillName: string, overwritten: boolean = false) =>
-      `✓ Downloaded skill '${skillName}' to INBOX${overwritten ? " (overwritten)" : ""}`,
+      `Downloaded skill '${skillName}' to INBOX${overwritten ? " (overwritten)" : ""}`,
 
     noSkillsFound: "No skills found",
     noUpdatesAvailable: "All skills are up to date",
@@ -83,25 +95,32 @@ export function buildHelpText(
 ): string {
   const parts: string[] = [];
 
-  if (sections.sourceFormat) {
+  if (sections.sourceFormat?.length) {
     parts.push(HELP_TEXTS.sections.sourceFormat(sections.sourceFormat));
   }
 
-  if (sections.examples) {
-    parts.push(HELP_TEXTS.sections.examples(sections.examples));
+  if (sections.examples?.length) {
+    parts.push(HELP_TEXTS.sections.examples(sections.examples.slice(0, 5)));
   }
 
-  if (sections.options) {
+  if (sections.options?.length) {
     parts.push(HELP_TEXTS.sections.options(sections.options));
   }
 
-  if (sections.notes) {
-    parts.push(HELP_TEXTS.sections.notes(sections.notes));
+  if (sections.notes?.length) {
+    parts.push(HELP_TEXTS.sections.notes(sections.notes.slice(0, 4)));
   }
 
-  if (sections.workflow) {
-    parts.push(HELP_TEXTS.sections.workflow(sections.workflow));
+  if (sections.workflow?.length) {
+    parts.push(HELP_TEXTS.sections.workflow(sections.workflow.slice(0, 5)));
   }
 
   return parts.join("\n");
+}
+
+export function buildHelpHeader(activeSpace?: SpaceConfig): string {
+  if (!activeSpace) {
+    return "\nACTIVE SPACE: (none)\n";
+  }
+  return `\nACTIVE SPACE: ${activeSpace.path}\n`;
 }

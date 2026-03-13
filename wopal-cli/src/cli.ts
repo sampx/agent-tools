@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { loadEnv } from "./lib/env-loader.js";
+import { loadEnvForSpace } from "./lib/env-loader.js";
 import { Logger } from "./lib/logger.js";
 import { checkInitialization } from "./lib/init-check.js";
 import { handleCommandError } from "./lib/error-utils.js";
 import { getPrimaryCommand } from "./argv.js";
 import { tryRouteCli, getVersion } from "./route.js";
+import { buildHelpText, buildHelpHeader } from "./lib/help-texts.js";
+import { getConfig } from "./lib/config.js";
 import {
   registerInitCommand,
   setLogger as setInitLogger,
@@ -16,6 +18,7 @@ import {
 } from "./commands/skills/index.js";
 import { setLogger as setOpenclawUpdaterLogger } from "./scanner/openclaw-updater.js";
 import { setLogger as setOpenclawWrapperLogger } from "./scanner/openclaw-wrapper.js";
+import { registerSpaceCommand } from "./commands/space.js";
 
 async function runCli(argv: string[] = process.argv): Promise<void> {
   if (await tryRouteCli(argv)) {
@@ -35,7 +38,9 @@ async function runCli(argv: string[] = process.argv): Promise<void> {
       const options = thisCommand.opts();
       const debug = options.debug || false;
 
-      loadEnv(debug);
+      const config = getConfig(debug);
+      const spacePath = config.getActiveSpacePath();
+      loadEnvForSpace(debug, spacePath);
 
       const logger = new Logger(debug);
       setInitLogger(logger);
@@ -46,7 +51,7 @@ async function runCli(argv: string[] = process.argv): Promise<void> {
       logger.log("Debug mode enabled");
 
       const commandName = actionCommand.name();
-      if (commandName !== "init") {
+      if (commandName !== "init" && commandName !== "space") {
         try {
           checkInitialization();
         } catch (error) {
@@ -55,7 +60,26 @@ async function runCli(argv: string[] = process.argv): Promise<void> {
       }
     });
 
+  program.addHelpText("before", () => {
+    const config = getConfig();
+    return buildHelpHeader(config.getActiveSpace());
+  });
+
+  program.addHelpText(
+    "after",
+    buildHelpText({
+      examples: [
+        "wopal init                    # Initialize workspace",
+        "wopal space list              # List all spaces",
+        "wopal skills list             # List all skills",
+        "wopal skills --help           # Show skills help",
+      ],
+      notes: ["Run 'wopal <command> --help' for command details"],
+    }),
+  );
+
   registerInitCommand(program);
+  registerSpaceCommand(program);
 
   const primary = getPrimaryCommand(argv);
   if (primary === null || primary === "skills") {

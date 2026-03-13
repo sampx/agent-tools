@@ -12,31 +12,6 @@ export function getVersion(): string {
   return packageJson.version;
 }
 
-export function getHelpText(): string {
-  return `wopal - Universal toolbox for wopal agents
-
-Usage:
-  wopal [options] [command]
-
-Commands:
-  init                      Initialize wopal configuration
-  skills                    Manage AI agent skills
-
-Options:
-  -v, --version             Show version number
-  -h, --help                Show this help message
-  -d, --debug               Enable debug mode
-
-Examples:
-  wopal --version           Show version
-  wopal init                Initialize configuration
-  wopal skills list         List all skills
-  wopal skills --help       Show skills help
-
-For more information, run: wopal skills --help
-`;
-}
-
 type RouteSpec = {
   match: (path: string[], argv: string[]) => boolean;
   run: (argv: string[]) => Promise<boolean>;
@@ -47,13 +22,6 @@ const routes: RouteSpec[] = [
     match: (path, argv) => path.length === 0 && hasFlag(argv, "--version"),
     run: async () => {
       console.log(getVersion());
-      return true;
-    },
-  },
-  {
-    match: (path, argv) => path.length === 0 && hasFlag(argv, "--help"),
-    run: async () => {
-      console.log(getHelpText());
       return true;
     },
   },

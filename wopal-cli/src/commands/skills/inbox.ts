@@ -33,17 +33,12 @@ export function registerInboxCommand(program: Command): void {
     "after",
     buildHelpText({
       examples: [
-        "# List all skills in INBOX\nwopal inbox list",
-        "# List in JSON format\nwopal inbox list --json",
-      ],
-      options: [
-        "--json    Output in JSON format",
-        "--help    Show this help message",
+        "wopal inbox list                # List all INBOX skills",
+        "wopal inbox list --json         # JSON output",
       ],
       notes: [
-        "Skills are stored in INBOX after download",
-        "Use 'wopal inbox show <skill>' to view skill details",
-        "Use 'wopal inbox remove <skill>' to delete a skill",
+        "Skills stored in INBOX after download",
+        "Use 'wopal inbox show' to view details",
       ],
     }),
   );
@@ -60,10 +55,11 @@ export function registerInboxCommand(program: Command): void {
   showCommand.addHelpText(
     "after",
     buildHelpText({
-      examples: ["# Show skill details\nwopal inbox show my-skill"],
+      examples: [
+        "wopal inbox show my-skill       # Show skill details",
+      ],
       notes: [
         "Displays SKILL.md content and directory structure",
-        "Useful for reviewing skills before installation",
       ],
     }),
   );
@@ -78,10 +74,11 @@ export function registerInboxCommand(program: Command): void {
   removeCommand.addHelpText(
     "after",
     buildHelpText({
-      examples: ["# Remove a skill from INBOX\nwopal inbox remove my-skill"],
+      examples: [
+        "wopal inbox remove my-skill     # Remove from INBOX",
+      ],
       notes: [
         "Permanently deletes the skill from INBOX",
-        "Use 'wopal inbox list' to see available skills",
       ],
     }),
   );
@@ -90,15 +87,14 @@ export function registerInboxCommand(program: Command): void {
     "after",
     buildHelpText({
       examples: [
-        "# List all skills in INBOX\nwopal inbox list",
-        "# Show skill details\nwopal inbox show my-skill",
-        "# Remove a skill\nwopal inbox remove my-skill",
+        "wopal inbox list                # List INBOX skills",
+        "wopal inbox show my-skill       # Show skill details",
+        "wopal inbox remove my-skill     # Remove from INBOX",
       ],
       workflow: [
-        "Download skills: wopal skills download <source>",
-        "List INBOX: wopal inbox list",
-        "Review skills: wopal inbox show <skill-name>",
-        "Scan for security: wopal skills scan <skill-name>",
+        "Download: wopal skills download <source>",
+        "Review: wopal inbox show <skill-name>",
+        "Scan: wopal skills scan <skill-name>",
         "Install: wopal skills install <skill-name>",
       ],
     }),

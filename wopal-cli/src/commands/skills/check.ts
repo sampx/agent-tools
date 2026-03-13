@@ -51,20 +51,12 @@ export function registerCheckCommand(program: Command): void {
     "after",
     buildHelpText({
       examples: [
-        "# Check all installed skills for updates\nwopal skills check",
-        "# Check a specific skill\nwopal skills check my-skill",
-        "# Check only project-level skills\nwopal skills check --local",
-        "# Check only global skills\nwopal skills check --global",
-        "# Output in JSON format\nwopal skills check --json",
-      ],
-      options: [
-        "--local             Only check project-level skills",
-        "--global            Only check global-level skills",
-        "--json              Output in JSON format",
-        "--help              Show this help message",
+        "wopal skills check              # Check all installed skills",
+        "wopal skills check my-skill     # Check specific skill",
+        "wopal skills check --local      # Check project-level only",
+        "wopal skills check --json       # JSON output",
       ],
       notes: [
-        "Compares installed skill hash with source hash",
         "GitHub skills: compares Tree SHA from API",
         "Local skills: compares folder content hash",
         "Requires GITHUB_TOKEN for higher API rate limits",

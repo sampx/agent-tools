@@ -33,20 +33,14 @@ export function registerUpdateScannerCommand(program: Command): void {
     "after",
     buildHelpText({
       examples: [
-        "# Update scanner\nwopal skills update-scanner",
-        "# Force update\nwopal skills update-scanner --force",
-        "# JSON output\nwopal skills update-scanner --json",
-      ],
-      options: [
-        "--json     Output in JSON format",
-        "--force    Force update even if recently updated",
-        "--help     Show this help message",
+        "wopal skills update-scanner         # Update scanner",
+        "wopal skills update-scanner --force # Force update",
+        "wopal skills update-scanner --json  # JSON output",
       ],
       notes: [
-        "Updates the OpenClaw security scanner repository",
+        "Updates OpenClaw security scanner repository",
         "Auto-updates every 24 hours during normal scans",
-        "Use --force to update immediately",
-        "Scanner location: ~/.wopal/storage/openclaw-security-monitor/",
+        "Location: ~/.wopal/storage/openclaw-security-monitor/",
       ],
     }),
   );

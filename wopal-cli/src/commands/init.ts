@@ -70,11 +70,12 @@ export function registerInitCommand(program: Command): void {
         console.log("Configuration:");
         console.log(`  Space: ${expandedDir}`);
         console.log(`  Config: ~/.wopal/config/settings.jsonc`);
-        console.log(`  IOC DB: ~/.wopal/storage/ioc-db (default)`);
         console.log();
         console.log("Next steps:");
-        console.log("  Initialize IOC database (required):");
-        console.log("    git submodule update --init");
+        console.log("  Download a skill:");
+        console.log("    wopal skills download owner/repo@skill-name");
+        console.log("  List downloaded skills:");
+        console.log("    wopal skills inbox list");
       } catch (error) {
         let errMessage = error instanceof Error ? error.message : String(error);
         console.error(`Error: ${errMessage}`);
@@ -87,19 +88,12 @@ export function registerInitCommand(program: Command): void {
     "after",
     buildHelpText({
       examples: [
-        "# Initialize current directory as 'main' workspace\nwopal init",
-        "# Initialize current directory with custom name\nwopal init my-project",
-        "# Initialize specific directory\nwopal init my-project /path/to/workspace",
-        "# Initialize using relative path\nwopal init .",
-        "# Initialize using home path\nwopal init ~/my-workspace",
-      ],
-      options: [
-        "[space-name]       Workspace name (default: 'main')",
-        "[space-dir]        Workspace directory (default: current directory)",
-        "--help             Show this help message",
+        "wopal init                    # Initialize current directory as 'main'",
+        "wopal init my-project         # Initialize with custom name",
+        "wopal init . /path/to/ws      # Initialize specific directory",
+        "wopal init ~/my-workspace     # Initialize using home path",
       ],
       notes: [
-        "Creates .wopalrc configuration if not exists",
         "Creates .env file in workspace directory",
         "Creates ~/.wopal/.env for global settings",
         "Supports ~ expansion for home directory",

@@ -21,16 +21,12 @@ export function registerPassthroughCommand(program: Command): void {
     "after",
     buildHelpText({
       examples: [
-        "# Search for skills\nwopal skills find <query>",
-        '# Example search\nwopal skills find "web scraping"',
-      ],
-      options: [
-        "<query>      Search query string",
-        "--help       Show this help message",
+        "wopal skills find \"web scraping\"   # Search for skills",
+        "wopal skills find openspec         # Search by keyword",
       ],
       notes: [
-        "This command passes through to Skills CLI (npx skills find)",
-        "Requires network connection to search remote skill registry",
+        "Passes through to Skills CLI (npx skills find)",
+        "Requires network connection",
       ],
     }),
   );

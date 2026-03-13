@@ -1,7 +1,6 @@
 import { Command } from "commander";
 import fs from "fs-extra";
 import path from "path";
-import os from "os";
 import { Logger } from "../../lib/logger.js";
 import { LockManager } from "../../lib/lock-manager.js";
 import { getInboxDir } from "../../lib/inbox-utils.js";
@@ -36,7 +35,7 @@ export function createInstallCommand(): Command {
     .argument("<source>", "Skill name (for INBOX) or local path")
     .option(
       "-g, --global",
-      "Install to global scope (~/.agents/skills/)",
+      "Install to global scope (~/.wopal/skills/)",
       false,
     )
     .option("--force", "Force overwrite if skill already exists", false)
@@ -60,31 +59,21 @@ export function createInstallCommand(): Command {
     "after",
     buildHelpText({
       examples: [
-        "# Install from INBOX (after scanning)\nwopal skills install my-skill",
-        "# Install from local path\nwopal skills install /path/to/my-skill",
-        "# Install globally\nwopal skills install my-skill --global",
-        "# Force overwrite existing\nwopal skills install my-skill --force",
-        "# Skip security scan (not recommended)\nwopal skills install my-skill --skip-scan",
-      ],
-      options: [
-        "-g, --global        Install to global scope (~/.agents/skills/)",
-        "--force             Force overwrite if skill already exists",
-        "--skip-scan         Skip security scan for INBOX skills",
-        "--mode <mode>       Install mode (copy or symlink, default: copy)",
-        "-d, --debug         Enable debug logging",
-        "--help              Show this help message",
+        "wopal skills install my-skill          # Install from INBOX",
+        "wopal skills install /path/to/skill    # Install from local path",
+        "wopal skills install my-skill --global # Install globally",
+        "wopal skills install my-skill --force  # Force overwrite",
       ],
       notes: [
-        "INBOX skills are automatically scanned for security issues",
-        "Local skills are identified by path separators (/ or \\)",
-        "Lock files are updated with skill metadata",
-        "INBOX skills are removed after successful installation",
+        "INBOX skills are automatically scanned for security",
+        "Local skills identified by path separators (/ or \\)",
+        "Lock files updated with skill metadata",
       ],
       workflow: [
-        "Download skill: wopal skills download <source>",
-        "Scan for issues: wopal skills scan <skill-name>",
-        "Install skill: wopal skills install <skill-name>",
-        "Verify installation: wopal skills list",
+        "Download: wopal skills download <source>",
+        "Scan: wopal skills scan <skill-name>",
+        "Install: wopal skills install <skill-name>",
+        "Verify: wopal skills list",
       ],
     }),
   );
@@ -249,7 +238,7 @@ async function installInboxSkill(
 
 function getTargetDir(skillName: string, scope: InstallScope): string {
   if (scope === "global") {
-    return path.join(os.homedir(), ".agents", "skills", skillName);
+    return path.join(getConfig().getGlobalSkillsDir(), skillName);
   } else {
     return path.join(getConfig().getSkillsInstallDir(), skillName);
   }

@@ -44,24 +44,15 @@ export function registerListCommand(program: Command): void {
     "after",
     buildHelpText({
       examples: [
-        "# List all skills (INBOX + installed)\nwopal list",
-        "# List with details\nwopal list --info",
-        "# List in JSON format\nwopal list --json",
-        "# List only project-level skills\nwopal list --local",
-        "# List only global-level skills\nwopal list --global",
-      ],
-      options: [
-        "-i, --info    Show skill descriptions and details",
-        "--local       Show only project-level skills",
-        "--global      Show only global-level skills",
-        "--json        Output in JSON format",
-        "--help        Show this help message",
+        "wopal skills list               # List all skills",
+        "wopal skills list --info        # List with details",
+        "wopal skills list --local       # Project-level only",
+        "wopal skills list --json        # JSON output",
       ],
       notes: [
-        "By default shows both INBOX (downloaded) and installed skills",
-        "INBOX skills are marked with [Downloaded]",
-        "Installed skills are marked with [Installed]",
-        "Use --local or --global to filter by scope",
+        "Shows both INBOX (downloaded) and installed skills",
+        "INBOX skills marked with [Downloaded]",
+        "Installed skills marked with [Installed]",
       ],
     }),
   );

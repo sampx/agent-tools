@@ -328,57 +328,24 @@ export function registerDownloadCommand(program: Command) {
 
   command.addHelpText(
     "after",
-    `
-
-SOURCE FORMAT:
-  owner/repo@skill-name            Download single skill
-  owner/repo@skill1,skill2,...     Download multiple skills from same repo
-
-BATCH DOWNLOAD:
-  # Multiple sources (space-separated)
-  wopal skills download owner/repo@skill1 owner/repo@skill2
-
-  # Multiple skills from same repo (comma-separated)
-  wopal skills download owner/repo@skill1,skill2,skill3
-
-  # Mixed formats
-  wopal skills download owner1/repo1@skill1 owner2/repo2@skill2
-
-EXAMPLES:
-  # Download single skill (copy from 'wopal skills find' output)
-  wopal skills download forztf/open-skilled-sdd@openspec-proposal-creation
-
-  # Download multiple skills from same repository
-  wopal skills download forztf/open-skilled-sdd@openspec-proposal-creation,openspec-implementation
-
-  # Download from specific branch
-  wopal skills download owner/repo@skill --branch develop
-
-  # Download from specific tag
-  wopal skills download owner/repo@skill --tag v1.2.3
-
-  # Download multiple skills from different repositories
-  wopal skills download \\
-    forztf/open-skilled-sdd@openspec-proposal-creation \\
-    itechmeat/llm-code@openspec
-
-OPTIONS:
-  --force            Overwrite existing skills in INBOX
-  --branch <branch>  Download from specific branch
-  --tag <tag>        Download from specific tag
-  --help             Show this help message
-
-NOTES:
-  - Skills are downloaded to INBOX for security scanning
-  - Use 'wopal skills scan <skill-name>' to scan skills in INBOX
-  - Use 'wopal skills install <skill-name>' to install scanned skills
-  - Local paths are not supported (use 'install' command instead)
-
-WORKFLOW:
-  1. Find skills:   wopal skills find <keyword>
-  2. Download:      wopal skills download <source>...
-  3. Scan:          wopal skills scan <skill-name>
-  4. Install:       wopal skills install <skill-name>
-`,
+    buildHelpText({
+      examples: [
+        "wopal skills download owner/repo@skill    # Download single skill",
+        "wopal skills download owner/repo@a,b,c    # Download multiple skills",
+        "wopal skills download <src> --branch dev  # From specific branch",
+        "wopal skills download <src> --tag v1.0.0  # From specific tag",
+      ],
+      notes: [
+        "Source format: owner/repo@skill-name",
+        "Skills are downloaded to INBOX for scanning",
+        "Use 'wopal skills scan' before installation",
+      ],
+      workflow: [
+        "Find: wopal skills find <keyword>",
+        "Download: wopal skills download <source>",
+        "Scan: wopal skills scan <skill-name>",
+        "Install: wopal skills install <skill-name>",
+      ],
+    }),
   );
 }
