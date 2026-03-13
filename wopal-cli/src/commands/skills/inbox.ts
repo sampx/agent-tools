@@ -67,8 +67,45 @@ async function listInboxSkills(
   }
 }
 
+function extractSkillMeta(content: string): {
+  name: string;
+  description: string;
+} {
+  const lines = content.split("\n");
+  let name = "";
+  let description = "";
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!name && line.startsWith("# ")) {
+      name = line.slice(2).trim();
+      const descLines: string[] = [];
+      for (let j = i + 1; j < lines.length && descLines.length < 3; j++) {
+        const descLine = lines[j].trim();
+        if (
+          descLine &&
+          !descLine.startsWith("#") &&
+          !descLine.startsWith(">")
+        ) {
+          descLines.push(descLine);
+        } else if (descLines.length > 0 && !descLine) {
+          break;
+        }
+      }
+      description = descLines.join(" ").trim();
+      break;
+    }
+  }
+
+  return {
+    name: name || "Unknown",
+    description: description || "No description",
+  };
+}
+
 async function showInboxSkill(
   skillName: string,
+  detail: boolean,
   context: ProgramContext,
 ): Promise<void> {
   const { output, debug } = context;
@@ -91,11 +128,17 @@ async function showInboxSkill(
   }
 
   const content = readFileSync(skillMdPath, "utf-8");
-  console.log(content);
 
-  output.print("Directory Structure:");
-  const tree = buildDirectoryTree(skillDir);
-  console.log(tree);
+  if (detail) {
+    console.log(content);
+    output.print("Directory Structure:");
+    const tree = buildDirectoryTree(skillDir);
+    console.log(tree);
+  } else {
+    const { name, description } = extractSkillMeta(content);
+    output.print(`Name: ${name}`);
+    output.print(`Description: ${description}`);
+  }
 }
 
 async function removeInboxSkill(
@@ -144,18 +187,30 @@ const listSubcommand: SubCommandDefinition = {
 
 const showSubcommand: SubCommandDefinition = {
   name: "show <skill>",
-  description: "Show skill details (SKILL.md content and directory structure)",
-  action: async (args, _options, context) => {
+  description:
+    "Show skill name and description (use --detail for full content)",
+  options: [
+    {
+      flags: "--detail",
+      description: "Show full SKILL.md content and directory structure",
+    },
+  ],
+  action: async (args, options, context) => {
     try {
       const skillName = args.arg0 as string;
-      await showInboxSkill(skillName, context);
+      await showInboxSkill(skillName, !!options.detail, context);
     } catch (error) {
       handleCommandError(error);
     }
   },
   helpText: {
-    examples: ["wopal inbox show my-skill       # Show skill details"],
-    notes: ["Displays SKILL.md content and directory structure"],
+    examples: [
+      "wopal inbox show my-skill       # Show name and description",
+      "wopal inbox show my-skill --detail  # Show full content",
+    ],
+    notes: [
+      "Default shows name and description only, use --detail for full content",
+    ],
   },
 };
 

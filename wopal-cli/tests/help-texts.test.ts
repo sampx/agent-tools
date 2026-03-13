@@ -198,16 +198,26 @@ describe("help-texts", () => {
 
   describe("buildHelpHeader", () => {
     it("should show (none) when no active space", () => {
-      const result = buildHelpHeader(undefined);
-      expect(result).toContain("ACTIVE SPACE:");
+      const result = buildHelpHeader(undefined, undefined);
+      expect(result).toContain("CURRENT ACTIVE SPACE:");
       expect(result).toContain("(none)");
     });
 
-    it("should show space path when active space exists", () => {
-      const result = buildHelpHeader({ path: "/path/to/workspace" });
-      expect(result).toContain("ACTIVE SPACE:");
+    it("should show space name and path when active space exists", () => {
+      const result = buildHelpHeader(
+        { path: "/path/to/workspace" },
+        "my-space",
+      );
+      expect(result).toContain("CURRENT ACTIVE SPACE:");
+      expect(result).toContain("my-space");
       expect(result).toContain("/path/to/workspace");
       expect(result).not.toContain("(none)");
+    });
+
+    it("should show (none) when space exists but no name", () => {
+      const result = buildHelpHeader({ path: "/path/to/workspace" }, undefined);
+      expect(result).toContain("CURRENT ACTIVE SPACE:");
+      expect(result).toContain("(none)");
     });
   });
 });

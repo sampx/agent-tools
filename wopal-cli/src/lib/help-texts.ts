@@ -118,9 +118,12 @@ export function buildHelpText(
   return parts.join("\n");
 }
 
-export function buildHelpHeader(activeSpace?: SpaceConfig): string {
-  if (!activeSpace) {
-    return "\nACTIVE SPACE: (none)\n";
+export function buildHelpHeader(
+  activeSpace?: SpaceConfig,
+  activeSpaceName?: string,
+): string {
+  if (!activeSpace || !activeSpaceName) {
+    return "\nCURRENT ACTIVE SPACE: (none)\n";
   }
-  return `\nACTIVE SPACE: ${activeSpace.path}\n`;
+  return `\nCURRENT ACTIVE SPACE: ${activeSpaceName} -> Path: ${activeSpace.path}\n`;
 }

@@ -100,7 +100,10 @@ async function runCli(argv: string[] = process.argv): Promise<void> {
     });
 
   program.addHelpText("before", () => {
-    return buildHelpHeader(config.getActiveSpace());
+    return buildHelpHeader(
+      config.getActiveSpace(),
+      config.getActiveSpaceName(),
+    );
   });
 
   program.addHelpText(

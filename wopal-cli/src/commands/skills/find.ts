@@ -239,7 +239,7 @@ export const findSubcommand: SubCommandDefinition = {
     ],
     notes: [
       "Results sorted by install count (descending)",
-      'Wildcards (*) must be quoted in zsh/bash to prevent glob expansion',
+      "Wildcards (*) must be quoted in zsh/bash to prevent glob expansion",
       "Wildcard queries show all matches by default (no limit)",
       "Requires network connection",
     ],

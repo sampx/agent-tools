@@ -128,10 +128,11 @@ export class OutputService {
     if (!this.showHeader || this.headerShown) return;
 
     const space = this.config.getActiveSpace();
-    if (space) {
-      console.log(`ACTIVE SPACE: ${space.path}\n`);
+    const name = this.config.getActiveSpaceName();
+    if (space && name) {
+      console.log(`CURRENT ACTIVE SPACE: ${name} -> Path: ${space.path}\n`);
     } else {
-      console.log(`ACTIVE SPACE: (none)\n`);
+      console.log(`CURRENT ACTIVE SPACE: (none)\n`);
     }
     this.headerShown = true;
   }
