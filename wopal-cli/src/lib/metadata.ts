@@ -12,6 +12,9 @@ export interface SkillMetadata {
   commit?: string;
   ref?: string;
   tag?: string;
+  lastScannedAt?: string;
+  lastScanStatus?: "pass" | "fail";
+  lastScanRiskScore?: number;
 }
 
 export async function writeMetadata(

@@ -15,12 +15,21 @@ import {
   convertToScanResult,
 } from "../../scanner/openclaw-wrapper.js";
 import { handleCommandError } from "../../lib/error-utils.js";
+import {
+  readMetadata,
+  writeMetadata,
+  type SkillMetadata,
+} from "../../lib/metadata.js";
+
+const SCAN_CACHE_HOURS = 48;
+const SCAN_CACHE_MS = SCAN_CACHE_HOURS * 60 * 60 * 1000;
 
 export interface ScanCommandOptions {
   json?: boolean;
   all?: boolean;
   output?: string;
   noUpdate?: boolean;
+  force?: boolean;
 }
 
 async function scanCommand(
@@ -77,7 +86,7 @@ async function scanSingleSkill(
     return 2;
   }
 
-  const result = await scanSkill(skillPath, skillName, context);
+  const result = await scanSkill(skillPath, skillName, context, options.force);
 
   if (options.json) {
     const jsonOutput = options.output
@@ -125,7 +134,12 @@ async function scanAllSkills(
 
   for (const skillName of skillDirs) {
     const skillPath = path.join(inboxPath, skillName);
-    const result = await scanSkill(skillPath, skillName, context);
+    const result = await scanSkill(
+      skillPath,
+      skillName,
+      context,
+      options.force,
+    );
     results.push(result);
 
     if (result.status === "pass") {
@@ -179,15 +193,32 @@ async function scanAllSkills(
   return failCount > 0 ? 1 : 0;
 }
 
-async function scanSkill(
+export async function scanSkill(
   skillPath: string,
   skillName: string,
   context: ProgramContext,
+  force?: boolean,
 ): Promise<ScanResult> {
   const { output, debug } = context;
 
+  const metadata = await readMetadata(skillPath);
+  const cachedResult = checkScanCache(metadata, skillName);
+
+  if (!force && cachedResult) {
+    if (debug) {
+      const hoursAgo = Math.floor(
+        (Date.now() - new Date(metadata!.lastScannedAt!).getTime()) /
+          (60 * 60 * 1000),
+      );
+      output.print(
+        `Using cached scan (${hoursAgo}h ago): ${skillName} (risk: ${cachedResult.riskScore})`,
+      );
+    }
+    return cachedResult;
+  }
+
   if (debug) {
-    output.print(`Scanning skill: ${skillName} (path: ${skillPath})`);
+    output.print(`Scanning: ${skillName}...`);
   }
 
   const startTime = Date.now();
@@ -203,6 +234,8 @@ async function scanSkill(
       );
     }
 
+    await updateScanMetadata(skillPath, metadata, result);
+
     return result;
   } catch (error) {
     output.error(`Scan failed for ${skillName}`, (error as Error).message);
@@ -210,16 +243,77 @@ async function scanSkill(
   }
 }
 
+function checkScanCache(
+  metadata: SkillMetadata | null,
+  skillName: string,
+): ScanResult | null {
+  if (!metadata?.lastScannedAt) {
+    return null;
+  }
+
+  const lastScan = new Date(metadata.lastScannedAt).getTime();
+  const now = Date.now();
+
+  if (now - lastScan > SCAN_CACHE_MS) {
+    return null;
+  }
+
+  if (!metadata.lastScanStatus || metadata.lastScanRiskScore === undefined) {
+    return null;
+  }
+
+  return {
+    skillName,
+    scanTime: metadata.lastScannedAt,
+    riskScore: metadata.lastScanRiskScore,
+    status: metadata.lastScanStatus,
+    checks: {},
+    summary: {
+      critical: 0,
+      warning: 0,
+      passed: 51,
+    },
+  };
+}
+
+async function updateScanMetadata(
+  skillPath: string,
+  metadata: SkillMetadata | null,
+  result: ScanResult,
+): Promise<void> {
+  const updated: SkillMetadata = {
+    ...(metadata || {
+      name: result.skillName,
+      description: "",
+      source: "",
+      sourceUrl: "",
+      skillPath: skillPath,
+      downloadedAt: new Date().toISOString(),
+    }),
+    lastScannedAt: result.scanTime,
+    lastScanStatus: result.status,
+    lastScanRiskScore: result.riskScore,
+  };
+
+  await writeMetadata(skillPath, updated);
+}
+
 function displayScanResult(
   result: ScanResult,
   output: ProgramContext["output"],
 ): void {
+  const { critical, warning, passed } = result.summary;
+
   if (result.status === "pass") {
-    output.print(`PASS ${result.skillName}: PASS (risk: ${result.riskScore})`);
+    output.print(`PASS ${result.skillName} (risk: ${result.riskScore})`);
+    output.print(
+      `  ${passed} passed, ${critical} critical, ${warning} warning`,
+    );
     return;
   }
 
-  output.print(`FAIL ${result.skillName}: FAIL (risk: ${result.riskScore})`);
+  output.print(`FAIL ${result.skillName} (risk: ${result.riskScore})`);
+  output.print(`  ${passed} passed, ${critical} critical, ${warning} warning`);
 
   const failedChecks = Object.values(result.checks).filter(
     (check) => check.status === "fail",
@@ -291,6 +385,7 @@ export const scanSubcommand: SubCommandDefinition = {
     { flags: "--all", description: "Scan all INBOX skills" },
     { flags: "--output <file>", description: "Save JSON report to file" },
     { flags: "--no-update", description: "Skip automatic scanner update" },
+    { flags: "--force", description: "Force rescan (ignore 48h cache)" },
   ],
   action: async (args, options, context) => {
     try {
@@ -300,6 +395,7 @@ export const scanSubcommand: SubCommandDefinition = {
         all: options.all as boolean | undefined,
         output: options.output as string | undefined,
         noUpdate: options.noUpdate as boolean | undefined,
+        force: options.force as boolean | undefined,
       };
       const exitCode = await scanCommand(skillName, scanOptions, context);
       process.exit(exitCode);
@@ -313,11 +409,12 @@ export const scanSubcommand: SubCommandDefinition = {
       "wopal skills scan --all            # Scan all INBOX skills",
       "wopal skills scan my-skill --json  # JSON output",
       "wopal skills scan my-skill --no-update  # Skip scanner update",
+      "wopal skills scan my-skill --force     # Force rescan",
     ],
     notes: [
       "51 security checks (C2, malware, reverse shells, CVEs)",
       "Exit codes: 0=pass, 1=issues found, 2=error",
-      "Scanner auto-updates every 24 hours",
+      "Scan results cached for 48 hours",
     ],
     workflow: [
       "Download: wopal skills download <source>",

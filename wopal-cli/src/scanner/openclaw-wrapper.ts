@@ -154,40 +154,41 @@ export function convertToScanResult(
   let currentCheckId = "";
   let currentCheckName = "";
   let checkCounter = 0;
+  let pendingFindings: { file: string; pattern: string; message: string }[] =
+    [];
 
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     const checkMatch = line.match(/^\[(\d+)\/\d+\] (.+)/);
+
     if (checkMatch) {
       if (currentCheckId && currentCheckName) {
-        checks[currentCheckId] = {
-          id: currentCheckId,
-          name: currentCheckName,
-          severity: "warning",
-          status: "pass",
-          findings: [],
-        };
+        if (!checks[currentCheckId]) {
+          checks[currentCheckId] = {
+            id: currentCheckId,
+            name: currentCheckName,
+            severity: "warning",
+            status: "pass",
+            findings: [],
+          };
+        }
       }
 
       checkCounter++;
       currentCheckId = `openclaw_check_${checkCounter.toString().padStart(2, "0")}`;
       currentCheckName = checkMatch[2];
+      pendingFindings = [];
     }
 
     if (line.startsWith("CRITICAL:") && currentCheckId) {
       const message = line.substring("CRITICAL:".length).trim();
+      pendingFindings = [{ file: skillName, pattern: message, message }];
       checks[currentCheckId] = {
         id: currentCheckId,
         name: currentCheckName,
         severity: "critical",
         status: "fail",
-        findings: [
-          {
-            file: skillName,
-            pattern: message,
-            line: undefined,
-            message: message,
-          },
-        ],
+        findings: pendingFindings,
       };
     } else if (line.startsWith("WARNING:") && currentCheckId) {
       const existing = checks[currentCheckId];
@@ -196,19 +197,13 @@ export function convertToScanResult(
       }
 
       const message = line.substring("WARNING:".length).trim();
+      pendingFindings = [{ file: skillName, pattern: message, message }];
       checks[currentCheckId] = {
         id: currentCheckId,
         name: currentCheckName,
         severity: "warning",
         status: "fail",
-        findings: [
-          {
-            file: skillName,
-            pattern: message,
-            line: undefined,
-            message: message,
-          },
-        ],
+        findings: pendingFindings,
       };
     } else if (line.startsWith("CLEAN:") && currentCheckId) {
       if (!checks[currentCheckId]) {
@@ -219,6 +214,25 @@ export function convertToScanResult(
           status: "pass",
           findings: [],
         };
+      }
+    } else if (
+      pendingFindings.length > 0 &&
+      line.trim().length > 0 &&
+      !line.startsWith("[") &&
+      !line.startsWith("CRITICAL:") &&
+      !line.startsWith("WARNING:") &&
+      !line.startsWith("CLEAN:") &&
+      !line.startsWith("INFO:") &&
+      !line.startsWith("STATUS:") &&
+      !line.startsWith("===") &&
+      !line.includes("OPENCLAW SECURITY SCAN")
+    ) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith("/") || trimmed.includes("/")) {
+        const check = checks[currentCheckId];
+        if (check && check.findings.length > 0) {
+          check.findings[check.findings.length - 1].file = trimmed;
+        }
       }
     }
   }

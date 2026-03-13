@@ -9,10 +9,7 @@ import { getInboxDir } from "../../lib/inbox-utils.js";
 import { readMetadata } from "../../lib/metadata.js";
 import { fetchSkillFolderHash, getGitHubToken } from "../../lib/skill-lock.js";
 import { computeSkillFolderHash } from "../../lib/hash.js";
-import {
-  runOpenclawScan,
-  convertToScanResult,
-} from "../../scanner/openclaw-wrapper.js";
+import { scanSkill } from "./scan.js";
 import type {
   SkillLockEntry,
   InstallMode,
@@ -148,7 +145,7 @@ async function installInboxSkill(
 
   if (!options.skipScan) {
     output.print("Running security scan...");
-    await runSecurityScan(skillName, skillDir, output);
+    await runSecurityScan(skillName, skillDir, context);
   } else {
     if (debug) {
       output.print("Skipping security scan (--skip-scan)");
@@ -262,10 +259,10 @@ async function copySkill(
 async function runSecurityScan(
   skillName: string,
   skillDir: string,
-  output: ProgramContext["output"],
+  context: ProgramContext,
 ): Promise<void> {
-  const scanOutput = await runOpenclawScan(skillDir);
-  const result = convertToScanResult(skillName, scanOutput);
+  const { output } = context;
+  const result = await scanSkill(skillDir, skillName, context, false);
 
   if (result.status === "fail") {
     throw new Error(
