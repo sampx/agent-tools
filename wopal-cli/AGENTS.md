@@ -12,7 +12,7 @@
 |------|------|------|
 | `wopal init [name] [dir]` | - | 初始化工作空间 |
 | `wopal space <cmd>` | list/add/remove/use/show | 空间管理 |
-| `wopal skills find <query>` | `--limit N` `--json` `--verify` | 搜索技能 (skills.sh API) |
+| `wopal skills find <query>` | `--limit N` `--json` `--verify` | 搜索技能 (默认自动验证安装量前 5 条) |
 | `wopal skills download <src...>` | `--branch` `--tag` `--force` | 下载到 INBOX（GitHub + well-known） |
 | `wopal skills scan [name]` | `--all` `--json` `--output` | 安全扫描 |
 | `wopal skills install <source>` | `-g` `--force` `--skip-scan` `--rm-inbox` | 安装技能 |
@@ -234,5 +234,7 @@ wopal skills install owner/repo@skill  # 自动完成三步
 - 非 GitHub `source@skill` 走 well-known 协议：`/.well-known/skills/index.json`
 
 ### 搜索结果验证
-- `skills find` 默认展示 skills.sh 索引结果，可能存在陈旧条目
+- `skills find` 默认验证按安装量排序的前 5 条结果，其余结果仍可能是陈旧索引条目
 - `skills find --verify` 会临时执行下载验证，标记结果是否真的可下载
+- `WOPAL_SKILLS_FIND_AUTO_VERIFY_COUNT=0` 可关闭默认自动验证
+- 验证阶段会收集技能 `SKILL.md` 的格式告警，并在结果中标记，而不是把内部 YAML 警告直接刷到终端

@@ -16,6 +16,7 @@ const SEARCH_API_BASE = "https://skills.sh/api/search";
 const DEFAULT_LIMIT = 20;
 const MAX_API_LIMIT = 100;
 const SEARCH_TIMEOUT_MS = 10000;
+const DEFAULT_AUTO_VERIFY_COUNT = 5;
 
 interface SkillSearchResult {
   id: string;
@@ -42,11 +43,14 @@ interface FindOptions {
 interface SkillVerification {
   verified: boolean;
   reason?: string;
+  warnings?: string[];
 }
 
 interface FindResultSkill extends SkillSearchResult {
   verification?: SkillVerification;
 }
+
+type VerificationMode = "none" | "top" | "all";
 
 interface ParsedWildcardQuery {
   apiQuery: string;
@@ -141,7 +145,10 @@ export async function verifySkills(
           if (result.success.length > 0) {
             return {
               ...skill,
-              verification: { verified: true },
+              verification: {
+                verified: true,
+                warnings: result.warnings?.map((warning) => warning.message),
+              },
             } satisfies FindResultSkill;
           }
 
@@ -152,6 +159,7 @@ export async function verifySkills(
               reason: summarizeVerificationReason(
                 result.failed[0]?.error || "Verification failed",
               ),
+              warnings: result.warnings?.map((warning) => warning.message),
             },
           } satisfies FindResultSkill;
         } catch (error) {
@@ -170,6 +178,37 @@ export async function verifySkills(
       }),
     ),
   );
+}
+
+function getAutoVerifyCount(): number {
+  const rawValue = process.env.WOPAL_SKILLS_FIND_AUTO_VERIFY_COUNT;
+  if (rawValue === undefined) {
+    return DEFAULT_AUTO_VERIFY_COUNT;
+  }
+
+  const parsed = Number.parseInt(rawValue, 10);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return DEFAULT_AUTO_VERIFY_COUNT;
+  }
+
+  return parsed;
+}
+
+export async function verifyTopResults(
+  skills: SkillSearchResult[],
+  count: number,
+  context: ProgramContext,
+): Promise<FindResultSkill[]> {
+  if (count <= 0 || skills.length === 0) {
+    return [...skills];
+  }
+
+  const limitedCount = Math.min(count, skills.length);
+  const verifiedResults = await verifySkills(
+    skills.slice(0, limitedCount),
+    context,
+  );
+  return [...verifiedResults, ...skills.slice(limitedCount)];
 }
 
 function getSkillUrl(skill: SkillSearchResult): string {
@@ -215,7 +254,8 @@ function printResults(
   skills: FindResultSkill[],
   total: number,
   showing: number,
-  verify: boolean,
+  verificationMode: VerificationMode,
+  verifiedCount: number,
   context: ProgramContext,
 ): void {
   const { output } = context;
@@ -229,8 +269,8 @@ function printResults(
   output.println();
 
   for (const skill of skills) {
-    const verificationSuffix = verify
-      ? skill.verification?.verified
+    const verificationSuffix = skill.verification
+      ? skill.verification.verified
         ? "  [verified]"
         : "  [unverified]"
       : "";
@@ -238,18 +278,25 @@ function printResults(
       `  ${getDownloadSource(skill)}  ${formatInstalls(skill.installs)}${verificationSuffix}`,
     );
     output.print(`  └ ${getSkillUrl(skill)}`);
-    if (verify && skill.verification?.reason) {
+    if (skill.verification?.reason) {
       output.print(`    Reason: ${skill.verification.reason}`);
+    }
+    if (skill.verification?.warnings?.length) {
+      output.print("    Warning: Skill metadata has invalid YAML in SKILL.md");
     }
     output.println();
   }
 
-  if (verify) {
+  if (verificationMode === "all") {
     const verifiedCount = skills.filter(
       (skill) => skill.verification?.verified,
     ).length;
     output.print(
       `Verified ${verifiedCount}/${skills.length} result(s) as downloadable.`,
+    );
+  } else if (verificationMode === "top") {
+    output.print(
+      `Auto-verified the top ${verifiedCount} result(s) by install count. Use --verify to check all displayed results.`,
     );
   } else {
     output.print(
@@ -265,10 +312,15 @@ function printJson(
   query: string,
   total: number,
   showing: number,
-  verify: boolean,
+  verificationMode: VerificationMode,
+  verifiedCount: number,
   context: ProgramContext,
 ): void {
   const { output } = context;
+
+  const successfulVerificationCount = skills.filter(
+    (skill) => skill.verification?.verified,
+  ).length;
 
   const formattedSkills = skills.map((skill) => ({
     id: skill.id,
@@ -277,17 +329,19 @@ function printJson(
     downloadSource: getDownloadSource(skill),
     installs: skill.installs,
     url: getSkillUrl(skill),
-    verified: verify ? (skill.verification?.verified ?? false) : undefined,
-    verificationReason: verify
-      ? (skill.verification?.reason ?? null)
-      : undefined,
+    verified: skill.verification?.verified ?? null,
+    verificationReason: skill.verification?.reason ?? null,
+    warnings: skill.verification?.warnings ?? [],
   }));
 
   output.json({
     query,
     total,
     showing,
-    verified: verify,
+    verified: verificationMode === "all",
+    verificationMode,
+    verifiedCount,
+    successfulVerificationCount,
     skills: formattedSkills,
   });
 }
@@ -327,18 +381,47 @@ async function runFind(
     }
     const showing = skills.length;
     const total = parsed.hasWildcard ? skills.length : data.count;
+    const autoVerifyCount = getAutoVerifyCount();
+    let verificationMode: VerificationMode = "none";
+    let verifiedCount = 0;
 
     if (verify && skills.length > 0) {
+      verificationMode = "all";
+      verifiedCount = skills.length;
       if (!jsonOutput) {
         output.print(`Verifying ${skills.length} result(s)...`);
       }
       skills = await verifySkills(skills, context);
+    } else if (autoVerifyCount > 0 && skills.length > 0) {
+      verificationMode = "top";
+      verifiedCount = Math.min(autoVerifyCount, skills.length);
+      if (!jsonOutput) {
+        output.print(
+          `Auto-verifying the top ${verifiedCount} result(s) by install count...`,
+        );
+      }
+      skills = await verifyTopResults(skills, verifiedCount, context);
     }
 
     if (jsonOutput) {
-      printJson(skills, query, total, showing, verify, context);
+      printJson(
+        skills,
+        query,
+        total,
+        showing,
+        verificationMode,
+        verifiedCount,
+        context,
+      );
     } else {
-      printResults(skills, total, showing, verify, context);
+      printResults(
+        skills,
+        total,
+        showing,
+        verificationMode,
+        verifiedCount,
+        context,
+      );
     }
   } catch (error) {
     if (jsonOutput) {
@@ -398,13 +481,15 @@ export const findSubcommand: SubCommandDefinition = {
     examples: [
       "wopal skills find openspec             # Search openspec skills",
       'wopal skills find "openspec*cn"        # Wildcard: quote * in zsh/bash',
-      "wopal skills find openspec --verify    # Verify results are downloadable",
+      "wopal skills find openspec             # Auto-verify top 5 results",
+      "wopal skills find openspec --verify    # Verify all displayed results",
       "wopal skills find openspec --limit 50  # Show 50 results",
       "wopal skills find openspec --json      # JSON output",
     ],
     notes: [
       "Results sorted by install count (descending)",
-      "Search results come from skills.sh index and may be stale unless verified",
+      "Default search auto-verifies the top 5 displayed results by install count",
+      "Search results come from skills.sh index and may still be stale; use --verify to check every displayed result",
       "Wildcards (*) must be quoted in zsh/bash to prevent glob expansion",
       "Wildcard queries show all matches by default (no limit)",
       "Requires network connection",

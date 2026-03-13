@@ -18,7 +18,10 @@ interface MockSearchServer {
   close: () => Promise<void>;
 }
 
-function runCli(args: string[]): Promise<string> {
+function runCli(
+  args: string[],
+  envOverrides: NodeJS.ProcessEnv = {},
+): Promise<string> {
   return new Promise((resolve, reject) => {
     execFile(
       "node",
@@ -26,7 +29,7 @@ function runCli(args: string[]): Promise<string> {
       {
         encoding: "utf-8",
         timeout: 30000,
-        env: { ...process.env },
+        env: { ...process.env, ...envOverrides },
       },
       (error, stdout, stderr) => {
         if (error) {
@@ -61,10 +64,54 @@ function createSkill(
 }
 
 async function startMockSearchServer(
-  skills: MockSearchSkill[],
+  createSkills: (sourceHost: string) => MockSearchSkill[],
 ): Promise<MockSearchServer> {
+  let skills: MockSearchSkill[] = [];
+
   const server = createServer((req, res) => {
     const url = new URL(req.url || "/", "http://127.0.0.1");
+
+    if (url.pathname === "/.well-known/skills/index.json") {
+      const sourceHost = req.headers.host || "127.0.0.1";
+      const sourceSkills = skills.filter(
+        (skill) => skill.source === sourceHost,
+      );
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          skills: sourceSkills.map((skill) => ({
+            name: skill.skillId || skill.name,
+            description: `${skill.name} description`,
+          })),
+        }),
+      );
+      return;
+    }
+
+    const skillMatch = url.pathname.match(
+      /^\/\.well-known\/skills\/([^/]+)\/SKILL\.md$/,
+    );
+    if (skillMatch) {
+      const skillName = decodeURIComponent(skillMatch[1]!);
+      const sourceHost = req.headers.host || "127.0.0.1";
+      const skill = skills.find(
+        (entry) =>
+          entry.source === sourceHost &&
+          (entry.skillId || entry.name) === skillName,
+      );
+
+      if (!skill) {
+        res.writeHead(404);
+        res.end("Not found");
+        return;
+      }
+
+      res.writeHead(200, { "Content-Type": "text/markdown" });
+      res.end(
+        `---\nname: ${skill.skillId || skill.name}\ndescription: ${skill.name} description\n---\n\n# ${skill.name}\n`,
+      );
+      return;
+    }
 
     if (url.pathname !== "/api/search") {
       res.writeHead(404);
@@ -109,6 +156,9 @@ async function startMockSearchServer(
     throw new Error("Failed to resolve mock search server address");
   }
 
+  const sourceHost = `127.0.0.1:${address.port}`;
+  skills = createSkills(sourceHost);
+
   return {
     baseUrl: `http://127.0.0.1:${address.port}/api/search`,
     close: () =>
@@ -131,32 +181,43 @@ describe("wopal skills find command", () => {
   beforeEach(async () => {
     process.env = { ...originalEnv };
 
-    const mockSkills: MockSearchSkill[] = [
-      createSkill("smithery.ai", "smithery-ai-cli", 1121),
-      createSkill("smithery.ai", "frontend-design", 381),
-      createSkill("forztf/open-skilled-sdd", "openspec-proposal-creation", 250),
-      createSkill("forztf/open-skilled-sdd", "openspec-verify-change", 200),
-      createSkill(
-        "forztf/open-skilled-sdd",
-        "openspec-continue-change-cn",
-        180,
-      ),
-      createSkill("forztf/open-skilled-sdd", "openspecalpha-cn", 170),
-      createSkill("forztf/open-skilled-sdd", "openspecbeta-cn", 160),
-      createSkill("skills.volces.com", "find-skills", 252),
-      createSkill("skills.volces.com", "web-search", 118),
-      createSkill("gpa-mcp.genai.prd.aws.saccap.int", "superpowers", 31),
-      createSkill("saccap/int", "superpowers", 16),
-      createSkill("obra/superpowers", "using-superpowers", 21282),
-    ];
+    server = await startMockSearchServer((sourceHost) => {
+      const mockSkills: MockSearchSkill[] = [
+        createSkill("smithery.ai", "smithery-ai-cli", 1121),
+        createSkill("smithery.ai", "frontend-design", 381),
+        createSkill("obra/superpowers", "using-superpowers", 21282),
+        createSkill("skills.volces.com", "find-skills", 252),
+        createSkill("skills.volces.com", "web-search", 118),
+        createSkill("gpa-mcp.genai.prd.aws.saccap.int", "superpowers", 31),
+        createSkill("saccap/int", "superpowers", 16),
+      ];
 
-    for (let i = 0; i < 20; i++) {
-      mockSkills.push(
-        createSkill(`test-source-${i}/repo`, `openspec-skill-${i}`, 100 - i),
-      );
-    }
+      const localOpenspecSkills = [
+        ["openspec-proposal-creation", 250],
+        ["openspec-verify-change", 200],
+        ["openspec-continue-change-cn", 180],
+        ["openspecalpha-cn", 170],
+        ["openspecbeta-cn", 160],
+        ["openspec-skill-0", 100],
+        ["openspec-skill-1", 99],
+        ["openspec-skill-2", 98],
+        ["openspec-skill-3", 97],
+        ["openspec-skill-4", 96],
+      ] as const;
 
-    server = await startMockSearchServer(mockSkills);
+      for (const [name, installs] of localOpenspecSkills) {
+        mockSkills.push(createSkill(sourceHost, name, installs));
+      }
+
+      for (let i = 5; i < 20; i++) {
+        mockSkills.push(
+          createSkill(`test-source-${i}/repo`, `openspec-skill-${i}`, 100 - i),
+        );
+      }
+
+      return mockSkills;
+    });
+
     process.env.WOPAL_SKILLS_SEARCH_API_BASE = server.baseUrl;
   });
 
@@ -178,7 +239,10 @@ describe("wopal skills find command", () => {
     expect(output).toContain("showing 20");
     expect(output).toContain("installs");
     expect(output).toContain(
-      "Results are indexed from skills.sh and may be stale",
+      "Auto-verifying the top 5 result(s) by install count...",
+    );
+    expect(output).toContain(
+      "Auto-verified the top 5 result(s) by install count. Use --verify to check all displayed results.",
     );
     expect(output).toContain("Download with: wopal skills download");
   }, 30000);
@@ -222,6 +286,9 @@ describe("wopal skills find command", () => {
     expect(parsed.data).toBeDefined();
     expect(parsed.data.query).toBe("openspec");
     expect(parsed.data.verified).toBe(false);
+    expect(parsed.data.verificationMode).toBe("top");
+    expect(parsed.data.verifiedCount).toBe(3);
+    expect(parsed.data.successfulVerificationCount).toBe(3);
     expect(parsed.data.skills).toBeInstanceOf(Array);
     expect(parsed.data.skills.length).toBeLessThanOrEqual(3);
 
@@ -233,8 +300,68 @@ describe("wopal skills find command", () => {
       expect(skill).toHaveProperty("downloadSource");
       expect(skill).toHaveProperty("installs");
       expect(skill).toHaveProperty("url");
+      expect(skill).toHaveProperty("verified");
+      expect(skill).toHaveProperty("verificationReason");
+      expect(skill).toHaveProperty("warnings");
       expect(skill.url).toMatch(/^https:\/\/skills\.sh\//);
     }
+  }, 30000);
+
+  it("should auto-verify the top 5 displayed results by default", async () => {
+    const output = await runCli([
+      "skills",
+      "find",
+      "openspec",
+      "--limit",
+      "10",
+    ]);
+
+    expect(output).toContain(
+      "Auto-verifying the top 5 result(s) by install count...",
+    );
+    expect(output).toContain(
+      "Auto-verified the top 5 result(s) by install count. Use --verify to check all displayed results.",
+    );
+  }, 30000);
+
+  it("should mark only auto-verified results in default JSON output", async () => {
+    const output = await runCli([
+      "skills",
+      "find",
+      "openspec",
+      "--limit",
+      "10",
+      "--json",
+    ]);
+
+    const parsed = JSON.parse(output);
+
+    expect(parsed.success).toBe(true);
+    expect(parsed.data.verificationMode).toBe("top");
+    expect(parsed.data.verifiedCount).toBe(5);
+    expect(parsed.data.successfulVerificationCount).toBe(5);
+    expect(
+      parsed.data.skills
+        .slice(0, 5)
+        .every((skill: any) => skill.verified !== null),
+    ).toBe(true);
+    expect(
+      parsed.data.skills
+        .slice(5)
+        .every((skill: any) => skill.verified === null),
+    ).toBe(true);
+  }, 30000);
+
+  it("should disable auto-verification when configured to 0", async () => {
+    const output = await runCli(
+      ["skills", "find", "openspec", "--limit", "10"],
+      { WOPAL_SKILLS_FIND_AUTO_VERIFY_COUNT: "0" },
+    );
+
+    expect(output).toContain(
+      "Results are indexed from skills.sh and may be stale; use --verify to confirm downloadability.",
+    );
+    expect(output).not.toContain("Auto-verifying the top");
   }, 30000);
 
   it("should handle no results found", async () => {

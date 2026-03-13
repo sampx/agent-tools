@@ -25,9 +25,15 @@ export interface DownloadOptions {
   ref?: string;
 }
 
+export interface DownloadWarning {
+  code: "invalid-skill-format";
+  message: string;
+}
+
 export interface DownloadResult {
   success: string[];
   failed: Array<{ skill: string; error: string }>;
+  warnings?: DownloadWarning[];
 }
 
 export type ParsedDownloadSource =
@@ -80,6 +86,7 @@ export async function downloadSkillToInbox(
 
   const skillPaths = [`skills/${skillName}`, skillName];
   let lastError: string | null = null;
+  const warnings: DownloadWarning[] = [];
 
   for (const skillPath of skillPaths) {
     try {
@@ -121,6 +128,9 @@ export async function downloadSkillToInbox(
       try {
         const discovered = await discoverSkills(skillDestPath, undefined, {
           includeInternal: true,
+          onWarning: (message) => {
+            warnings.push({ code: "invalid-skill-format", message });
+          },
         });
         if (discovered.length > 0) {
           description = discovered[0]!.description;
@@ -148,7 +158,7 @@ export async function downloadSkillToInbox(
         output.print(`Skill '${skillName}' downloaded via GitHub API`);
       }
 
-      return { success: [skillName], failed: [] };
+      return { success: [skillName], failed: [], warnings };
     } catch (error) {
       lastError = error instanceof Error ? error.message : String(error);
       if (debug) {
@@ -226,6 +236,7 @@ async function downloadViaClone(
   let tempDir: string | null = null;
   let commitSha: string | null = null;
   let cloneAttemptErrors: string[] = [];
+  const warnings: DownloadWarning[] = [];
 
   try {
     if (debug) {
@@ -270,6 +281,9 @@ async function downloadViaClone(
     }
     const discoveredSkills = await discoverSkills(tempDir, parsed.subpath, {
       includeInternal: true,
+      onWarning: (message) => {
+        warnings.push({ code: "invalid-skill-format", message });
+      },
     });
     if (debug) {
       output.print(`Found ${discoveredSkills.length} skills in repository`);
@@ -355,7 +369,7 @@ async function downloadViaClone(
       output.print(`Skill '${skillName}' successfully downloaded`);
     }
 
-    return { success: [skillName], failed: [] };
+    return { success: [skillName], failed: [], warnings };
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     if (debug) {
@@ -380,6 +394,7 @@ async function downloadViaClone(
     return {
       success: [],
       failed: [{ skill: skillName, error: errorMessage }],
+      warnings,
     };
   } finally {
     if (tempDir) {
@@ -582,6 +597,7 @@ export async function downloadSkillsFromRepo(
   const result: DownloadResult = {
     success: [],
     failed: [],
+    warnings: [],
   };
 
   for (const { skill: skillName } of skills) {
@@ -595,6 +611,9 @@ export async function downloadSkillsFromRepo(
     );
     result.success.push(...skillResult.success);
     result.failed.push(...skillResult.failed);
+    if (skillResult.warnings?.length) {
+      result.warnings!.push(...skillResult.warnings);
+    }
   }
 
   return result;

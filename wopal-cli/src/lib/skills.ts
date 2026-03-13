@@ -17,7 +17,10 @@ async function hasSkillMd(dir: string): Promise<boolean> {
 
 export async function parseSkillMd(
   skillMdPath: string,
-  options?: { includeInternal?: boolean },
+  options?: {
+    includeInternal?: boolean;
+    onWarning?: (message: string) => void;
+  },
 ): Promise<Skill | null> {
   try {
     const content = await readFile(skillMdPath, "utf-8");
@@ -46,9 +49,12 @@ export async function parseSkillMd(
   } catch (error) {
     const skillDir = skillMdPath.replace(/\/SKILL\.md$/i, "");
     const skillName = basename(skillDir) || skillDir;
-    console.warn(
-      `Warning: Invalid YAML in SKILL.md for skill '${skillName}': ${(error as Error).message}`,
-    );
+    const message = `Warning: Invalid YAML in SKILL.md for skill '${skillName}': ${(error as Error).message}`;
+    if (options?.onWarning) {
+      options.onWarning(message);
+    } else {
+      console.warn(message);
+    }
     return null;
   }
 }
@@ -87,6 +93,7 @@ async function findSkillDirs(
 export interface DiscoverSkillsOptions {
   includeInternal?: boolean;
   fullDepth?: boolean;
+  onWarning?: (message: string) => void;
 }
 
 export async function discoverSkills(

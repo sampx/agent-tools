@@ -13,7 +13,7 @@ vi.mock("../src/lib/download-skill.js", () => ({
   downloadParsedSourceToInbox: downloadParsedSourceToInboxMock,
 }));
 
-import { verifySkills } from "../src/commands/skills/find.js";
+import { verifySkills, verifyTopResults } from "../src/commands/skills/find.js";
 
 function createContext(): ProgramContext {
   return {
@@ -41,6 +41,13 @@ describe("verifySkills", () => {
     downloadParsedSourceToInboxMock.mockResolvedValue({
       success: ["smithery-ai-cli"],
       failed: [],
+      warnings: [
+        {
+          code: "invalid-skill-format",
+          message:
+            "Warning: Invalid YAML in SKILL.md for skill 'smithery-ai-cli': bad frontmatter",
+        },
+      ],
     });
 
     const results = await verifySkills(
@@ -55,7 +62,12 @@ describe("verifySkills", () => {
       createContext(),
     );
 
-    expect(results[0]?.verification).toEqual({ verified: true });
+    expect(results[0]?.verification).toEqual({
+      verified: true,
+      warnings: [
+        "Warning: Invalid YAML in SKILL.md for skill 'smithery-ai-cli': bad frontmatter",
+      ],
+    });
   });
 
   it("summarizes failed verification reason", async () => {
@@ -113,5 +125,60 @@ describe("verifySkills", () => {
       reason: "Source format is not currently downloadable",
     });
     expect(downloadParsedSourceToInboxMock).not.toHaveBeenCalled();
+  });
+
+  it("verifies only the requested top results", async () => {
+    parseDownloadSourceMock
+      .mockReturnValueOnce({
+        type: "well-known",
+        source: "smithery.ai",
+        skill: "skill-a",
+      })
+      .mockReturnValueOnce({
+        type: "well-known",
+        source: "smithery.ai",
+        skill: "skill-b",
+      });
+
+    downloadParsedSourceToInboxMock
+      .mockResolvedValueOnce({ success: ["skill-a"], failed: [] })
+      .mockResolvedValueOnce({
+        success: [],
+        failed: [{ skill: "skill-b", error: "Not found" }],
+      });
+
+    const results = await verifyTopResults(
+      [
+        {
+          id: "smithery.ai/skill-a",
+          name: "skill-a",
+          installs: 50,
+          source: "smithery.ai",
+        },
+        {
+          id: "smithery.ai/skill-b",
+          name: "skill-b",
+          installs: 40,
+          source: "smithery.ai",
+        },
+        {
+          id: "smithery.ai/skill-c",
+          name: "skill-c",
+          installs: 30,
+          source: "smithery.ai",
+        },
+      ],
+      2,
+      createContext(),
+    );
+
+    expect(results[0]?.verification).toEqual({ verified: true });
+    expect(results[1]?.verification).toEqual({
+      verified: false,
+      reason: "Not found",
+    });
+    expect(results[2]?.verification).toBeUndefined();
+    expect(parseDownloadSourceMock).toHaveBeenCalledTimes(2);
+    expect(downloadParsedSourceToInboxMock).toHaveBeenCalledTimes(2);
   });
 });
