@@ -2,7 +2,13 @@ import { join } from "path";
 import { cp, mkdir } from "fs/promises";
 import { existsSync } from "fs";
 import { parseSource, getOwnerRepo } from "../../lib/source-parser.js";
-import { cloneRepo, cleanupTempDir, GitCloneError } from "../../lib/git.js";
+import {
+  cloneRepo,
+  cleanupTempDir,
+  GitCloneError,
+  downloadViaGitHubApi,
+  parseGitHubUrl,
+} from "../../lib/git.js";
 import {
   discoverSkills,
   filterSkills,
@@ -117,6 +123,195 @@ async function downloadFromRepo(
     failed: [] as Array<{ skill: string; error: string }>,
   };
 
+  const [owner, repoName] = repo.split("/");
+  if (!owner || !repoName) {
+    throw new CommandError({
+      code: "INVALID_SOURCE",
+      message: `Invalid repository format: ${repo}`,
+      suggestion: "Use format: owner/repo@skill-name",
+    });
+  }
+
+  const apiResults = await tryDownloadViaApi(
+    owner,
+    repoName,
+    skills,
+    inboxPath,
+    force,
+    ref,
+    context,
+  );
+
+  if (apiResults.allSucceeded) {
+    return apiResults.result;
+  }
+
+  if (debug) {
+    output.print(
+      `GitHub API download incomplete, falling back to git clone...`,
+    );
+  }
+
+  return await downloadViaClone(
+    repo,
+    skills,
+    inboxPath,
+    force,
+    ref,
+    context,
+    apiResults.result,
+  );
+}
+
+async function tryDownloadViaApi(
+  owner: string,
+  repoName: string,
+  skills: Array<{ skill: string; originalSource: string }>,
+  inboxPath: string,
+  force: boolean,
+  ref: string | undefined,
+  context: import("../../program/types.js").ProgramContext,
+): Promise<{
+  allSucceeded: boolean;
+  result: {
+    success: string[];
+    failed: Array<{ skill: string; error: string }>;
+  };
+}> {
+  const { output, debug } = context;
+  const result = {
+    success: [] as string[],
+    failed: [] as Array<{ skill: string; error: string }>,
+  };
+
+  for (const { skill: skillName } of skills) {
+    const skillDestPath = join(inboxPath, skillName);
+
+    if (existsSync(skillDestPath) && !force) {
+      result.failed.push({
+        skill: skillName,
+        error: `Skill '${skillName}' already exists in INBOX\nUse --force to overwrite`,
+      });
+      continue;
+    }
+
+    const skillPaths = [`skills/${skillName}`, skillName];
+
+    let downloaded = false;
+    let lastError: string | null = null;
+
+    for (const skillPath of skillPaths) {
+      try {
+        if (debug) {
+          output.print(`Trying GitHub API: ${owner}/${repoName}/${skillPath}`);
+        }
+
+        const { tempDir, commitSha } = await downloadViaGitHubApi(
+          owner,
+          repoName,
+          skillPath,
+          ref,
+        );
+
+        if (debug) {
+          output.print(
+            `Downloaded via API to: ${tempDir}, commit: ${commitSha}`,
+          );
+        }
+
+        await mkdir(skillDestPath, { recursive: true });
+        await cp(tempDir, skillDestPath, { recursive: true });
+
+        const token = getGitHubToken();
+        const skillFolderHash = await fetchSkillFolderHash(
+          `${owner}/${repoName}`,
+          `/${skillPath}`,
+          token,
+        );
+
+        const skillMdPath = join(skillDestPath, "SKILL.md");
+        let description = "";
+        try {
+          const { discoverSkills: discover } =
+            await import("../../lib/skills.js");
+          const discovered = await discover(skillDestPath, undefined, {
+            includeInternal: true,
+          });
+          if (discovered.length > 0) {
+            description = discovered[0]!.description;
+          }
+        } catch {
+          // Ignore
+        }
+
+        const metadata: SkillMetadata = {
+          name: skillName,
+          description,
+          source: `${owner}/${repoName}@${skillName}`,
+          sourceUrl: `https://github.com/${owner}/${repoName}.git`,
+          skillPath: `/${skillPath}`,
+          downloadedAt: new Date().toISOString(),
+          skillFolderHash,
+          commit: commitSha,
+          ref,
+        };
+
+        await writeMetadata(skillDestPath, metadata);
+        await cleanupTempDir(tempDir);
+
+        result.success.push(skillName);
+        downloaded = true;
+        if (debug) {
+          output.print(`Skill '${skillName}' downloaded via GitHub API`);
+        }
+        break;
+      } catch (error) {
+        lastError = error instanceof Error ? error.message : String(error);
+        if (debug) {
+          output.print(`API path ${skillPath} failed: ${lastError}`);
+        }
+      }
+    }
+
+    if (!downloaded && !result.failed.some((f) => f.skill === skillName)) {
+      return { allSucceeded: false, result };
+    }
+  }
+
+  const allProcessed =
+    result.success.length + result.failed.length === skills.length;
+  return { allSucceeded: allProcessed, result };
+}
+
+async function downloadViaClone(
+  repo: string,
+  skills: Array<{ skill: string; originalSource: string }>,
+  inboxPath: string,
+  force: boolean,
+  ref: string | undefined,
+  context: import("../../program/types.js").ProgramContext,
+  apiResult: {
+    success: string[];
+    failed: Array<{ skill: string; error: string }>;
+  },
+): Promise<{
+  success: string[];
+  failed: Array<{ skill: string; error: string }>;
+}> {
+  const { output, debug } = context;
+  const result = { ...apiResult, success: [...apiResult.success] };
+  result.failed = [...apiResult.failed];
+
+  const remainingSkills = skills.filter(
+    (s) =>
+      !result.success.includes(s.skill) &&
+      !result.failed.some((f) => f.skill === s.skill),
+  );
+
+  if (remainingSkills.length === 0) {
+    return result;
+  }
+
   if (debug) {
     output.print(`Parsing source: https://github.com/${repo}`);
   }
@@ -159,7 +354,7 @@ async function downloadFromRepo(
       output.print(`Found ${discoveredSkills.length} skills in repository`);
     }
 
-    const skillNames = skills.map((s) => s.skill);
+    const skillNames = remainingSkills.map((s) => s.skill);
     const targetSkills = filterSkills(discoveredSkills, skillNames);
     if (debug) {
       output.print(

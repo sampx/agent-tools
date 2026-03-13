@@ -1,6 +1,6 @@
 import simpleGit from "simple-git";
 import { join, normalize, resolve, sep } from "path";
-import { mkdir, rm } from "fs/promises";
+import { mkdir, rm, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 
 const CLONE_TIMEOUT_MS = 60000;
@@ -22,6 +22,166 @@ export class GitCloneError extends Error {
     this.isTimeout = isTimeout;
     this.isAuthError = isAuthError;
   }
+}
+
+interface GitHubContent {
+  name: string;
+  path: string;
+  type: "file" | "dir" | "symlink";
+  download_url: string | null;
+}
+
+async function fetchWithTimeout(
+  url: string,
+  headers: Record<string, string>,
+  timeoutMs: number = 30000,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      headers,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
+}
+
+export async function downloadViaGitHubApi(
+  owner: string,
+  repo: string,
+  skillPath: string,
+  ref?: string,
+): Promise<{ tempDir: string; commitSha: string }> {
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substring(7);
+  const tempDir = join(tmpdir(), "wopal", `skills-api-${timestamp}-${random}`);
+
+  await mkdir(tempDir, { recursive: true });
+
+  const branch = ref || "main";
+  const headers: Record<string, string> = {
+    Accept: "application/vnd.github.v3+json",
+    "User-Agent": "wopal-cli",
+  };
+
+  const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const commitResponse = await fetchWithTimeout(
+    `https://api.github.com/repos/${owner}/${repo}/commits/${branch}`,
+    headers,
+  );
+
+  if (!commitResponse.ok) {
+    if (commitResponse.status === 404 && !ref) {
+      const masterResponse = await fetchWithTimeout(
+        `https://api.github.com/repos/${owner}/${repo}/commits/master`,
+        headers,
+      );
+      if (masterResponse.ok) {
+        const commitData = (await masterResponse.json()) as { sha: string };
+        await downloadDirectory(
+          owner,
+          repo,
+          skillPath,
+          "master",
+          tempDir,
+          headers,
+        );
+        return { tempDir, commitSha: commitData.sha };
+      }
+    }
+    throw new GitCloneError(
+      `Failed to get commit info: ${commitResponse.status}`,
+      `https://github.com/${owner}/${repo}`,
+      false,
+      commitResponse.status === 404 || commitResponse.status === 403,
+    );
+  }
+
+  const commitData = (await commitResponse.json()) as { sha: string };
+  const commitSha = commitData.sha;
+
+  await downloadDirectory(owner, repo, skillPath, branch, tempDir, headers);
+
+  return { tempDir, commitSha };
+}
+
+async function downloadDirectory(
+  owner: string,
+  repo: string,
+  dirPath: string,
+  ref: string,
+  destDir: string,
+  headers: Record<string, string>,
+): Promise<void> {
+  let cleanPath = dirPath.replace(/^\/+/, "").replace(/\/+$/, "");
+
+  const response = await fetchWithTimeout(
+    `https://api.github.com/repos/${owner}/${repo}/contents/${cleanPath}?ref=${ref}`,
+    headers,
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to list directory ${cleanPath}: ${response.status}`,
+    );
+  }
+
+  const contents = (await response.json()) as GitHubContent[];
+
+  if (!Array.isArray(contents)) {
+    throw new Error(`Expected directory, got file at ${cleanPath}`);
+  }
+
+  await Promise.all(
+    contents.map(async (item) => {
+      const itemDestPath = join(destDir, item.name);
+
+      if (item.type === "dir") {
+        await mkdir(itemDestPath, { recursive: true });
+        await downloadDirectory(
+          owner,
+          repo,
+          item.path,
+          ref,
+          itemDestPath,
+          headers,
+        );
+      } else if (item.type === "file" && item.download_url) {
+        const fileResponse = await fetchWithTimeout(item.download_url, {});
+        if (!fileResponse.ok) {
+          throw new Error(`Failed to download file ${item.path}`);
+        }
+        const content = await fileResponse.text();
+        await writeFile(itemDestPath, content, "utf-8");
+      }
+    }),
+  );
+}
+
+export function parseGitHubUrl(
+  url: string,
+): { owner: string; repo: string } | null {
+  const httpsMatch = url.match(/github\.com\/([^/]+)\/([^/.]+)(?:\.git)?$/);
+  if (httpsMatch) {
+    return { owner: httpsMatch[1]!, repo: httpsMatch[2]! };
+  }
+
+  const sshMatch = url.match(/git@github\.com:([^/]+)\/([^/.]+)(?:\.git)?$/);
+  if (sshMatch) {
+    return { owner: sshMatch[1]!, repo: sshMatch[2]! };
+  }
+
+  return null;
 }
 
 export async function cloneRepo(
