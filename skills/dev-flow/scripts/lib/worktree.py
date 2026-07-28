@@ -538,8 +538,14 @@ def remove_worktree(project_dir: Path, branch: str, worktree_base: Path) -> None
                 text=True,
             )
             if result.returncode != 0:
+                stderr_text = result.stderr.strip()
                 raise RuntimeError(
-                    f"Failed to remove worktree {worktree_path}: {result.stderr.strip()}"
+                    f"Failed to remove worktree {worktree_path}: {stderr_text}\n"
+                    f"Diagnostic hints:\n"
+                    f"  - Common causes: a process is holding the directory open, "
+                    f"or large untracked files (node_modules, dist, out) are present\n"
+                    f"  - Check for processes: lsof +D {worktree_path}\n"
+                    f"  - Manually remove: trash {worktree_path}"
                 )
 
     # Always prune (whether remove succeeded or path didn't exist)

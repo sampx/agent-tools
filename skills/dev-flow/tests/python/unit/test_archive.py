@@ -9,6 +9,7 @@ import unittest
 import sys
 import tempfile
 import shutil
+import argparse
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
@@ -21,6 +22,7 @@ from commands.archive import (
     _detect_worktree,
     _PHASE_TABLE_HEADER,
     _PHASE_TABLE_SEP,
+    cmd_archive,
 )
 
 
@@ -265,6 +267,343 @@ class TestDetectWorktree(unittest.TestCase):
         result = _detect_worktree(str(self.plan_path), "wopal-cli", self.ws_root)
 
         self.assertIsNone(result)
+
+
+class TestArchiveMergeDetection(unittest.TestCase):
+    """Tests for archive merge detection (Task 2, Issue #171).
+
+    Four scenarios:
+    1. worktree exists + merged → skip merge, proceed to cleanup
+    2. worktree exists + unmerged → error exit
+    3. worktree doesn't exist → skip merge, cleanup branch
+    4. PR path → skip merge, cleanup worktree
+    """
+
+    def setUp(self):
+        self.tmpdir = Path(tempfile.mkdtemp())
+        self.ws_root = self.tmpdir
+        self.plans_dir = self.tmpdir / "plans"
+        self.plans_dir.mkdir(parents=True)
+        self.plan_path = self.plans_dir / "42-test-plan.md"
+        self.plan_path.write_text("# test-plan\n")
+        self.proj_dir = self.tmpdir / "projects" / "test-project"
+        self.proj_dir.mkdir(parents=True)
+        (self.proj_dir / ".git").mkdir()
+        self.wt_dir = self.tmpdir / ".worktrees" / "test-project-issue-42"
+        self.wt_dir.mkdir(parents=True)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmpdir)
+
+    def _make_args(self, target="42"):
+        return argparse.Namespace(target=target)
+
+    def _setup_common_mocks(
+        self,
+        mock_find_ws,
+        mock_find_plan,
+        mock_parse_status,
+        mock_guard,
+        mock_get_project,
+        mock_get_type,
+        mock_get_issue,
+        mock_resolve_repo,
+        mock_get_field,
+        mock_resolve_path,
+        mock_update_phase,
+        mock_commit,
+        mock_close,
+    ):
+        """Configure mocks common to all scenarios."""
+        mock_find_ws.return_value = self.ws_root
+        mock_find_plan.return_value = str(self.plan_path)
+        mock_parse_status.return_value = "done"
+        mock_guard.return_value = True
+        mock_get_project.return_value = "test-project"
+        mock_get_type.return_value = "feature"
+        mock_get_issue.return_value = 42
+        mock_resolve_repo.return_value = "owner/repo"
+        mock_get_field.side_effect = lambda plan_path, field: {
+            "Project Type": "standard",
+            "Product": "",
+            "Phase": "",
+        }.get(field, "")
+        mock_resolve_path.return_value = str(self.proj_dir)
+        mock_update_phase.return_value = None
+        mock_commit.return_value = True
+        mock_close.return_value = True
+
+    @patch("commands.archive.close_issue")
+    @patch("commands.archive.update_issue_plan_link")
+    @patch("commands.archive.commit_archived_plan")
+    @patch("commands.archive._update_phase_doc_plan_status")
+    @patch("commands.archive._cleanup_worktree")
+    @patch("commands.archive.check_branch_merged")
+    @patch("commands.archive.has_uncommitted_changes")
+    @patch("commands.archive._is_pr_path")
+    @patch("commands.archive._detect_worktree")
+    @patch("commands.archive.resolve_project_path")
+    @patch("commands.archive.get_plan_field")
+    @patch("commands.archive.ensure_issue_labels")
+    @patch("commands.archive.sync_status_label")
+    @patch("commands.archive.sync_plan_to_issue_body")
+    @patch("commands.archive.resolve_space_repo")
+    @patch("commands.archive.get_plan_issue")
+    @patch("commands.archive.get_plan_type")
+    @patch("commands.archive.get_plan_project")
+    @patch("commands.archive.guard_status")
+    @patch("commands.archive.parse_plan_status")
+    @patch("commands.archive.find_plan")
+    @patch("commands.archive.find_workspace_root")
+    def test_worktree_exists_merged_skip_merge(
+        self,
+        mock_find_ws,
+        mock_find_plan,
+        mock_parse_status,
+        mock_guard,
+        mock_get_project,
+        mock_get_type,
+        mock_get_issue,
+        mock_resolve_repo,
+        mock_sync_body,
+        mock_sync_label,
+        mock_ensure_labels,
+        mock_get_field,
+        mock_resolve_path,
+        mock_detect_wt,
+        mock_is_pr,
+        mock_has_uncommitted,
+        mock_check_merged,
+        mock_cleanup,
+        mock_update_phase,
+        mock_commit,
+        mock_update_link,
+        mock_close,
+    ):
+        """Scenario 1: worktree exists + merged → skip merge, proceed to cleanup."""
+        self._setup_common_mocks(
+            mock_find_ws, mock_find_plan, mock_parse_status, mock_guard,
+            mock_get_project, mock_get_type, mock_get_issue, mock_resolve_repo,
+            mock_get_field, mock_resolve_path, mock_update_phase,
+            mock_commit, mock_close,
+        )
+        mock_detect_wt.return_value = {
+            "branch": "feature/test-1",
+            "path": ".worktrees/test-project-issue-42",
+        }
+        mock_is_pr.return_value = False
+        mock_has_uncommitted.return_value = False
+        mock_check_merged.return_value = 0
+        mock_cleanup.return_value = True
+
+        result = cmd_archive(self._make_args())
+
+        self.assertEqual(result, 0)
+        mock_check_merged.assert_called_once_with(self.ws_root, str(self.plan_path))
+        mock_cleanup.assert_called_once()
+
+    @patch("commands.archive.close_issue")
+    @patch("commands.archive.update_issue_plan_link")
+    @patch("commands.archive.commit_archived_plan")
+    @patch("commands.archive._update_phase_doc_plan_status")
+    @patch("commands.archive._cleanup_worktree")
+    @patch("commands.archive.check_branch_merged")
+    @patch("commands.archive.has_uncommitted_changes")
+    @patch("commands.archive._is_pr_path")
+    @patch("commands.archive._detect_worktree")
+    @patch("commands.archive.resolve_project_path")
+    @patch("commands.archive.get_plan_field")
+    @patch("commands.archive.ensure_issue_labels")
+    @patch("commands.archive.sync_status_label")
+    @patch("commands.archive.sync_plan_to_issue_body")
+    @patch("commands.archive.resolve_space_repo")
+    @patch("commands.archive.get_plan_issue")
+    @patch("commands.archive.get_plan_type")
+    @patch("commands.archive.get_plan_project")
+    @patch("commands.archive.guard_status")
+    @patch("commands.archive.parse_plan_status")
+    @patch("commands.archive.find_plan")
+    @patch("commands.archive.find_workspace_root")
+    def test_worktree_exists_unmerged_error_exit(
+        self,
+        mock_find_ws,
+        mock_find_plan,
+        mock_parse_status,
+        mock_guard,
+        mock_get_project,
+        mock_get_type,
+        mock_get_issue,
+        mock_resolve_repo,
+        mock_sync_body,
+        mock_sync_label,
+        mock_ensure_labels,
+        mock_get_field,
+        mock_resolve_path,
+        mock_detect_wt,
+        mock_is_pr,
+        mock_has_uncommitted,
+        mock_check_merged,
+        mock_cleanup,
+        mock_update_phase,
+        mock_commit,
+        mock_update_link,
+        mock_close,
+    ):
+        """Scenario 2: worktree exists + unmerged → error exit."""
+        self._setup_common_mocks(
+            mock_find_ws, mock_find_plan, mock_parse_status, mock_guard,
+            mock_get_project, mock_get_type, mock_get_issue, mock_resolve_repo,
+            mock_get_field, mock_resolve_path, mock_update_phase,
+            mock_commit, mock_close,
+        )
+        mock_detect_wt.return_value = {
+            "branch": "feature/test-1",
+            "path": ".worktrees/test-project-issue-42",
+        }
+        mock_is_pr.return_value = False
+        mock_has_uncommitted.return_value = False
+        mock_check_merged.return_value = 1  # NOT merged
+
+        result = cmd_archive(self._make_args())
+
+        self.assertEqual(result, 1)
+        mock_check_merged.assert_called_once_with(self.ws_root, str(self.plan_path))
+        mock_cleanup.assert_not_called()
+
+    @patch("commands.archive.close_issue")
+    @patch("commands.archive.update_issue_plan_link")
+    @patch("commands.archive.commit_archived_plan")
+    @patch("commands.archive._update_phase_doc_plan_status")
+    @patch("commands.archive._cleanup_worktree")
+    @patch("commands.archive.check_branch_merged")
+    @patch("commands.archive.has_uncommitted_changes")
+    @patch("commands.archive._is_pr_path")
+    @patch("commands.archive._detect_worktree")
+    @patch("commands.archive.resolve_project_path")
+    @patch("commands.archive.get_plan_field")
+    @patch("commands.archive.ensure_issue_labels")
+    @patch("commands.archive.sync_status_label")
+    @patch("commands.archive.sync_plan_to_issue_body")
+    @patch("commands.archive.resolve_space_repo")
+    @patch("commands.archive.get_plan_issue")
+    @patch("commands.archive.get_plan_type")
+    @patch("commands.archive.get_plan_project")
+    @patch("commands.archive.guard_status")
+    @patch("commands.archive.parse_plan_status")
+    @patch("commands.archive.find_plan")
+    @patch("commands.archive.find_workspace_root")
+    def test_worktree_not_exists_skip_merge(
+        self,
+        mock_find_ws,
+        mock_find_plan,
+        mock_parse_status,
+        mock_guard,
+        mock_get_project,
+        mock_get_type,
+        mock_get_issue,
+        mock_resolve_repo,
+        mock_sync_body,
+        mock_sync_label,
+        mock_ensure_labels,
+        mock_get_field,
+        mock_resolve_path,
+        mock_detect_wt,
+        mock_is_pr,
+        mock_has_uncommitted,
+        mock_check_merged,
+        mock_cleanup,
+        mock_update_phase,
+        mock_commit,
+        mock_update_link,
+        mock_close,
+    ):
+        """Scenario 3: worktree doesn't exist → skip merge, cleanup branch."""
+        self._setup_common_mocks(
+            mock_find_ws, mock_find_plan, mock_parse_status, mock_guard,
+            mock_get_project, mock_get_type, mock_get_issue, mock_resolve_repo,
+            mock_get_field, mock_resolve_path, mock_update_phase,
+            mock_commit, mock_close,
+        )
+        # Worktree metadata exists but directory won't exist on disk
+        mock_detect_wt.return_value = {
+            "branch": "feature/test-1",
+            "path": ".worktrees/nonexistent",
+        }
+        mock_is_pr.return_value = False
+        mock_cleanup.return_value = True
+
+        result = cmd_archive(self._make_args())
+
+        self.assertEqual(result, 0)
+        mock_check_merged.assert_not_called()
+        mock_cleanup.assert_called_once()
+
+    @patch("commands.archive.close_issue")
+    @patch("commands.archive.update_issue_plan_link")
+    @patch("commands.archive.commit_archived_plan")
+    @patch("commands.archive._update_phase_doc_plan_status")
+    @patch("commands.archive._cleanup_worktree")
+    @patch("commands.archive.check_branch_merged")
+    @patch("commands.archive.has_uncommitted_changes")
+    @patch("commands.archive._is_pr_path")
+    @patch("commands.archive._detect_worktree")
+    @patch("commands.archive.resolve_project_path")
+    @patch("commands.archive.get_plan_field")
+    @patch("commands.archive.ensure_issue_labels")
+    @patch("commands.archive.sync_status_label")
+    @patch("commands.archive.sync_plan_to_issue_body")
+    @patch("commands.archive.resolve_space_repo")
+    @patch("commands.archive.get_plan_issue")
+    @patch("commands.archive.get_plan_type")
+    @patch("commands.archive.get_plan_project")
+    @patch("commands.archive.guard_status")
+    @patch("commands.archive.parse_plan_status")
+    @patch("commands.archive.find_plan")
+    @patch("commands.archive.find_workspace_root")
+    def test_pr_path_skip_merge(
+        self,
+        mock_find_ws,
+        mock_find_plan,
+        mock_parse_status,
+        mock_guard,
+        mock_get_project,
+        mock_get_type,
+        mock_get_issue,
+        mock_resolve_repo,
+        mock_sync_body,
+        mock_sync_label,
+        mock_ensure_labels,
+        mock_get_field,
+        mock_resolve_path,
+        mock_detect_wt,
+        mock_is_pr,
+        mock_has_uncommitted,
+        mock_check_merged,
+        mock_cleanup,
+        mock_update_phase,
+        mock_commit,
+        mock_update_link,
+        mock_close,
+    ):
+        """Scenario 4: PR path → skip merge, cleanup worktree."""
+        self._setup_common_mocks(
+            mock_find_ws, mock_find_plan, mock_parse_status, mock_guard,
+            mock_get_project, mock_get_type, mock_get_issue, mock_resolve_repo,
+            mock_get_field, mock_resolve_path, mock_update_phase,
+            mock_commit, mock_close,
+        )
+        mock_detect_wt.return_value = {
+            "branch": "feature/test-1",
+            "path": ".worktrees/test-project-issue-42",
+        }
+        mock_is_pr.return_value = True  # PR path
+        mock_cleanup.return_value = True
+
+        result = cmd_archive(self._make_args())
+
+        self.assertEqual(result, 0)
+        mock_check_merged.assert_not_called()
+        mock_cleanup.assert_called_once()
 
 
 if __name__ == "__main__":

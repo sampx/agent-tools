@@ -72,7 +72,7 @@ def resolve_plan_dir(project_name: str, workspace_root: Path) -> Path:
     return workspace_root / ".wopal-space" / "plans" / project_name
 
 
-def _search_dirs(workspace_root: Path) -> list[Path]:
+def search_plan_dirs(workspace_root: Path) -> list[Path]:
     dirs: list[Path] = []
 
     plans_root = workspace_root / ".wopal-space" / "plans"
@@ -89,7 +89,7 @@ def _search_dirs(workspace_root: Path) -> list[Path]:
 
 def find_plan(input_ref: str, workspace_root: Path) -> PlanLocation:
     workspace_root = Path(workspace_root).resolve()
-    dirs = _search_dirs(workspace_root)
+    dirs = search_plan_dirs(workspace_root)
 
     if re.match(r'^\d+$', input_ref):
         prefix = f"{input_ref}-"

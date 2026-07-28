@@ -1,9 +1,13 @@
 ---
 name: dev-flow
-description: |
-  Issue/Plan 驱动的开发工作流。⚠️ 任务需以 GitHub Issue 或 Plan 为执行载体。
-  🔴 Trigger: "#14"、"创建 issue"、"出个计划"、"实施 plan"、"执行计划"、"check plan"、"verify plan"、Plan 生命周期推进（approve/complete/verify/archive）、从 PRD 拆分 Issue。
-  ❌ Skip: spec 驱动流程、单纯研究/讨论/解释、不需 Issue/Plan 的临时小改动。
+description: >
+  Issue/Plan-driven development workflow. Tasks must be backed by a GitHub
+  Issue or Plan. Trigger: issue references like #14, creating issues,
+  creating plans, implementing plans, executing plans, checking plans,
+  verifying plans, Plan lifecycle transitions
+  (approve/complete/verify/archive), decomposing PRDs into Issues. Skip:
+  spec-driven workflows, research/discussion/explanation only, small
+  ad-hoc changes that don't need an Issue or Plan.
 ---
 
 # dev-flow — Issue / Plan 驱动开发流程
@@ -66,7 +70,7 @@ dev-flow 管理两类产物，它们在 git 中独立演化：
 | **Plan 文件** | 状态、checkbox、元数据 | `flow.sh` 脚本自动提交 | 状态推进时（submit/approve/complete/verify/archive） |
 | **实施代码** | 源码、测试、文档变更 | agent（Wopal 或 fae）手动提交 | rook PASS 后、`complete` 之前 |
 
-**铁律：脚本永远不碰代码。** `flow.sh` 的所有命令只操作 Plan 文件，不会 add、commit、merge、push 任何实施代码。代码的 commit 和 feature → 集成分支的 merge 由 agent 负责；push 由用户独占。
+**铁律：脚本不操作项目代码，但管理自身基础设施。** `flow.sh` 命令不 add、commit、merge、push 任何实施代码——代码的 commit 和 feature → 集成分支的 merge 由 agent 负责。worktree 创建/清理和 feature 分支创建/删除属于 dev-flow 基础设施操作，由脚本管理生命周期，不在此限。
 
 **实施产物 = 原子单元。** 实施代码变更 + Task Done checkbox + Agent Verification checkbox 是一个原子单元，同一次 commit 提交。禁止拆成多次 commit。
 
@@ -107,9 +111,9 @@ dev-flow 管理两类产物，它们在 git 中独立演化：
 
 1. **Plan 先行**：先进入 Plan 生命周期，再开始实施。Plan 必须通过 `flow.sh plan new ...` 创建或定位，禁止手写创建。
 2. **人类授权门**：`approve --confirm` 和 `verify --confirm` 都需要用户明确授权，禁止未经授权执行。
-3. **脚本不碰代码**：`flow.sh` 所有命令只操作 Plan 文件，不提交实施代码。`complete` 遇脏树报错退出。
+3. **脚本不操作项目代码**：`flow.sh` 命令不提交实施代码，但管理自身创建的基础设施（worktree、feature 分支）。`complete` 遇脏树报错退出。
 4. **活动 Plan 路径**：委派实施时，Plan 路径必须使用 feature 分支 worktree 中的活动副本，禁止使用 main 分支路径。
-5. **rook 门禁**：Plan 审查（submit 前）和实施审查（complete 前）必须委派 rook，rook PASS 才能推进。最多 3 轮修订。
+5. **rook 门禁**：实施审查（complete 前）必须委派 rook，rook PASS 才能推进，最多 3 轮修订。Plan 审查（submit 前）默认委派 rook，但 fix 类型 Plan 可跳过——方案简单明确时无需审查；若方案复杂需审查，提交前征求用户同意。
 6. **Plan 语言与结构**：Plan 文档正文使用用户偏好语言编写，章节标题保持英文（与模板一致）。禁止混用中英文标题。
 
 ## Plan Task 字段要求
@@ -185,10 +189,11 @@ flow.sh plan check <name-or-path>   # 校验 Plan 质量（必走）
 flow.sh sync <issue> --body-only    # 同步 Issue body（变更目标和范围必须）
 ```
 
-1. 委派 rook 审 Plan（强制）— prompt 契约见 agents-collab
+1. 委派 rook 审 Plan — prompt 契约见 agents-collab。fix 类型 Plan 默认跳过此步骤；若方案复杂需审查，提交前征求用户同意
 2. rook PASS → `flow.sh submit <issue>`（planning → reviewing）
 3. rook REVISE/BLOCK → 修订后重审（最多 3 轮）
-4. 等用户审批后：`flow.sh approve <issue> --confirm`（reviewing/planning → executing）
+4. Plan 处于 `reviewing` 状态时可直接修订内容，无需 `flow.sh reset` 回退到 `planning`。修订完成后告知用户即可，无需重新 `submit`
+5. 等用户审批后：`flow.sh approve <issue> --confirm`（reviewing/planning → executing）
 
 ### C. Executing
 
@@ -346,7 +351,7 @@ flow.sh archive <issue>
 
 - **跳过 dev-flow 直接手动操作** — Issue/Plan 驱动的任务必须走 `flow.sh` 命令链
 - **直接调 `gh issue create` 绕过 flow.sh** — Issue 创建必须走 `flow.sh issue create`，脚本通过 `detect_space_repo` 自动定位空间仓库，无需也不允许手动指定 `--repo`。直接调 `gh` 会导致 Issue 创建到错误仓库 = 严重失职
-- **跳过 rook 审查直接 submit 或 complete** — Plan 审查和实施审查都是强制门禁
+- **跳过 rook 审查直接 submit 或 complete** — Plan 审查和实施审查都是强制门禁（fix 类型 Plan 的 Plan 审查除外）
 - **rook BLOCK 后强行 submit 或 complete** — 必须修订后重审，最多 3 轮
 - **rook 复审新开 task** — rook 返回 REVISE/BLOCK → fae 修复后，必须 `wopal_task_reply` 续审原 rook task，禁止 `finish` 后新开。新开会话丢失审查上下文，浪费 token
 - **checkbox 单独 commit** — 实施产物 = 代码 + checkbox，同一次 commit
@@ -361,6 +366,7 @@ flow.sh archive <issue>
 - **手动删除工作树** — 工作树由 `verify-switch` 或 `archive` 删除
 - **跳过 `complete` 直接邀用户验证** — 代码提交 + rook PASS 后必须先 `flow.sh complete` 推进到 `verifying`，然后才能进入用户验证。未达 `verifying` 前请求用户验收 = 严重失职
 - **归档时清理未声明的资源** — archive 只处理 Plan metadata 中声明的 Worktree/分支。看到名字相似不等于归属相同，必须确认。误删用户活跃分支 = 严重失职
+- **在 dev-flow 中加载 git-worktrees 技能** — dev-flow 的 worktree 创建/清理由 `flow.sh approve` 和 `flow.sh archive` 脚本内置管理，禁止加载 git-worktrees 技能或手动执行 worktree 命令
 
 ## 参考
 

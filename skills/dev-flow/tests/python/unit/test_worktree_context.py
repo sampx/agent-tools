@@ -18,6 +18,7 @@ from lib.worktree import (
     ActivePlanInfo,
     ResolveActivePlanError,
     resolve_active_plan,
+    remove_worktree,
 )
 
 
@@ -565,3 +566,81 @@ class TestResolveActivePlanArchive:
         info = resolve_active_plan(str(plan_file), "archive", workspace_root=tmp_path)
         assert info.branch_context == "integration"
         assert info.active_plan_path == plan_file.resolve()
+
+
+# -- remove_worktree force failure tests --------------------------------------
+
+class TestRemoveWorktreeForceFailure:
+    """remove_worktree: --force failure includes stderr and diagnostic guidance."""
+
+    def test_force_failure_includes_stderr(self, tmp_path):
+        """RuntimeError message must contain the original stderr output."""
+        from unittest.mock import patch, MagicMock
+
+        project_dir = tmp_path / "project"
+        project_dir.mkdir()
+        worktree_base = tmp_path / ".worktrees"
+        worktree_base.mkdir()
+        worktree_path = worktree_base / "project-feature-x"
+        worktree_path.mkdir()
+
+        # Simulate: normal remove fails, --force also fails with stderr
+        fail_result = MagicMock()
+        fail_result.returncode = 1
+        fail_result.stderr = "error: cannot lock ref 'refs/heads/feature-x'\n"
+
+        with patch("lib.worktree.subprocess.run", return_value=fail_result):
+            with pytest.raises(RuntimeError) as exc_info:
+                remove_worktree(project_dir, "feature/x", worktree_base)
+
+            msg = str(exc_info.value)
+            assert "cannot lock ref" in msg
+            assert "Failed to remove worktree" in msg
+
+    def test_force_failure_includes_diagnostic_hints(self, tmp_path):
+        """RuntimeError message must include diagnostic hints and actionable commands."""
+        from unittest.mock import patch, MagicMock
+
+        project_dir = tmp_path / "project"
+        project_dir.mkdir()
+        worktree_base = tmp_path / ".worktrees"
+        worktree_base.mkdir()
+        worktree_path = worktree_base / "project-feature-x"
+        worktree_path.mkdir()
+
+        fail_result = MagicMock()
+        fail_result.returncode = 1
+        fail_result.stderr = "fatal: cannot remove worktree\n"
+
+        with patch("lib.worktree.subprocess.run", return_value=fail_result):
+            with pytest.raises(RuntimeError) as exc_info:
+                remove_worktree(project_dir, "feature/x", worktree_base)
+
+            msg = str(exc_info.value)
+            assert "Diagnostic hints" in msg
+            assert "lsof +D" in msg
+            assert "trash" in msg
+            assert "node_modules" in msg
+            assert "dist" in msg
+
+    def test_force_failure_includes_worktree_path(self, tmp_path):
+        """RuntimeError message must include the worktree path that failed."""
+        from unittest.mock import patch, MagicMock
+
+        project_dir = tmp_path / "project"
+        project_dir.mkdir()
+        worktree_base = tmp_path / ".worktrees"
+        worktree_base.mkdir()
+        worktree_path = worktree_base / "project-feature-x"
+        worktree_path.mkdir()
+
+        fail_result = MagicMock()
+        fail_result.returncode = 1
+        fail_result.stderr = "some error\n"
+
+        with patch("lib.worktree.subprocess.run", return_value=fail_result):
+            with pytest.raises(RuntimeError) as exc_info:
+                remove_worktree(project_dir, "feature/x", worktree_base)
+
+            msg = str(exc_info.value)
+            assert str(worktree_path) in msg

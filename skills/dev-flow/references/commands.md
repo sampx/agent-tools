@@ -19,7 +19,7 @@
 | `approve <plan> --confirm --no-worktree` | 用户审批通过，跳过 worktree |
 | `complete <issue> [--pr]` | 实施完成，进入用户验证 |
 | `verify <issue> --confirm` | 用户验证通过 |
-| `archive <issue>` | 归档 Plan，push 代码，同步阶段文档 |
+| `archive <issue>` | 归档 Plan，推送 Plan 变更，同步阶段文档 |
 | `verify-switch <issue> [--yes]` | 切换到特性分支验证 |
 | `roadmap <prd-path> [--product ...] [--project ...]` | 产品阶段规划（四阶段工作流） |
 

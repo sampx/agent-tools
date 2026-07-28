@@ -12,7 +12,7 @@ import subprocess
 import sys
 from datetime import date
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import pytest
 
@@ -867,3 +867,277 @@ class TestIsRepoDirtyIgnorePath:
         assert is_repo_dirty(str(repo)) is True
         # Default None also works
         assert is_repo_dirty(str(repo), ignore_paths=None) is True
+
+
+# ============================================
+# check_branch_merged tests
+# ============================================
+
+PLAN_STANDARD = """\
+- **Status**: verifying
+- **Type**: feature
+- **Target Project**: gesp
+- **Project Type**: standard
+- **Project Path**: projects/gesp
+- **Issue**: #42
+- **Worktree**:
+  - enabled: true
+  - branch: feature/test-1-slug
+  - path: .worktrees/gesp-issue-1-slug
+  - repo_root: /workspace/projects/gesp
+  - base_branch: main
+  - merge_target: main
+  - verify_mode: direct
+  - cleanup_policy: archive
+"""
+
+PLAN_ONTOLOGY = """\
+- **Status**: verifying
+- **Type**: refactor
+- **Target Project**: wopal-space-ontology
+- **Project Type**: ontology-worktree
+- **Project Path**: .wopal
+- **Issue**: #10
+- **Worktree**:
+  - enabled: true
+  - branch: issue-10-slug
+  - path: .worktrees/ontology-issue-10-slug
+  - repo_root: /home/.wopal/ontologies/wopal-space-ontology
+  - base_branch: space/main
+  - merge_target: space/main
+  - verify_mode: switch-runtime
+  - cleanup_policy: archive
+"""
+
+PLAN_NO_WORKTREE = """\
+- **Status**: verifying
+- **Type**: feature
+- **Target Project**: gesp
+- **Project Type**: standard
+- **Project Path**: projects/gesp
+- **Issue**: #42
+"""
+
+
+def _write_plan_file(tmp_path, content: str, name: str = "42-feature-test.md") -> Path:
+    """Write a Plan file with given content and return its path."""
+    plan_dir = tmp_path / "plans"
+    plan_dir.mkdir(parents=True, exist_ok=True)
+    plan_file = plan_dir / name
+    plan_file.write_text(content)
+    return plan_file
+
+
+class TestCheckBranchMerged:
+    """Unit tests for lib.git.check_branch_merged."""
+
+    def test_standard_branch_merged_returns_zero(self, tmp_path):
+        """Standard project: feature branch in merged list, returns 0."""
+        from lib.git import check_branch_merged
+
+        plan_path = _write_plan_file(tmp_path, PLAN_STANDARD)
+        proj_dir = tmp_path / "projects" / "gesp"
+        proj_dir.mkdir(parents=True)
+        (proj_dir / ".git").mkdir()
+
+        merged_output = "  main\n* feature/test-1-slug\n"
+
+        with patch("lib.git.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0,
+                stdout=merged_output,
+            )
+            result = check_branch_merged(tmp_path, str(plan_path))
+
+        assert result == 0
+
+    def test_standard_branch_not_merged_returns_one(self, tmp_path):
+        """Standard project: feature branch NOT in merged list, returns 1."""
+        from lib.git import check_branch_merged
+
+        plan_path = _write_plan_file(tmp_path, PLAN_STANDARD)
+        proj_dir = tmp_path / "projects" / "gesp"
+        proj_dir.mkdir(parents=True)
+        (proj_dir / ".git").mkdir()
+
+        not_merged_result = MagicMock(returncode=0, stdout="  main\n")
+        empty_result = MagicMock(returncode=0, stdout="")
+
+        with patch("lib.git.subprocess.run") as mock_run:
+            mock_run.side_effect = [not_merged_result, empty_result, empty_result]
+            with patch("lib.git.log_error") as mock_log:
+                result = check_branch_merged(tmp_path, str(plan_path))
+
+        assert result == 1
+        mock_log.assert_any_call(
+            "Feature branch 'feature/test-1-slug' not yet merged to main. "
+            "Please merge first."
+        )
+
+    def test_ontology_branch_merged_returns_zero(self, tmp_path):
+        """Ontology-worktree: feature branch in merged list, returns 0."""
+        from lib.git import check_branch_merged
+
+        plan_path = _write_plan_file(tmp_path, PLAN_ONTOLOGY)
+        wopal_dir = tmp_path / ".wopal"
+        wopal_dir.mkdir(parents=True)
+        (wopal_dir / ".git").mkdir()
+
+        merged_output = "  space/wopal-workspace\n* issue-10-slug\n"
+
+        with patch("lib.git.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0,
+                stdout=merged_output,
+            )
+            with patch("lib.git.get_current_branch", return_value="space/wopal-workspace"):
+                result = check_branch_merged(tmp_path, str(plan_path))
+
+        assert result == 0
+
+    def test_ontology_branch_not_merged_returns_one(self, tmp_path):
+        """Ontology-worktree: feature branch NOT in merged list, returns 1."""
+        from lib.git import check_branch_merged
+
+        plan_path = _write_plan_file(tmp_path, PLAN_ONTOLOGY)
+        wopal_dir = tmp_path / ".wopal"
+        wopal_dir.mkdir(parents=True)
+        (wopal_dir / ".git").mkdir()
+
+        not_merged_result = MagicMock(returncode=0, stdout="  space/wopal-workspace\n")
+        empty_result = MagicMock(returncode=0, stdout="")
+
+        with patch("lib.git.subprocess.run") as mock_run:
+            mock_run.side_effect = [not_merged_result, empty_result, empty_result]
+            with patch("lib.git.get_current_branch", return_value="space/wopal-workspace"):
+                with patch("lib.git.log_error") as mock_log:
+                    result = check_branch_merged(tmp_path, str(plan_path))
+
+        assert result == 1
+        mock_log.assert_any_call(
+            "Feature branch 'issue-10-slug' not yet merged to space/wopal-workspace. "
+            "Please merge first."
+        )
+
+    def test_no_worktree_metadata_returns_zero(self, tmp_path):
+        """Plan without worktree metadata: skip check, returns 0."""
+        from lib.git import check_branch_merged
+
+        plan_path = _write_plan_file(tmp_path, PLAN_NO_WORKTREE)
+
+        result = check_branch_merged(tmp_path, str(plan_path))
+        assert result == 0
+
+    def test_no_branch_in_worktree_returns_zero(self, tmp_path):
+        """Worktree metadata without branch: skip check, returns 0."""
+        from lib.git import check_branch_merged
+
+        plan_content = PLAN_NO_WORKTREE + "\n- **Worktree**:  | .worktrees/some-path\n"
+        plan_path = _write_plan_file(tmp_path, plan_content)
+
+        with patch("plan.get_plan_worktree", return_value={"branch": "", "path": ""}):
+            result = check_branch_merged(tmp_path, str(plan_path))
+
+        assert result == 0
+
+    def test_git_command_failure_returns_one(self, tmp_path):
+        """git branch --merged fails: returns 1."""
+        from lib.git import check_branch_merged
+
+        plan_path = _write_plan_file(tmp_path, PLAN_STANDARD)
+        proj_dir = tmp_path / "projects" / "gesp"
+        proj_dir.mkdir(parents=True)
+        (proj_dir / ".git").mkdir()
+
+        with patch("lib.git.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=128,
+                stderr="fatal: bad revision 'unknown'",
+            )
+            with patch("lib.git.log_error") as mock_log:
+                result = check_branch_merged(tmp_path, str(plan_path))
+
+        assert result == 1
+        mock_log.assert_any_call(
+            "Failed to check merge status for branch 'feature/test-1-slug'"
+        )
+
+    def test_verification_commit_ancestor_returns_zero(self, tmp_path):
+        """Verification Commit SHA is ancestor of integration branch: returns 0."""
+        from lib.git import check_branch_merged
+
+        plan_with_sha = PLAN_STANDARD + "- **Verification Commit**: abc123def\n"
+        plan_path = _write_plan_file(tmp_path, plan_with_sha)
+        proj_dir = tmp_path / "projects" / "gesp"
+        proj_dir.mkdir(parents=True)
+        (proj_dir / ".git").mkdir()
+
+        with patch("lib.git.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+            result = check_branch_merged(tmp_path, str(plan_path))
+
+        assert result == 0
+        # Verify merge-base --is-ancestor was called with the SHA
+        cmd = mock_run.call_args[0][0]
+        assert "merge-base" in cmd
+        assert "--is-ancestor" in cmd
+        assert "abc123def" in cmd
+
+    def test_verification_commit_not_ancestor_returns_one(self, tmp_path):
+        """Verification Commit SHA not ancestor: returns 1 immediately."""
+        from lib.git import check_branch_merged
+
+        plan_with_sha = PLAN_STANDARD + "- **Verification Commit**: deadbeef\n"
+        plan_path = _write_plan_file(tmp_path, plan_with_sha)
+        proj_dir = tmp_path / "projects" / "gesp"
+        proj_dir.mkdir(parents=True)
+        (proj_dir / ".git").mkdir()
+
+        with patch("lib.git.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=1)
+            with patch("lib.git.log_error") as mock_log:
+                result = check_branch_merged(tmp_path, str(plan_path))
+
+        assert result == 1
+        mock_log.assert_any_call(
+            "Feature branch 'feature/test-1-slug' not yet merged to main. "
+            "Please merge first."
+        )
+
+    def test_remote_branch_fallback_returns_zero(self, tmp_path):
+        """Feature branch found in remote merged list: returns 0."""
+        from lib.git import check_branch_merged
+
+        plan_path = _write_plan_file(tmp_path, PLAN_STANDARD)
+        proj_dir = tmp_path / "projects" / "gesp"
+        proj_dir.mkdir(parents=True)
+        (proj_dir / ".git").mkdir()
+
+        # Local merged: not found. Remote merged: found.
+        local_result = MagicMock(returncode=0, stdout="  main\n")
+        remote_result = MagicMock(returncode=0, stdout="  origin/feature/test-1-slug\n")
+
+        with patch("lib.git.subprocess.run") as mock_run:
+            mock_run.side_effect = [local_result, remote_result]
+            result = check_branch_merged(tmp_path, str(plan_path))
+
+        assert result == 0
+
+    def test_git_log_fallback_returns_zero(self, tmp_path):
+        """Feature branch found via git log --grep: returns 0."""
+        from lib.git import check_branch_merged
+
+        plan_path = _write_plan_file(tmp_path, PLAN_STANDARD)
+        proj_dir = tmp_path / "projects" / "gesp"
+        proj_dir.mkdir(parents=True)
+        (proj_dir / ".git").mkdir()
+
+        local_result = MagicMock(returncode=0, stdout="  main\n")
+        remote_result = MagicMock(returncode=0, stdout="")
+        log_result = MagicMock(returncode=0, stdout="abc123 Merge branch 'feature/test-1-slug'\n")
+
+        with patch("lib.git.subprocess.run") as mock_run:
+            mock_run.side_effect = [local_result, remote_result, log_result]
+            result = check_branch_merged(tmp_path, str(plan_path))
+
+        assert result == 0
