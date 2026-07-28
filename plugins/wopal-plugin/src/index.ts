@@ -238,20 +238,18 @@ const openCodeRulesPlugin = async (pluginInput: PluginInput): Promise<Hooks> => 
 
   const tools = createWopalTools(taskManager, memory?.store, memory?.embedder, sessionStore, memory?.distillEngine, pluginInput.client);
 
-  if (memory) {
-    const { createContextManageTool } = await import("./tools/context-manage.js");
-
-    tools.context_manage = createContextManageTool(
-      pluginInput.client as unknown as OpenCodeClient,
-      systemSnapshots,
-      systemMetadataMap,
-      systemInjectionsMap,
-      transformedMessagesMap,
-      pluginInput.directory,
-      sessionStore,
-      taskManager,
-    );
-  }
+  // context_manage is session/context management — independent of memory system
+  const { createContextManageTool } = await import("./tools/context-manage.js");
+  tools.context_manage = createContextManageTool(
+    pluginInput.client as unknown as OpenCodeClient,
+    systemSnapshots,
+    systemMetadataMap,
+    systemInjectionsMap,
+    transformedMessagesMap,
+    pluginInput.directory,
+    sessionStore,
+    taskManager,
+  );
 
   coreLogger.debug({ log_file: getLogFile(), log_level: getMinLevelName() }, "Logger config");
   coreLogger.info({ tools: Object.keys(tools).join(", "), memory: !!memory }, "Plugin initialized");
