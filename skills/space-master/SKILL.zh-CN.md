@@ -95,7 +95,7 @@ description: |
 [官方上游 upstream] (GitHub 网页点击 Merge)
       │ 3. ontology update (--confirm) ➔ 拓扑平滑对齐 + 自动擦除 origin 陈旧临时分支
       ▼
-[主干升维 promote] (--include 链式) ➔ 从 type/* 提炼通用能力回流 main 主干
+[主干升维 promote] (--include 链式) ➔ 必须与用户讨论确认范围后，将通用能力回流 main 主干
 ```
 
 - **检查状态与 Mode（预检）**：`wopal ontology status`
@@ -110,7 +110,7 @@ description: |
     --confirm
   ```
 - **网页合并后下行收尾**：`wopal ontology update --confirm`
-- **主干提炼升维**：
+- **主干提炼升维（必须与用户讨论确认范围）**：
   ```bash
   wopal ontology promote \
     --from type/coding \
@@ -127,9 +127,11 @@ description: |
 - **插件改动验证**：检查日志 `<workspace>/.wopal-space/logs/wopal-plugin.log`
 
 ### 4. 核心硬约束
+- **Promote 用户讨论铁律**：**Promote 升维的范围必须提前与用户充分讨论并逐项确认，严禁 Agent 自以为是擅作主张！**
 - **Mode 检查约束**：Clone 模式下坚决禁止构建或调用 `contribute` 命令。
 - **先状态后操作**：构建并执行修改类命令前，必须先调用 `wopal ontology status` 确认 Mode 与拓扑。
 - **链式 `--include` 白名单**：贡献或升维时必须传入链式 `--include` 明确白名单范围。
+- **分主题独立贡献**：禁止合并提交不同主题的改动。
 
 ---
 
