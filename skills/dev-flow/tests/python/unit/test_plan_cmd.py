@@ -7,7 +7,7 @@
 #   3. plan list with --issue (merged with GitHub Issues)
 #   4. plan status display
 #   5. _scan_local_plans helper
-#   6. _get_plan_metadata helper
+#   6. get_plan_metadata helper
 #   7. _get_status_display_list helper
 #   8. _extract_slug helper
 
@@ -26,7 +26,7 @@ from support.bootstrap import ensure_scripts_path
 ensure_scripts_path()
 
 from commands.plan import (
-    _get_plan_metadata,
+    get_plan_metadata,
     _extract_slug,
     _get_status_display_list,
     _scan_local_plans,
@@ -82,7 +82,7 @@ class TestGetPlanMetadata(unittest.TestCase):
         shutil.rmtree(self.tmp_dir)
 
     def test_extracts_all_fields(self):
-        metadata = _get_plan_metadata(str(self.plan_file))
+        metadata = get_plan_metadata(str(self.plan_file))
         self.assertEqual(metadata['status'], 'executing')
         self.assertEqual(metadata['issue'], '#42')
         self.assertEqual(metadata['project'], 'wopal-cli')
@@ -90,7 +90,7 @@ class TestGetPlanMetadata(unittest.TestCase):
         self.assertEqual(metadata['type'], 'fix')
 
     def test_returns_empty_dict_for_missing_file(self):
-        metadata = _get_plan_metadata(str(Path(self.tmp_dir) / "nonexistent.md"))
+        metadata = get_plan_metadata(str(Path(self.tmp_dir) / "nonexistent.md"))
         self.assertEqual(metadata, {})
 
 
@@ -312,7 +312,7 @@ class TestCmdPlanDispatch(unittest.TestCase):
             plan_command="new",
             issue="42",
             title=None, project=None, type=None,
-            scope=None, prd=None, deep=False,
+            scope=None,
         )
         with patch('commands.plan.find_workspace_root', return_value=ws):
             # Will fail trying to detect_space_repo, but proves dispatch works
@@ -334,7 +334,7 @@ class TestCmdPlanDispatch(unittest.TestCase):
             plan_command="new",
             issue=None,
             title=None, project=None, type=None,
-            scope=None, prd=None, deep=False,
+            scope=None,
         )
         with patch('commands.plan.find_workspace_root', return_value=ws):
             result = cmd_plan(args)

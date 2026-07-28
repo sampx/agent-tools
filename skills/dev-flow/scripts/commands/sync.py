@@ -11,10 +11,10 @@
 from __future__ import annotations
 
 import argparse
+import shutil
 import subprocess
 import sys
 import json
-import os
 import re
 from pathlib import Path
 
@@ -32,6 +32,7 @@ from labels import (
     ValidationError,
 )
 from plan import build_plan_link_for_issue as _build_plan_link
+from commands.plan import get_plan_metadata
 from lib.logging import log_info, log_success, log_warn, log_error
 from lib.workspace import find_workspace_root, detect_space_repo
 from lib import project as _project_resolver
@@ -57,56 +58,6 @@ def get_issue_info(issue_number: str, repo: str) -> dict:
     return json.loads(result.stdout)
 
 
-# ============================================
-# Plan Metadata Helpers
-# ============================================
-
-def get_plan_metadata(plan_file: str) -> dict:
-    """
-    Extract metadata from Plan file.
-    
-    Returns dict with: status, prd, issue, created, mode, project, type
-    """
-    if not os.path.isfile(plan_file):
-        return {}
-    
-    metadata = {}
-    
-    with open(plan_file, 'r') as f:
-        content = f.read()
-    
-    # Extract metadata fields using simple regex
-    # Status line: - **Status**: planning
-    status_match = re.search(r'^\- \*\*Status\*\*:\s*(.+)', content, re.MULTILINE)
-    metadata['status'] = status_match.group(1).strip() if status_match else 'draft'
-    
-    # PRD line: - **PRD**: `path`
-    prd_match = re.search(r'^\- \*\*PRD\*\*:\s*`(.+)`', content, re.MULTILINE)
-    metadata['prd'] = prd_match.group(1).strip() if prd_match else ''
-    
-    # Issue line: - **Issue**: #123
-    issue_match = re.search(r'^\- \*\*Issue\*\*:\s*(.+)', content, re.MULTILINE)
-    metadata['issue'] = issue_match.group(1).strip() if issue_match else ''
-    
-    # Created line: - **Created**: 2026-04-22
-    created_match = re.search(r'^\- \*\*Created\*\*:\s*(.+)', content, re.MULTILINE)
-    metadata['created'] = created_match.group(1).strip() if created_match else ''
-    
-    # Mode line: - **Mode**: lite
-    mode_match = re.search(r'^\- \*\*Mode\*\*:\s*(.+)', content, re.MULTILINE)
-    metadata['mode'] = mode_match.group(1).strip() if mode_match else 'lite'
-    
-    # Target Project line: - **Target Project**: ontology
-    project_match = re.search(r'^\- \*\*Target Project\*\*:\s*(.+)', content, re.MULTILINE)
-    metadata['project'] = project_match.group(1).strip() if project_match else ''
-    
-    # Type line: - **Type**: feature
-    type_match = re.search(r'^\- \*\*Type\*\*:\s*(.+)', content, re.MULTILINE)
-    metadata['type'] = type_match.group(1).strip().lower() if type_match else ''
-    
-    return metadata
-
-
 def get_plan_name(plan_file: str) -> str:
     """Get plan name from file path."""
     return Path(plan_file).stem
@@ -126,10 +77,6 @@ def extract_primary_plan_issue(plan_file: str) -> str:
 # Sync Operations
 # ============================================
 
-# ============================================
-# Sync Operations
-# ============================================
-
 def sync_plan_to_issue(issue_number: str, plan_file: str, repo: str) -> int:
     """
     Sync Plan link to Issue's Related Resources section.
@@ -137,11 +84,11 @@ def sync_plan_to_issue(issue_number: str, plan_file: str, repo: str) -> int:
     Only updates the | Plan | ... | row in ## Related Resources.
     Preserves all other Issue body content.
     """
-    if not os.path.isfile(plan_file):
+    if not Path(plan_file).is_file():
         log_warn(f"Plan file not found: {plan_file}")
         return 1
     
-    if not shutil_which("gh"):
+    if not shutil.which("gh"):
         log_warn("gh CLI not available, skipping issue sync")
         return 0
     
@@ -205,11 +152,11 @@ def ensure_issue_labels(issue_number: str, plan_file: str, repo: str) -> int:
     
     This ensures status, type, and project labels are correct.
     """
-    if not os.path.isfile(plan_file):
+    if not Path(plan_file).is_file():
         log_warn(f"Plan file not found: {plan_file}")
         return 1
     
-    if not shutil_which("gh"):
+    if not shutil.which("gh"):
         log_warn("gh CLI not available, skipping label sync")
         return 0
     
@@ -240,11 +187,6 @@ def ensure_issue_labels(issue_number: str, plan_file: str, repo: str) -> int:
     sync_project_label_group(issue_number, project_label, repo)
     
     return 0
-
-
-def shutil_which(cmd: str) -> bool:
-    """Check if command exists."""
-    return subprocess.run(["which", cmd], capture_output=True).returncode == 0
 
 
 # ============================================

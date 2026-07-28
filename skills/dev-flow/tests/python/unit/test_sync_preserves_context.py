@@ -55,7 +55,7 @@ class TestSyncPreservesContext(unittest.TestCase):
                     mock_build.return_value = "| Plan | [new-plan](http://new) |"
                     with patch('commands.sync.subprocess.run') as mock_run:
                         mock_run.return_value = MagicMock(returncode=0)
-                        with patch('commands.sync.shutil_which', return_value=True):
+                        with patch('commands.sync.shutil.which', return_value=True):
                             with patch('commands.sync.find_workspace_root', return_value='/fake'):
                                 rc = sync_plan_to_issue("42", plan_file, "test/repo")
                                 self.assertEqual(rc, 0)
@@ -88,7 +88,7 @@ class TestSyncPreservesContext(unittest.TestCase):
                     mock_build.return_value = "| Plan | [appended-plan](http://appended) |"
                     with patch('commands.sync.subprocess.run') as mock_run:
                         mock_run.return_value = MagicMock(returncode=0)
-                        with patch('commands.sync.shutil_which', return_value=True):
+                        with patch('commands.sync.shutil.which', return_value=True):
                             with patch('commands.sync.find_workspace_root', return_value='/fake'):
                                 rc = sync_plan_to_issue("42", plan_file, "test/repo")
                                 self.assertEqual(rc, 0)

@@ -609,6 +609,7 @@ PLAN_VERIFYING_NO_ISSUE = """\
 class TestVerifyConfirmDirectMerge:
     """Test verify --confirm after verify-switch succeeded."""
 
+    @patch("plan.get_plan_worktree", return_value=None)
     @patch("commands.verify.get_plan_worktree", return_value=None)
     @patch("commands.verify.sync_plan_to_issue_body")
     @patch("commands.verify.sync_status_label")
@@ -621,7 +622,7 @@ class TestVerifyConfirmDirectMerge:
     def test_direct_merge_verify_uses_resolve_active_plan(
         self, mock_find_plan, mock_ws_root, mock_resolve, mock_check_uv,
         mock_update_status, mock_commit, mock_sync_label, mock_sync_body,
-        mock_no_wt,
+        mock_no_wt, mock_plan_wt,
         tmp_path
     ):
         """verify --confirm uses resolve_active_plan to enforce merged state."""
@@ -648,6 +649,7 @@ class TestVerifyConfirmDirectMerge:
 
         mock_resolve.assert_called_once_with(str(plan_path), "verify", tmp_path)
 
+    @patch("plan.get_plan_worktree", return_value=None)
     @patch("commands.verify.get_plan_worktree", return_value=None)
     @patch("commands.verify.sync_plan_to_issue_body")
     @patch("commands.verify.sync_status_label")
@@ -660,7 +662,7 @@ class TestVerifyConfirmDirectMerge:
     def test_direct_merge_commits_on_integration_branch(
         self, mock_find_plan, mock_ws_root, mock_resolve, mock_check_uv,
         mock_update_status, mock_commit, mock_sync_label, mock_sync_body,
-        mock_no_wt,
+        mock_no_wt, mock_plan_wt,
         tmp_path
     ):
         """verify --confirm commits Plan-only on the integration branch repo root."""
@@ -722,6 +724,7 @@ class TestVerifyConfirmDirectMerge:
 class TestVerifyConfirmPRMerge:
     """Test verify --confirm for PR-based flow (PR already merged)."""
 
+    @patch("plan.get_plan_worktree", return_value=None)
     @patch("commands.verify.get_plan_worktree", return_value=None)
     @patch("commands.verify.sync_plan_to_issue_body")
     @patch("commands.verify.sync_status_label")
@@ -736,7 +739,7 @@ class TestVerifyConfirmPRMerge:
         self, mock_find_plan, mock_ws_root, mock_pr_merged,
         mock_resolve, mock_check_uv, mock_update_status,
         mock_commit, mock_sync_label, mock_sync_body,
-        mock_no_wt,
+        mock_no_wt, mock_plan_wt,
         tmp_path
     ):
         """PR already merged: verify --confirm succeeds on integration branch."""

@@ -72,7 +72,12 @@ def _write_plan(tmp_path, content: str, name: str = "42-feature-dev-flow-test.md
 # -- Test: _check_feature_branch_merged function -------------------------------
 
 class TestCheckFeatureBranchMerged:
-    """Test _check_feature_branch_merged helper function."""
+    """Test _check_feature_branch_merged helper function.
+
+    After refactoring, _check_feature_branch_merged delegates to
+    lib.git.check_branch_merged. Mocks target lib.git where the actual
+    subprocess and log_error calls happen.
+    """
 
     def test_standard_branch_merged_returns_zero(self, tmp_path):
         """Standard project: feature branch is in merged list, returns 0."""
@@ -86,7 +91,7 @@ class TestCheckFeatureBranchMerged:
 
         merged_output = "  main\n* feature/test-1-slug\n"
 
-        with patch("commands.verify.subprocess.run") as mock_run:
+        with patch("lib.git.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
                 returncode=0,
                 stdout=merged_output,
@@ -108,9 +113,9 @@ class TestCheckFeatureBranchMerged:
         not_merged_result = MagicMock(returncode=0, stdout="  main\n")
         empty_result = MagicMock(returncode=0, stdout="")
 
-        with patch("commands.verify.subprocess.run") as mock_run:
+        with patch("lib.git.subprocess.run") as mock_run:
             mock_run.side_effect = [not_merged_result, empty_result, empty_result]
-            with patch("commands.verify.log_error") as mock_log:
+            with patch("lib.git.log_error") as mock_log:
                 result = _check_feature_branch_merged(tmp_path, str(plan_path))
 
         assert result == 1
@@ -130,12 +135,12 @@ class TestCheckFeatureBranchMerged:
 
         merged_output = "  space/wopal-workspace\n* issue-10-slug\n"
 
-        with patch("commands.verify.subprocess.run") as mock_run:
+        with patch("lib.git.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
                 returncode=0,
                 stdout=merged_output,
             )
-            with patch("commands.verify.get_current_branch", return_value="space/wopal-workspace"):
+            with patch("lib.git.get_current_branch", return_value="space/wopal-workspace"):
                 result = _check_feature_branch_merged(tmp_path, str(plan_path))
 
         assert result == 0
@@ -153,10 +158,10 @@ class TestCheckFeatureBranchMerged:
         not_merged_result = MagicMock(returncode=0, stdout="  space/wopal-workspace\n")
         empty_result = MagicMock(returncode=0, stdout="")
 
-        with patch("commands.verify.subprocess.run") as mock_run:
+        with patch("lib.git.subprocess.run") as mock_run:
             mock_run.side_effect = [not_merged_result, empty_result, empty_result]
-            with patch("commands.verify.get_current_branch", return_value="space/wopal-workspace"):
-                with patch("commands.verify.log_error") as mock_log:
+            with patch("lib.git.get_current_branch", return_value="space/wopal-workspace"):
+                with patch("lib.git.log_error") as mock_log:
                     result = _check_feature_branch_merged(tmp_path, str(plan_path))
 
         assert result == 1
@@ -181,7 +186,7 @@ class TestCheckFeatureBranchMerged:
         plan_content = PLAN_VERIFYING_NO_WORKTREE + "\n- **Worktree**:  | .worktrees/some-path\n"
         plan_path = _write_plan(tmp_path, plan_content)
 
-        with patch("commands.verify.get_plan_worktree", return_value={"branch": "", "path": ""}):
+        with patch("plan.get_plan_worktree", return_value={"branch": "", "path": ""}):
             result = _check_feature_branch_merged(tmp_path, str(plan_path))
 
         assert result == 0
@@ -195,12 +200,12 @@ class TestCheckFeatureBranchMerged:
         proj_dir.mkdir(parents=True)
         (proj_dir / ".git").mkdir()
 
-        with patch("commands.verify.subprocess.run") as mock_run:
+        with patch("lib.git.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
                 returncode=128,
                 stderr="fatal: bad revision 'unknown'",
             )
-            with patch("commands.verify.log_error") as mock_log:
+            with patch("lib.git.log_error") as mock_log:
                 result = _check_feature_branch_merged(tmp_path, str(plan_path))
 
         assert result == 1
@@ -220,7 +225,7 @@ class TestCheckFeatureBranchMerged:
         proj_dir.mkdir(parents=True)
         (proj_dir / ".git").mkdir()
 
-        with patch("commands.verify.subprocess.run") as mock_run:
+        with patch("lib.git.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
                 returncode=0, stdout="  main\n* feature/test-1-slug\n"
             )
@@ -239,11 +244,11 @@ class TestCheckFeatureBranchMerged:
         wopal_dir.mkdir(parents=True)
         (wopal_dir / ".git").mkdir()
 
-        with patch("commands.verify.subprocess.run") as mock_run:
+        with patch("lib.git.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
                 returncode=0, stdout="  space/wopal-workspace\n* issue-10-slug\n"
             )
-            with patch("commands.verify.get_current_branch", return_value="space/wopal-workspace"):
+            with patch("lib.git.get_current_branch", return_value="space/wopal-workspace"):
                 _check_feature_branch_merged(tmp_path, str(plan_path_ont))
 
         cmd = mock_run.call_args[0][0]
@@ -266,12 +271,12 @@ class TestCheckFeatureBranchMerged:
         # Simulate a different space name to prove the value is dynamic
         current_space_branch = "space/gesp-space"
 
-        with patch("commands.verify.subprocess.run") as mock_run:
+        with patch("lib.git.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
                 returncode=0,
                 stdout=f"  {current_space_branch}\n* issue-10-slug\n",
             )
-            with patch("commands.verify.get_current_branch", return_value=current_space_branch) as mock_branch:
+            with patch("lib.git.get_current_branch", return_value=current_space_branch) as mock_branch:
                 result = _check_feature_branch_merged(tmp_path, str(plan_path))
 
         assert result == 0

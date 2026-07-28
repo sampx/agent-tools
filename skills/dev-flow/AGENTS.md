@@ -35,7 +35,7 @@ description: Issue/Plan-driven development workflow CLI — state-machine comman
 
 Working directory: `.wopal/skills/dev-flow/`
 
-Runtime dependencies: bash 3.x+, `gh` CLI, `jq`, Python 3
+Runtime dependencies: bash 3.x+, `gh` CLI, `jq`, Python 3.10+
 
 ## 4. Implementation Rules
 
