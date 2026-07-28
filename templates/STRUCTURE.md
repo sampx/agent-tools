@@ -4,7 +4,7 @@ space: {space-name}
 
 space-component-type: [ontology-worktree, space-runtime, projects, contents, docs, labs, external, scripts]
 
-ontology-worktree: {path: .wopal, repo: ${ONTOLOGY_REPO}@space/{space-name}}
+ontology-worktree: {project: ${ONTOLOGY_NAME}, path: .wopal, repo: ${ONTOLOGY_REPO}@space/{space-name}}
 
 space-runtime:
   path: .wopal-space

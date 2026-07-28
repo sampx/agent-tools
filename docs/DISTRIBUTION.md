@@ -5,17 +5,6 @@
 > **Parent Architecture**: `../../docs/products/wopal-space/DESIGN-wopalspace.md`
 > **Project Design**: `./DESIGN.md`
 
-## 0. Change Log
-
-| Date | Type | Summary |
-|---|---|---|
-| 2026-07-05 | Updated | §5 新增浏览器扩展分发契约：Git 分发，不纳入 Base Capability Source Contract，手动安装 |
-| 2026-06-01 | Updated | 新增 §5 Base Capability Source Contract，补充 setup 物化 base layer 的 source 侧契约。 |
-| 2026-06-01 | Updated | 明确 `wopal-space-ontology` 作为 P1 canonical source identity 和 CLI release carrier。 |
-| 2026-05-30 | Updated | 优化语言表达，通顺自然。 |
-| 2026-05-30 | Updated | 精简为分发特有内容，避免与 `DESIGN.md` 重复。 |
-| 2026-05-30 | Created | 定义 ontology 的 Git source 分发、clone/fork/worktree 物化与 init/runtime handoff 契约。 |
-
 ---
 
 ## 1. Scope
@@ -166,8 +155,9 @@ ontology 被 materialize 后，ellamaka 在 wopal-space mode 下负责运行时�
 
 | Document | Purpose |
 |---|---|
+| `../../docs/products/wopal-space/DESIGN-distribution.md` | 产品级分发总设计：R2 架构、缓存策略、完整性模型 |
+| `../../docs/products/wopal-space/DESIGN-wopalspace.md` | 产品级架构与版本体系 |
 | `./DESIGN.md` | ontology 的能力边界、模板、命令、规则与 runtime 维护设计 |
-| `../../docs/products/wopal-space/DESIGN-wopalspace.md` | 产品级 setup integration flow 与系统分层 |
 | `../../projects/wopal-cli/docs/DESIGN.md` | CLI 的 deterministic init 与 runtime handoff 设计 |
 | `../../projects/wopal-cli/docs/DISTRIBUTION.md` | CLI 对 ontology materialization 的消费契约 |
 | `../../projects/ellamaka/docs/DESIGN.md` | ellamaka 的 wopal-space mode 与 runtime loading 设计 |

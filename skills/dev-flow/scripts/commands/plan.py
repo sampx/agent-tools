@@ -4,9 +4,9 @@
 # Ported from scripts/cmd/plan.sh
 #
 # Commands:
-#   plan <issue> [--project <name>] [--prd <path>] [--deep] [--check]
-#   plan --title "<title>" --project <name> --type <type> [--scope <scope>] [--prd <path>] [--deep] [--check]
-#   plan new <issue> [--project <name>] [--prd <path>] [--deep]
+#   plan <issue> [--project <name>] [--check]
+#   plan --title "<title>" --project <name> --type <type> [--scope <scope>] [--check]
+#   plan new <issue> [--project <name>]
 #   plan status <plan-id>
 #   plan list [--issue]
 #
@@ -36,7 +36,6 @@ from __future__ import annotations
 import argparse
 import subprocess
 import sys
-import os
 import json
 import re
 from pathlib import Path
@@ -57,7 +56,6 @@ from lib.logging import log_info, log_success, log_error, log_warn, log_step
 from lib.workspace import find_workspace_root, detect_space_repo
 from lib import project as _project_resolver
 from lib.worktree import parse_worktree_meta
-from workflow import PLAN_STATES
 
 
 # ============================================
@@ -89,29 +87,25 @@ def _extract_project_from_labels(issue_info: dict) -> str:
     return ""
 
 
-def _extract_project_metadata_from_body(issue_info: dict) -> tuple[str | None, str | None]:
-    """Extract Project Type and Project Path from Issue body metadata section.
-    
-    Args:
-        issue_info: Issue info dict from GitHub
-        
-    Returns:
-        Tuple of (project_type, project_path) - both may be None if not present
+def _extract_body_field(body: str, field_name: str) -> str | None:
+    """Extract a metadata field value from an Issue body.
+
+    Pattern: ``- **<field_name>**: <value>``
+    Returns the value string, or None if the field is not present.
     """
+    match = re.search(rf'^-\s*\*\*{re.escape(field_name)}\*\*:\s*(.+)$', body, re.MULTILINE)
+    return match.group(1).strip() if match else None
+
+
+def _extract_project_metadata_from_body(issue_info: dict) -> tuple[str | None, str | None]:
+    """Extract Project Type and Project Path from Issue body metadata section."""
     body = issue_info.get("body", "")
-    
     if not body:
         return None, None
-    
-    # Look for metadata fields in Issue body
-    # Pattern: "- **Project Type**: <value>" or "- **Project Path**: <value>"
-    project_type_match = re.search(r'^-\s*\*\*Project Type\*\*:\s*(.+)$', body, re.MULTILINE)
-    project_path_match = re.search(r'^-\s*\*\*Project Path\*\*:\s*(.+)$', body, re.MULTILINE)
-    
-    project_type = project_type_match.group(1).strip() if project_type_match else None
-    project_path = project_path_match.group(1).strip() if project_path_match else None
-    
-    return project_type, project_path
+    return (
+        _extract_body_field(body, "Project Type"),
+        _extract_body_field(body, "Project Path"),
+    )
 
 
 def _derive_project_path(project: str | None, declared_path: str | None) -> str:
@@ -129,28 +123,14 @@ def _derive_project_path(project: str | None, declared_path: str | None) -> str:
 
 
 def _extract_product_phase_from_body(issue_info: dict) -> tuple[str | None, str | None]:
-    """Extract Product and Phase from Issue body metadata section.
-
-    Args:
-        issue_info: Issue info dict from GitHub
-
-    Returns:
-        Tuple of (product, phase) - both may be None if not present
-    """
+    """Extract Product and Phase from Issue body metadata section."""
     body = issue_info.get("body", "")
-
     if not body:
         return None, None
-
-    # Look for metadata fields in Issue body
-    # Pattern: "- **Product**: <value>" or "- **Phase**: <value>"
-    product_match = re.search(r'^-\s*\*\*Product\*\*:\s*(.+)$', body, re.MULTILINE)
-    phase_match = re.search(r'^-\s*\*\*Phase\*\*:\s*(.+)$', body, re.MULTILINE)
-
-    product = product_match.group(1).strip() if product_match else None
-    phase = phase_match.group(1).strip() if phase_match else None
-
-    return product, phase
+    return (
+        _extract_body_field(body, "Product"),
+        _extract_body_field(body, "Phase"),
+    )
 
 
 def _title_to_slug(title: str) -> str:
@@ -170,11 +150,6 @@ def _title_to_slug(title: str) -> str:
     slug = slug.strip('-')
     
     return slug
-
-
-def _resolve_scope_from_title(title: str) -> str:
-    """Extract scope from title pattern: type(scope): description."""
-    return extract_scope(title) or ""
 
 
 def _resolve_plan_dir(project: str, workspace_root: Path) -> Path:
@@ -221,8 +196,6 @@ def create_plan_from_template(
     plan_type: str,
     project: str,
     workspace_root: Path,
-    prd_path: str | None = None,
-    deep_mode: bool = False,
     project_path: str | None = None,
     project_type: str | None = None,
     product: str | None = None,
@@ -237,8 +210,6 @@ def create_plan_from_template(
         plan_type: Plan type (feature, fix, etc.)
         project: Target project name
         workspace_root: Workspace root path
-        prd_path: Optional PRD file path
-        deep_mode: Whether to enable deep mode for plan structure
         project_path: Optional project path (for ontology-worktree type)
         project_type: Optional project type (e.g., "ontology-worktree")
         product: Optional product name
@@ -257,12 +228,7 @@ def create_plan_from_template(
     plan_dir.mkdir(parents=True, exist_ok=True)
     
     # Read template
-    template_path = workspace_root / "agents" / "wopal" / "skills" / "dev-flow" / "templates" / "plan.md"
-    
-    # Template might be in skill directory relative to workspace
-    if not template_path.exists():
-        # Try alternate path
-        template_path = workspace_root / ".agents" / "skills" / "dev-flow" / "templates" / "plan.md"
+    template_path = workspace_root / ".wopal" / "skills" / "dev-flow" / "templates" / "plan.md"
     
     if not template_path.exists():
         log_error(f"Plan template not found at {template_path}")
@@ -291,17 +257,6 @@ def create_plan_from_template(
     content = content.replace("{product}", product_value)
     content = content.replace("{phase}", phase_value)
     content = content.replace("{date}", created_date)
-    
-    # Handle --deep and --prd placeholders if present in template
-    if deep_mode and "{deep_flag}" in content:
-        content = content.replace("{deep_flag}", "--deep")
-    elif "{deep_flag}" in content:
-        content = content.replace("{deep_flag}", "")
-    
-    if prd_path and "{prd_path}" in content:
-        content = content.replace("{prd_path}", f"--prd {prd_path}")
-    elif "{prd_path}" in content:
-        content = content.replace("{prd_path}", "")
     
     # Remove metadata lines with empty values (optional fields)
     # Pattern: "- **Field**: " with nothing after the colon+space
@@ -383,8 +338,6 @@ def _cmd_plan_new(args: argparse.Namespace) -> int:
     project = args.project
     plan_type_arg = args.type
     scope_arg = args.scope
-    prd_path = args.prd
-    deep_mode = args.deep
 
     # Validate: either Issue number OR title required (early exit before
     # touching git, so missing args fail fast without RuntimeError).
@@ -417,7 +370,7 @@ def _cmd_plan_new(args: argparse.Namespace) -> int:
 
     scope = scope_arg or ""
     if title and not scope:
-        scope = _resolve_scope_from_title(title)
+        scope = extract_scope(title) or ""
 
     # Initialize issue context variables (may remain None for no-issue mode)
     issue_product = None
@@ -522,8 +475,6 @@ def _cmd_plan_new(args: argparse.Namespace) -> int:
             plan_type,
             project,
             workspace_root,
-            prd_path=prd_path,
-            deep_mode=deep_mode,
             project_path=issue_project_path,
             project_type=issue_project_type,
             product=issue_product,
@@ -610,12 +561,12 @@ def _cmd_plan_check(args: argparse.Namespace) -> int:
 # ============================================
 
 
-def _get_plan_metadata(plan_file: str) -> dict:
+def get_plan_metadata(plan_file: str) -> dict:
     """Extract metadata from Plan file.
 
-    Returns dict with: status, prd, issue, created, mode, project, type
+    Returns dict with: status, issue, created, project, type
     """
-    if not os.path.isfile(plan_file):
+    if not Path(plan_file).is_file():
         return {}
 
     metadata = {}
@@ -626,17 +577,11 @@ def _get_plan_metadata(plan_file: str) -> dict:
     status_match = re.search(r'^\- \*\*Status\*\*:\s*(.+)', content, re.MULTILINE)
     metadata['status'] = status_match.group(1).strip() if status_match else 'draft'
 
-    prd_match = re.search(r'^\- \*\*PRD\*\*:\s*`(.+)`', content, re.MULTILINE)
-    metadata['prd'] = prd_match.group(1).strip() if prd_match else ''
-
     issue_match = re.search(r'^\- \*\*Issue\*\*:\s*(.+)', content, re.MULTILINE)
     metadata['issue'] = issue_match.group(1).strip() if issue_match else ''
 
     created_match = re.search(r'^\- \*\*Created\*\*:\s*(.+)', content, re.MULTILINE)
     metadata['created'] = created_match.group(1).strip() if created_match else ''
-
-    mode_match = re.search(r'^\- \*\*Mode\*\*:\s*(.+)', content, re.MULTILINE)
-    metadata['mode'] = mode_match.group(1).strip() if mode_match else 'lite'
 
     project_match = re.search(r'^\- \*\*Target Project\*\*:\s*(.+)', content, re.MULTILINE)
     metadata['project'] = project_match.group(1).strip() if project_match else ''
@@ -686,10 +631,9 @@ def _cmd_plan_status(input_ref: str) -> int:
 
     plan_name = Path(plan_file).stem
     active_plan_file = _resolve_active_plan_for_display(Path(plan_file), workspace_root)
-    metadata = _get_plan_metadata(str(active_plan_file))
+    metadata = get_plan_metadata(str(active_plan_file))
 
     status = metadata.get('status', 'draft')
-    prd = metadata.get('prd', '')
     project = metadata.get('project', '')
     created = metadata.get('created', '')
     plan_issue_str = metadata.get('issue', '')
@@ -726,7 +670,6 @@ def _cmd_plan_status(input_ref: str) -> int:
     if active_plan_file != Path(plan_file):
         print(f"  Active: {active_plan_file} (worktree)")
     print(f"  Status: {status}")
-    print(f"  PRD: {prd or '<none>'}")
     print(f"  Created: {created}")
 
     if plan_issue_num:
@@ -755,7 +698,7 @@ def _cmd_plan_status(input_ref: str) -> int:
                 except Exception:
                     worktree_path = str(workspace_root / ".worktrees" / f"{project}-{branch}")
 
-        if worktree_path and os.path.isdir(worktree_path):
+        if worktree_path and Path(worktree_path).is_dir():
             print("")
             print(f"Worktree: {worktree_path}")
             try:
@@ -826,7 +769,7 @@ def _scan_local_plans(workspace_root: str | Path) -> list[dict]:
     results = []
     ws = Path(workspace_root)
 
-    search_dirs = _project_resolver._search_dirs(ws)
+    search_dirs = _project_resolver.search_plan_dirs(ws)
 
     for plans_dir in search_dirs:
         if plans_dir.name == "done":
@@ -844,7 +787,7 @@ def _scan_local_plans(workspace_root: str | Path) -> list[dict]:
 
             plan_name = f.stem
             active_file = _resolve_active_plan_for_display(f, ws)
-            metadata = _get_plan_metadata(str(active_file))
+            metadata = get_plan_metadata(str(active_file))
             status = metadata.get('status', 'draft')
             issue_str = metadata.get('issue', '')
 
@@ -1066,15 +1009,6 @@ def register_plan_parser(subparsers: argparse._SubParsersAction) -> None:
     new_parser.add_argument(
         "--scope",
         help="Scope identifier (no-issue mode; auto-extracted from title pattern if omitted)",
-    )
-    new_parser.add_argument(
-        "--prd",
-        help="PRD file path to reference in plan",
-    )
-    new_parser.add_argument(
-        "--deep",
-        action="store_true",
-        help="Enable deep mode for enhanced plan structure",
     )
 
     # ---- plan status ----
