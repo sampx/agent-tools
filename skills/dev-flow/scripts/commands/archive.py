@@ -26,7 +26,7 @@ from pathlib import Path
 from datetime import date
 
 from lib.logging import log_info, log_success, log_error, log_warn, log_step
-from lib.workspace import find_workspace_root
+from lib.workspace import find_workspace_root, get_ontology_main_repo
 from workflow import guard_status, resolve_space_repo
 from plan import find_plan
 from plan import (
@@ -48,7 +48,7 @@ from issue import (
     ensure_issue_labels,
 )
 from lib.git import (
-    merge_branch,
+    check_branch_merged,
     has_uncommitted_changes,
     commit_paths,
     push_repo,
@@ -232,42 +232,6 @@ def _is_pr_path(plan_path: str, issue_number: int, repo: str) -> bool:
 
     labels = result.stdout.strip().split('\n')
     return "pr/opened" in labels
-
-
-def _merge_worktree_branch(
-    project_path: str,
-    branch: str,
-    worktree_path: str,
-) -> tuple[bool, list[str]]:
-    """Merge worktree branch into main with --no-ff.
-
-    Args:
-        project_path: Path to project directory (cwd for git operations)
-        branch: Branch name to merge
-        worktree_path: Path to worktree (for reference)
-
-    Returns:
-        Tuple of (success, conflict_files)
-    """
-    log_step(f"Merging branch '{branch}' into main...")
-
-    success, conflicts = merge_branch(project_path, branch, target='main', no_ff=True)
-
-    if success:
-        log_success(f"Branch '{branch}' merged into main")
-        return (True, [])
-
-    if conflicts:
-        log_error(f"Merge conflicts detected in {len(conflicts)} file(s):")
-        for f in conflicts:
-            log_error(f"  {f}")
-        log_error("Resolve conflicts manually, then:")
-        log_error(f"  cd {project_path}")
-        log_error("  git add . && git commit")
-    else:
-        log_error(f"Merge failed for branch '{branch}' (non-conflict error)")
-
-    return (False, conflicts)
 
 
 def _cleanup_worktree(
@@ -496,7 +460,7 @@ def cmd_archive(args: argparse.Namespace) -> int:
     2.5. Sync Plan to Issue
     3. Detect worktree and handle cleanup:
        - Has worktree + PR path → cleanup worktree only
-       - Has worktree + no PR → merge branch to main → push → cleanup
+       - Has worktree + no PR → check merge status → cleanup
        - No worktree → push project changes (committed during complete)
     4. Archive Plan file (move to done/)
     5. Update Issue Plan link
@@ -576,6 +540,31 @@ def cmd_archive(args: argparse.Namespace) -> int:
 
     if is_ontology_worktree:
         log_step("Ontology worktree project detected")
+
+        # Detect stale worktree and branch (warn only, no auto-cleanup)
+        wt = _detect_worktree(plan_path, project or "ontology", workspace_root)
+        if wt:
+            branch = wt['branch']
+            wt_path = wt['path']
+            wt_path_resolved = Path(wt_path)
+            if not wt_path_resolved.is_absolute():
+                wt_path_resolved = workspace_root / wt_path_resolved
+
+            if wt_path_resolved.exists():
+                log_warn(f"Worktree 目录残留: {wt_path_resolved}")
+                log_warn(f"  请手动清理: trash {wt_path_resolved}")
+
+            main_repo = get_ontology_main_repo(workspace_root)
+            if main_repo:
+                branch_result = subprocess.run(
+                    ['git', 'branch', '--list', branch],
+                    capture_output=True, text=True,
+                    cwd=str(main_repo),
+                )
+                if branch_result.stdout.strip():
+                    log_warn(f"分支残留: {branch}")
+                    log_warn(f"  请手动删除: cd {main_repo} && git branch -d {branch}")
+
         log_warn("请手动 push .wopal/ 变更: cd .wopal && git push")
     elif project:
         project_path = resolve_project_path(plan_path, project, workspace_root)
@@ -609,24 +598,19 @@ def cmd_archive(args: argparse.Namespace) -> int:
                         log_info(f"Worktree path no longer exists: {wt_path_resolved}")
                         log_info("Skipping merge; cleaning up feature branch only")
                     else:
-                        # Worktree directory present → normal flow
+                        # Worktree directory present → check merge status
                         if has_uncommitted_changes(str(wt_path_resolved)):
                             log_error(f"Worktree has uncommitted changes: {wt_path_resolved}")
                             log_error("Commit changes in worktree first, then re-run archive")
                             return 1
 
-                        success, conflicts = _merge_worktree_branch(
-                            str(project_path), branch, str(wt_path_resolved),
-                        )
-
-                        if not success:
-                            if conflicts:
-                                log_error("Resolve merge conflicts before archiving")
+                        # Check if feature branch has been merged
+                        merge_status = check_branch_merged(workspace_root, plan_path)
+                        if merge_status != 0:
+                            log_error("Feature branch not yet merged. Please merge first.")
                             return 1
 
-                        # Merge succeeded — remind user to push
-                        log_success("Feature branch merged to main")
-                        log_warn(f"请手动 push: cd {project_path} && git push origin main")
+                        log_info("Feature branch already merged, skipping merge")
 
                     # Always cleanup — clean_worktree is safe when the
                     # worktree directory is gone; it still deletes the

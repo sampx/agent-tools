@@ -57,7 +57,7 @@ main ──merge──→ type/<name>
 
 **场景**：`main` 有了新的通用能力或重要修复，类型层需要同步。
 
-**操作**：`wopal ontology sync --from main --to type/<name>`
+**操作**：`wopal ontology update --type <name> --confirm`
 
 **安全检查**：
 - 同步前确认 `type/<name>` 没有删除 `main` 上的文件
@@ -85,34 +85,34 @@ type/<name> ──merge──→ space/<name>
 ### 契约 3：空间层 → 类型层（贡献）
 
 ```
-space/<name> ──cherry-pick + PR──→ type/<name>
+space/<name> ──squash merge──→ type/<name>
 ```
 
 **场景**：空间中孵化出一个能力，适合提升到类型层。
 
-**操作**：`wopal ontology contribute --target type/<name>`
+**操作**：`wopal space contribute --message "..." --confirm`
 
 **安全检查**：
-- agent 应与用户讨论：哪些 commit 适合贡献，哪些属于空间私有定制
-- 只 cherry-pick 通用性的变更，不包含空间特定的路径、配置或个人偏好
+- agent 应与用户讨论：哪些文件适合贡献，哪些属于空间私有定制
+- 用 `--include`/`--exclude` 筛选通用性的变更，不包含空间特定的路径、配置或个人偏好
 
-**要点**：贡献是单向的。cherry-pick 到类型分支后创建 PR，经审核后合入。
+**要点**：贡献是单向的。squash merge 到类型分支后，用 `wopal ontology promote` 提升到 `main` 或 `wopal ontology contribute` 贡献到上游。
 
-### 契约 4：空间层 → 通用层（贡献）
+### 契约 4：类型层 → 通用层（提升）
 
 ```
-space/<name> ──cherry-pick + PR──→ main
+type/<name> ──promote──→ main
 ```
 
-**场景**：空间中孵化出一个能力，适合提升到通用层。
+**场景**：类型层孵化出一个通用能力，适合提升到 `main`。
 
-**操作**：`wopal ontology contribute --target main`
+**操作**：`wopal ontology promote --from type/<name> --confirm`
 
 **安全检查**：
-- 与契约 3 相同的 commit 筛选讨论
-- 额外确认该能力确实适用于所有空间，而非仅特定类型
+- agent 应与用户讨论：哪些文件是通用性变更（M/D-status），哪些是类型层特有的（A-status）
+- A-status 文件（类型特有）自动排除；用 `--include` 强制纳入特定文件
 
-**要点**：提升到 `main` 是最高级别的贡献，审核更严格。能力应先经过多个空间验证后再考虑。
+**要点**：提升到 `main` 是最高级别的贡献，审核更严格。能力应先经多个空间验证后再考虑。如需贡献到上游仓库，先 `wopal space contribute` 合入类型分支，再 `wopal ontology contribute --type <type> --message "..." --confirm` 开 PR。
 
 ---
 
@@ -126,7 +126,7 @@ space/<name> ──cherry-pick + PR──→ main
 |------|------|---------|
 | `main` 删除文件 | 删除通过 sync 传播到 `type/<name>` 和 `space/<name>` | 正常接受，这是维护者的意图 |
 | `type/<name>` 删除文件 | 删除通过 update 传播到 `space/<name>` | 正常接受，类型层决定该类型不需要该能力 |
-| `space/<name>` 删除文件 | **不会**传播到 `type/<name>` 或 `main` | 安全——贡献是 cherry-pick，不是 merge |
+| `space/<name>` 删除文件 | **不会**传播到 `type/<name>` 或 `main` | 安全——贡献是 squash merge（`wopal space contribute`），不是直接 merge |
 | `space/<name>` 隐藏能力 | 通过 ellamaka 配置禁用或"不引用即不加载" | 优先于删除，避免影响后续同步 |
 
 ### 向上 merge 前的检查
@@ -162,8 +162,8 @@ $WOPAL_HOME/{agents,skills,commands,rules,plugins}
 
 双扫描模型意味着两个目录是**独立加载**的，不需要 space 分支是 main 的超集。这也解释了为什么层级间同步需要显式操作而不是隐式覆盖：
 
-- `main` 的变更通过 `wopal ontology sync` 传播到类型层和空间层
+- `main` 的变更通过 `wopal ontology update` 传播到类型层和空间层
 - 空间层的定制通过 overlay 机制直接生效，无需 merge 到 main
-- 贡献（cherry-pick + PR）是显式的、可审核的，防止未经验证的能力污染上层
+- 贡献（squash merge + PR）是显式的、可审核的，防止未经验证的能力污染上层
 
 具体加载机制（哪些覆盖、哪些补充、哪些合并）以 ellamaka 项目源码为准。
