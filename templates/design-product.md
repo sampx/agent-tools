@@ -4,13 +4,7 @@
 > **Updated**: YYYY-MM-DD  
 > **Product Intent**: `<prd-path>`
 
-## 0. Change Log
-
-Record design intent, architecture, boundary, and contract-level changes.
-
-| Date | Type | Summary |
-|---|---|---|
-| YYYY-MM-DD | Created / Updated | One-line summary |
+---
 
 ## 1. Architecture Design
 

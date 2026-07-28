@@ -5,21 +5,7 @@
 > **Parent Architecture**: `docs/products/wopal-space/DESIGN-wopalspace.md`
 > **Parent Product**: `docs/products/wopal-space/PRD-wopalspace.md`
 
-## 0. Change Log
-
-| Date | Type | Summary |
-|---|---|---|
-| 2026-07-05 | Updated | §2 新增"浏览器扩展"能力域；§4 新增 §4.9 浏览器扩展体系，记录 opencode-usage-extension 项目结构与功能 |
-| 2026-06-28 | Major | §6.8 优化 ontology contribute 的参数契约与生命周期设计：采用单一的 --type <type> 物理防范空间分支越界 PR；新增 --abort fuzzy 批量与精准清理，配合 --resume 确保冲突挂起时的本体软链接稳定性。 |
-| 2026-06-18 | Major | §6.8 完全重写：从版本化 manifest 驱动改为规则驱动设计。核心 6 条规则：单向下行合并、top-down 顺序、贡献走 squash merge 不强制 update、冲突即停、update 逻辑原子、配置隔离。去掉 manifest/版本号/ownership pattern/install/release/validate/apply 等机制，回归标准 git 工作流。命令族收敛为 6 个（ontology status/update/contribute + space status/update/contribute）。 |
-| 2026-06-17 | Major | §6.8 完全重写：从 git merge 驱动改为版本化 manifest 驱动同步。新增 Manifest 结构（ontology.yaml + space-manifest.yaml）、版本号规则（main 三位 + type 四位）、Release 流程、Update 机制（变更集应用 + ownership 保留）、Apply 机制（双向文件迁移）、Contribute 机制（临时分支隔离 + 选择性 apply + PR）、Space Update 机制。去掉 clone/fork 二分法、四层检测机制、git merge 同步。命令族新增 install、release、validate。 |
-| 2026-06-13 | Updated | §6.9 Agent Ontology Maintenance Workflow — 状态解读、更新决策、能力提升、多级 fork 维护和 safe-apply/contribute 工作流。补充 `/ontology-maintain` 命令。 |
-| 2026-05-31 | Updated | 收敛 base capabilities + space overlay：setup 从 ontology main 物化 base，space overlay 同名覆盖。 |
-| 2026-05-30 | Updated | 将 Git source / worktree 分发细节下沉到 `docs/DISTRIBUTION.md`。 |
-| 2026-05-29 | Updated | 明确 STRUCTURE compact schema、Design Document Layering 与 `/init` 消费 `wopal space scan` JSON 的维护边界。 |
-
 ---
-
 ## 1. Project Role
 
 ontology 是 WopalSpace 的 Space Ontology 层，也是空间灵魂、规约与能力基因工具包的承载面。Agent 身份、规则、技能、命令、插件、模板与辅助脚本在这里沉淀和分发；ellamaka 负责解释执行，wopal-cli 负责确定性操作编排，space runtime 负责当前空间运行态。

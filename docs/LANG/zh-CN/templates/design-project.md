@@ -4,15 +4,7 @@
 > **更新时间**: YYYY-MM-DD  
 > **上级架构**: `<parent-design-path 或 N/A>`  
 > **上级产品**: `<parent-product-prd-path 或 N/A>`
-
-## 0. Change Log
-
-记录设计意图、架构、边界、契约级别的变更。
-
-| 日期 | 类型 | 摘要 |
-|------|------|------|
-| YYYY-MM-DD | 创建 / 更新 | 一行摘要 |
-
+---
 ## 1. Project Role
 
 项目在父产品中的定位、承担的职责和明确边界。

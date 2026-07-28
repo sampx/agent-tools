@@ -5,13 +5,7 @@
 > **Parent Architecture**: `<parent-design-path or N/A>`  
 > **Parent Product**: `<parent-product-prd-path or N/A>`
 
-## 0. Change Log
-
-Record design intent, architecture, boundary, and contract-level changes.
-
-| Date | Type | Summary |
-|---|---|---|
-| YYYY-MM-DD | Created / Updated | One-line summary |
+---
 
 ## 1. Project Role
 

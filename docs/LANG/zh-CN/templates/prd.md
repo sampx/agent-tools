@@ -4,11 +4,7 @@
 > **更新时间**: YYYY-MM-DD  
 > **关联 DESIGN**: `<路径（若已知）>`
 
-## 0. Change Log
-
-| 日期 | 类型 | 摘要 |
-|------|------|------|
-| YYYY-MM-DD | 创建 / 更新 | 一行摘要 |
+---
 
 ## 1. Vision and Positioning
 
