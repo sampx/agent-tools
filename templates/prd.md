@@ -4,11 +4,7 @@
 > **Updated**: YYYY-MM-DD  
 > **Related DESIGN**: `<path-if-known>`
 
-## 0. Change Log
-
-| Date | Type | Summary |
-|---|---|---|
-| YYYY-MM-DD | Created / Updated | One-line summary |
+---
 
 ## 1. Vision and Positioning
 

@@ -81,6 +81,18 @@ The following core skills are available in every WopalSpace. Agents should consu
 - When creating or modifying skills, follow the `skill-creator` skill guidance
 - **Forbidden**: Ignoring available skills and forcing generic capability execution
 
+### Project Types
+
+Space projects are `standard` or `ontology-worktree`.
+
+**`standard`**: Independent Git repos under `projects/<name>/`, main branch `main`.
+
+**`ontology-worktree`** (only in `.wopal/` directory):
+- Project identity (name, path, branch) — see `STRUCTURE.md` `ontology-worktree` frontmatter field
+- Plugin submodules under `.wopal/` are not independent projects
+- Changes take effect at runtime, no install step needed
+- **Never modify the ontology main repo directly** (`~/.wopal/ontologies/`). All changes must go through the `.wopal/` worktree on the `space/<name>` branch, then use the ontology contribution workflow to push upstream
+
 ### Git Workflow Basics
 
 - **Pre-implementation check**: Run `git status` and `git log --oneline -5` before starting

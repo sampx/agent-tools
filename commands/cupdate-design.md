@@ -80,8 +80,7 @@ Produce the DESIGN document from the discussion conclusions using the template. 
 3. Align discussion conclusions with existing content
 4. Fill in missing sections
 5. Revise or remove outdated content, deleting implementation status and delivery progress from DESIGN
-6. Append a Change Log entry (record design intent, architecture, boundary, or contract changes)
-7. Mark unresolved items as needing confirmation
+6. Mark unresolved items as needing confirmation
 
 Present the full content and wait for user confirmation before writing.
 
@@ -96,7 +95,6 @@ After writing, run the quality gate. The command is truly complete only when the
 - [ ] Correct template selected: product DESIGN or project DESIGN
 - [ ] Document language follows user preference
 - [ ] Header includes current `Updated` date
-- [ ] Change Log has a meaningful creation/update entry
 - [ ] Durable related documents are linked; backlog, temporary plans, and command logs are not linked
 - [ ] Accurate existing content is preserved; obsolete content is explicitly revised or removed
 - [ ] Unconfirmed items are explicitly marked as needing confirmation
