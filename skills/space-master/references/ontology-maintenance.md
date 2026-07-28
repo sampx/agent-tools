@@ -42,6 +42,9 @@ According to `DESIGN.md` §6.8 and `DISTRIBUTION.md`:
 
 **Agent Operational Rule**: When `wopal ontology status` reports `Mode: clone`, Agents MUST NOT invoke `wopal ontology contribute`. If the user asks to contribute a PR, explain that Clone mode is read-only for upstream contributions and guide the user to convert to Fork mode first.
 
+### Promotion Authorization Rule (CRITICAL)
+**Promote scope MUST be explicitly discussed with and confirmed by the user beforehand.** Agents are STRICTLY FORBIDDEN from deciding promotion boundaries autonomously. Present candidate generic files to the user and obtain explicit consent before executing `wopal ontology promote`.
+
 ### Capability Status Classification
 - **M-status (Main Capabilities)**: Universal capabilities shared across all spaces (e.g., `space-master`, `dev-flow`, `templates/`). Eligible for promotion to `main`.
 - **A-status (Type-Specific Capabilities)**: Exclusive capabilities tied to specific domain spaces (e.g., type-specific scripts or custom integrations). Isolated within `type/<type>`.
@@ -66,7 +69,7 @@ When executing `wopal ontology status`, interpret the three analysis sections as
 |--------|--------|-----------------|
 | `Type-specific Capabilities` | Normal A-status files | Expected. Do NOT promote to main unless intended for global use. |
 | `Behind (needs sync)` | Main has new features | Run `wopal ontology update` (propagates main → type). |
-| `Ahead (can promote)` | Type has generic fixes | Run `wopal ontology promote --from type/<type> --include "<path>" --confirm`. |
+| `Ahead (can promote)` | Type has generic fixes | Discuss scope with user, then run `wopal ontology promote --from type/<type> --include "<path>" --confirm`. |
 
 ### Section C: Upstream (`origin → upstream`)
 
