@@ -71,28 +71,6 @@ Every PRD should start with a concise metadata block after the title:
 
 Use localized field labels if the document language is not English.
 
-## Section 0: Change Log
-
-Every PRD should include a concise Change Log section immediately after the document metadata and before section 1.
-
-```markdown
-## 0. Change Log
-
-| Date | Type | Summary |
-|---|---|---|
-| YYYY-MM-DD | Created / Updated | One-line summary |
-```
-
-Rules:
-
-- Record only meaningful document intent, scope, structure, or product requirement changes.
-- Do not record typo fixes, formatting-only changes, or wording polish.
-- On update, append one row summarizing the current update.
-- Keep each summary to one line.
-- Do not place Change Log at the end of the document.
-
----
-
 ## Templates
 
 - Product PRD: `.wopal/templates/prd.md`
@@ -111,9 +89,8 @@ When updating an existing PRD:
    - related PRD/DESIGN documents
 4. Add missing required sections when the existing structure is incomplete.
 5. Remove or revise obsolete claims when evidence is clear.
-6. Append one Change Log row in section 0 for the update.
-7. Keep unresolved items explicit as "Needs confirmation" or equivalent in the document language.
-8. Remove standalone success-standard or validation-signal sections from PRDs; do not replace them with renamed validation sections.
+6. Keep unresolved items explicit as "Needs confirmation" or equivalent in the document language.
+7. Remove standalone success-standard or validation-signal sections from PRDs; do not replace them with renamed validation sections.
 
 Do not add implementation internals merely because they exist in code. Convert implementation facts into product capabilities and boundaries.
 
@@ -142,7 +119,6 @@ When a sentence fails the bar, rewrite it into a concrete product statement befo
 
 - [ ] Correct template selected: product
 - [ ] Document language follows user preference
-- [ ] Header includes current Updated date
 - [ ] PRD stays product-level and avoids architecture/implementation details
 - [ ] Capability Scope / Core Capability Boundaries contains target-state boundaries only, no phase timing or implementation status
 - [ ] Implementation status is not in PRD or DESIGN; it is left to Phase, Plan, UAT, or Verification documents
@@ -153,7 +129,6 @@ When a sentence fails the bar, rewrite it into a concrete product statement befo
 - [ ] Every paragraph and table row communicates a concrete product fact or boundary
 - [ ] Existing accurate content preserved
 - [ ] Obsolete content revised or removed
-- [ ] Change Log updated for meaningful create/update changes
 - [ ] Related documents linked
 
 ## Response After Completion

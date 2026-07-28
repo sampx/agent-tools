@@ -9,9 +9,20 @@ import { homedir } from "os";
 import { join } from "path";
 import { existsSync, mkdirSync, writeFileSync, readFileSync, unlinkSync, readdirSync } from "fs";
 import { contextLogger } from "../logger.js";
+import { getRuntimeContext } from "../runtime-context.js";
 
-// State directory (same as legacy ExtractionState)
-const STATE_DIR = join(homedir(), ".wopal", "memory", "state");
+function getStateDir(): string {
+  try {
+    const ctx = getRuntimeContext();
+    if (ctx?.wopalHome) {
+      return join(ctx.wopalHome, "storage", "session_context");
+    }
+  } catch {
+    // Fallback if RuntimeContext is not initialized
+  }
+  const wopalHome = process.env.WOPAL_HOME || join(homedir(), ".wopal");
+  return join(wopalHome, "storage", "session_context");
+}
 
 /**
  * Session Context - Modular state model
@@ -58,7 +69,8 @@ export interface SessionContext {
  */
 export function loadSessionContext(sessionID: string): SessionContext | null {
   try {
-    const filePath = join(STATE_DIR, `${sessionID}.json`);
+    const stateDir = getStateDir();
+    const filePath = join(stateDir, `${sessionID}.json`);
     if (!existsSync(filePath)) {
       return null;
     }
@@ -88,10 +100,11 @@ export function loadSessionContext(sessionID: string): SessionContext | null {
  */
 export function saveSessionContext(ctx: SessionContext): void {
   try {
-    if (!existsSync(STATE_DIR)) {
-      mkdirSync(STATE_DIR, { recursive: true });
+    const stateDir = getStateDir();
+    if (!existsSync(stateDir)) {
+      mkdirSync(stateDir, { recursive: true });
     }
-    const filePath = join(STATE_DIR, `${ctx.sessionID}.json`);
+    const filePath = join(stateDir, `${ctx.sessionID}.json`);
     writeFileSync(filePath, JSON.stringify(ctx, null, 2));
     contextLogger.debug(`Saved session context: ${filePath}`);
   } catch (error) {
@@ -108,7 +121,8 @@ export function saveSessionContext(ctx: SessionContext): void {
  */
 export function clearSessionContext(sessionID: string): void {
   try {
-    const filePath = join(STATE_DIR, `${sessionID}.json`);
+    const stateDir = getStateDir();
+    const filePath = join(stateDir, `${sessionID}.json`);
     if (existsSync(filePath)) {
       unlinkSync(filePath);
       contextLogger.debug(`Cleared session context: ${filePath}`);
@@ -121,7 +135,7 @@ export function clearSessionContext(sessionID: string): void {
 /**
  * Cleanup legacy state files
  *
- * Scans ~/.wopal/memory/state/ directory and deletes files that:
+ * Scans state directory and deletes files that:
  * - Don't have 'summary' field (pre-T2 legacy format)
  * - Don't match SessionContext structure
  *
@@ -129,12 +143,13 @@ export function clearSessionContext(sessionID: string): void {
  */
 export function cleanupLegacyStateFiles(): number {
   try {
-    if (!existsSync(STATE_DIR)) {
-      contextLogger.debug(`State directory doesn't exist: ${STATE_DIR}`);
+    const stateDir = getStateDir();
+    if (!existsSync(stateDir)) {
+      contextLogger.debug(`State directory doesn't exist: ${stateDir}`);
       return 0;
     }
 
-    const files = readdirSync(STATE_DIR);
+    const files = readdirSync(stateDir);
     let cleanedCount = 0;
 
     for (const file of files) {
@@ -142,7 +157,7 @@ export function cleanupLegacyStateFiles(): number {
         continue;
       }
 
-      const filePath = join(STATE_DIR, file);
+      const filePath = join(stateDir, file);
       try {
         const content = readFileSync(filePath, "utf-8");
         const data = JSON.parse(content);
