@@ -1,264 +1,140 @@
 ---
 name: space-master
 description: |
-  空间工作规范总纲。⚠️ MUST LOAD FIRST — Wopal 不确定怎么做或任务意图不明确时，第一个加载本技能。
+  Master specification for WopalSpace. [MUST LOAD FIRST] — Load this skill when Wopal is uncertain how to proceed, task intent is ambiguous, or performing ontology/space maintenance.
 
-  Triggers: 任何意图不明确的任务、"用什么流程"、"该加载什么技能"、
-  技能管理（安装/卸载/搜索）、空间运维（worktree/同步/上游）、多 Space 管理。
+  Triggers: Ambiguous task intent, "what workflow to use", "what skill to load",
+  skill management (install/remove/search), space maintenance (worktrees, sync, PR contribution, promote), multi-space management.
   
-  🔴 即使用户未明确说"上游同步"，只要涉及 ontology 仓库协作（update/sync/contribute/PR），就必须加载本技能。
+  [CRITICAL] MUST LOAD whenever interacting with ontology repo operations (update/sync/contribute/promote/PR), even if the user does not explicitly say "upstream sync".
 ---
 
-# space-master — 空间工作规范总纲
+# space-master — Space Operation Specification Master
 
-本技能是 Wopal 的空间导航员。加载后，Wopal 应知道本空间有什么流程、什么场景用什么技能、委派的基本原则。
-
----
-
-## 空间工作体系
-
-本空间支持多种工作流程，按任务类型选择：
-
-| 流程 | 适用场景 | 加载技能 |
-|------|---------|---------|
-| **dev-flow** | 开发/修复/重构 GitHub Issue、Plan 驱动的小功能迭代 | dev-flow + agents-collab |
-| **WSF** | 重量级产品开发（里程碑、阶段、并行 wave） | WSF skill family |
-| **spec 驱动** | Spec / OpenSpec / spec-first 流程 | 对应 spec 技能 |
-| **无流程** | 单纯研究、讨论、解释、评审、临时小改动 | 无（Wopal 直接处理） |
-
-dev-flow 是默认开发流程。WSF 仅用于产品级里程碑管理。
+This skill defines Wopal space workflow selection, scene-to-skill routing rules, ontology development contracts, plugin configuration & diagnostic log locations, and standard ontology maintenance with PR contribution command procedures.
 
 ---
 
-## 场景→技能路由
+## Section 1: Workflows & Scene Routing
 
-| 场景 | 加载技能 | 说明 |
-|------|---------|------|
-| 开发/修复/重构 Issue | dev-flow + agents-collab | 先加载 agents-collab，再走 dev-flow |
-| 委派任何子 Agent | agents-collab | 任何委派前必须加载 |
-| 空间运维（技能安装/同步/上游） | 仅本技能 | 不加载 dev-flow 或 agents-collab |
-| 创建/修改技能 | skill-creator | 独立技能 |
-| YouTube 视频分析 | youtube-master | 独立技能 |
-| 网页抓取/搜索 | fc-local | 独立技能 |
-| 邮件自动化 | automating-mail | 独立技能 |
-| 代办事宜管理 | mac-reminder | 独立技能 |
-| 配置 ellamaka | ellamaka-config | 独立技能 |
+### 1. Space Workflow System
 
----
+| Workflow | Use Case | Skills to Load |
+|----------|----------|----------------|
+| **dev-flow** | Development, bug fixes, or refactoring driven by GitHub Issues or Plans | dev-flow + agents-collab |
+| **No Workflow** | Pure research, discussions, explanations, code reviews, or minor ad-hoc tweaks | None (Wopal handles directly) |
 
-## 委派基础原则
+`dev-flow` is the default development workflow.
 
-**基本分工**：
+### 2. Scene-to-Skill Routing Table
 
-- 实施类工作（编码、文件操作、构建测试）→ 委派 fae
-- 审查类工作（Plan 评审、代码审查）→ 委派 rook
-- 规划类工作（研究、设计、拆分）→ Wopal 自己完成
-
-**委派工具**：必须优先用 `wopal_task`。委派机制详情（工具 API、生命周期、通知、纠偏、压缩）见 agents-collab 技能——任何委派前必须加载。
-
-**委派前置检查**（强制，每次委派前执行）：
-
-1. 搜索记忆"委派"关键词，加载路径规则、agent 类型规则、过往教训
-2. 检查 prompt 中所有路径：files_to_read、输出路径等 — 必须使用绝对路径或空间根目录相对路径
-3. 确认 prompt 包含目标项目路径上下文（如 `projects/gesp/`），防止文件写到错误位置
+| Scene | Skills to Load | Description |
+|-------|----------------|-------------|
+| Dev / Fix / Refactor Issue | dev-flow + agents-collab | Load agents-collab first, then follow dev-flow |
+| Delegate any sub-agent | agents-collab | MANDATORY to load before any sub-agent delegation |
+| Space & Ontology Ops (Install/Sync/PR/Promote) | space-master only | Do NOT load dev-flow or agents-collab |
+| Create or modify skills | skill-creator | Independent skill (MUST load before creating/modifying skills) |
+| Configure ellamaka | ellamaka-config | Independent skill |
 
 ---
 
-## Ontology 日常开发
+## Section 2: Ontology Development Contract & dev-flow Specification
 
-`.wopal/` 是运行时 worktree，所在分支即当前空间的空间层分支 `space/<name>`（本空间为 `space/wopal-workspace`）。直接编辑立即影响正在运行的插件。
+When performing development, bug fixes, or refactoring on ontology capabilities or projects, adhere to the following official standard contracts:
 
-### 决策树：是否需要隔离开发？
+### 1. Ontology Runtime Contract
+The `.wopal/` directory is the active runtime worktree bound to the current space (corresponding to the `space/<name>` branch). Edits made directly in `.wopal/` immediately affect running plugins and skills.
 
-```
-需要隔离开发？
-├─ YES → 创建 worktree
-│    cd ~/.wopal/ontologies/wopal-space-ontology
-│    git worktree add ../.worktrees/ontology-<issue> -b feature/<name> space/<name>
-│    → 在 worktree 开发/测试/验证
-│    → 合并回 space/<name>（见下方 Worktree 合并流程）
-│
-├─ NO → 直接编辑 .wopal/
-│    → 立即影响运行插件（无需重启即可生效）
-│    → 验证后在 .wopal/ worktree 内用 git 提交
-```
+### 2. Issue / Plan-Driven Development Contract (dev-flow)
+When a task involves development, bug fixes, refactoring, or minor feature iterations, **Agents MUST load and follow the `dev-flow` skill**:
+- Tasks MUST be backed by a GitHub Issue or Plan, driven through the official `flow.sh` state machine: `planning → reviewing → executing → verifying → done`.
+- Bypassing `dev-flow` to manually perform non-standard branch or isolation operations is STRICTLY FORBIDDEN.
 
-### Worktree 合并流程
-
-```bash
-# 1. 主仓库合并 feature 分支到当前空间层分支
-cd ~/.wopal/ontologies/wopal-space-ontology
-git checkout space/<name>
-git merge feature/<name>
-
-# 2. 运行时层同步（.wopal worktree 即 space/<name> 分支）
-cd <space-path>/.wopal/
-git merge feature/<name>
-
-# 3. 清理 worktree
-cd ~/.wopal/ontologies/wopal-space-ontology
-git worktree remove ../.worktrees/ontology-<issue>
-git branch -D feature/<name>
-git push origin --delete feature/<name>  # 如有远程分支
-```
-
-### 提交变更
-
-```bash
-# 提交变更：.wopal/ 是 git worktree，直接在 worktree 内提交（无 wopal ontology save 命令）
-git -C .wopal add -A && git -C .wopal commit -m "feat(scope): description"
-
-# 验证：重启 ellamaka → 测试功能
-```
-
-### 能力分层与下放
-
-分支层级关系（main → type/* → space/*）、同步契约、能力孵化与提升流程见 `references/capability-layers.md`。
-
-**核心铁律**：保持分支层级间的 merge 可达性。space 分支删除了上层能力文件时，先恢复再执行同步。
+### 3. Infrastructure & Branch Management Iron Laws
+- **Infrastructure Exclusivity**: The lifecycle of worktrees and feature branches is exclusively managed by `dev-flow` scripts (`approve` / `verify-switch` / `archive`).
+- **Agent Branch Restrictions**: Agents MUST NOT manually create or delete any branches (FORBIDDEN: `git branch -d/-D`), and MUST NOT manually create or delete worktrees. The ONLY allowed git branch operation for agents is `git merge`.
 
 ---
 
-## 插件配置（wopal-plugin）
+## Section 3: Plugin Configuration & Diagnostic Logs
 
-wopal-plugin 的配置采用**分层加载**机制，与 ontology 的用户级/空间级双栈架构一致。
-
-### 配置文件位置
-
-| 层级 | 路径 | 作用域 |
-|------|------|--------|
-| 用户级 | `WOPAL_HOME/.env`（默认 `~/.wopal/.env`） | 所有空间共享 |
-| 空间级 | `<workspace>/.wopal/.env` | 仅当前空间 |
-
-### 环境变量加载规则
-
-插件启动时按以下优先级加载（高层覆盖低层，已存在的系统环境变量永不覆盖）：
-
+### 1. Configuration Priority
 ```
-3. 系统/Shell 环境变量（最高优先，不会被 .env 覆盖）
-2. 空间级 .wopal/.env          ← 仅 wopal-space 内生效
-1. 用户级 WOPAL_HOME/.env      ← 跨空间默认配置
+3. System / Shell Environment Variables (Highest priority, not overridden by .env)
+2. Space-level .wopal/.env               (Applies to current space only)
+1. User-level <WOPAL_HOME>/.env         (Shared across spaces)
 ```
 
-**推荐实践**：
-- 用户级 `.env` 放跨空间共享的变量：`WOPAL_LLM_BASE_URL`、`WOPAL_LLM_API_KEY`、`WOPAL_EMBEDDING_BASE_URL` 等
-- 空间级 `.env` 放按空间定制的变量：`WOPAL_MEMORY_ENABLED`、LLM 模型覆盖等
-
-**变量命名**：插件只加载 `WOPAL_` 前缀变量。`OPENAI_API_KEY` 等其他变量由宿主环境处理，不会被插件加载。
-
-**非 wopal-space**：在无 `.wopal/` 目录的普通项目中，仅加载用户级 `.env`，功能开关默认全部启用。
-
-### 提示词模板加载规则
-
-插件内置的提示词模板（蒸馏、去重、标题生成）按以下优先级查找：
-
-```
-4. 环境变量指定路径    WOPAL_DISTILL_PROMPT_FILE / WOPAL_DEDUP_PROMPT_FILE / WOPAL_TITLE_PROMPT_FILE
-3. 空间级模板          .wopal/prompts/<file>     （仅 wopal-space 内生效）
-2. 用户级模板          WOPAL_HOME/prompts/<file>
-1. 内联默认模板        （硬编码于插件中，无需任何配置即可工作）
-```
-
-配置策略：
-- 不配置 → 使用内联默认，开箱即用
-- 只配用户级 → 所有空间共享同一套定制模板
-- 配空间级 → 当前空间使用专属模板，不影响其他空间
-
-### 日志输出位置
-
-| 运行环境 | 日志路径 |
-|---------|---------|
-| wopal-space 内 | `<workspace>/.wopal-space/logs/wopal-plugin.log` |
-| wopal-space 外 | `WOPAL_HOME/logs/wopal-plugin.log` |
-
-### 功能开关
-
-| 变量 | 默认 | 说明 |
-|------|------|------|
-| `WOPAL_RULES_INJECTION_ENABLED` | `true` | 规则注入模块 |
-| `WOPAL_MEMORY_ENABLED` | `true` | 记忆系统（关闭则 Memory Injection 一同失效） |
-| `WOPAL_MEMORY_INJECTION_ENABLED` | `true` | 记忆注入（检索结果注入 system prompt） |
-| `WOPAL_PLUGIN_LOG_LEVEL` | `info` | 日志级别：trace / debug / info / warn / error / fatal |
-| `WOPAL_PLUGIN_LOG_MODULES` | (全部) | 模块过滤（逗号分隔）：core / rules / task / memory / context |
-
-值为 `"false"` 时禁用，其他任意值视为启用。
+### 2. Diagnostic Log Locations
+- **In-space execution log**: `<workspace>/.wopal-space/logs/wopal-plugin.log`
+- **Out-of-space execution log**: `<WOPAL_HOME>/logs/wopal-plugin.log`
+When plugin errors or permission issues occur, inspect the above log files first to diagnose root causes.
 
 ---
 
-## 技能生命周期
+## Section 4: Ontology Maintenance & Upstream PR Contribution
+
+### 1. Ontology Mode Contract (Clone vs Fork Mode)
+Before suggesting or executing any upstream operations, Agents MUST run `wopal ontology status` to check the active Mode:
+
+- **Clone Mode (`clone`)**: Default single-repo source mode. `origin` is the upstream repo; no separate Fork exists.
+  - **Capability Restrictions**: **`contribute` IS NOT SUPPORTED in Clone mode**. It is restricted to local usage and downstream sync (`update`).
+  - **Agent Behavior**: If the user requests an upstream PR contribution, the Agent MUST explain that Clone mode does not support `contribute` and guide the user to configure Fork mode first.
+- **Fork Mode (`fork`)**: Developer cross-repo mode. `origin` points to the user's Fork; `upstream` points to official upstream.
+  - **Capability Support**: Fully supports downstream sync (`update`) + upstream PR contributions (`contribute`) + main promotion (`promote`).
+
+### 2. Standard Maintenance Protocol (Fork Mode)
 
 ```
-Find → Download → Scan → Install → Develop → Optimize → Evaluate
+[Space Layer space/*] 
+      │ 1. space contribute (chained --include)
+      ▼
+[Type Layer type/*] 
+      │ 2. ontology contribute (chained --include) ➔ Auto-creates PR on GitHub origin
+      ▼
+[Upstream upstream] (Merge on GitHub UI)
+      │ 3. ontology update (--confirm) ➔ Downstream topology sync + Auto-clean stale origin branches
+      ▼
+[Main Promotion promote] (chained --include) ➔ Promote generic capabilities to main
 ```
 
-| 用户意图 | 参考文档 | 推荐操作 |
-|---------|---------|---------|
-| 查看 ontology 状态 | — | `wopal ontology status` |
-| 提交 ontology 变更 | — | 在 `.wopal/` worktree 内 `git add -A && git commit -m "..."` |
-| 更新 ontology | `references/upstream-sync.md` | `wopal ontology update` |
-| 同步/提升分支 | `references/upstream-sync.md` | 下行 `wopal ontology update`；上行 `wopal ontology promote --from type/<type>`；space→type `wopal space contribute` |
-| 贡献到上游 | `references/upstream-sync.md` | 先 `wopal space contribute`，再 `wopal ontology contribute --type <type> --message <msg> --confirm`（squash merge + PR） |
-| 查找/搜索技能 | `references/lifecycle-install.md` | `wopal skills find` |
-| 下载审查 | `references/lifecycle-install.md` | `wopal skills download` |
-| 安全扫描 | `references/lifecycle-install.md` | `wopal skills scan` |
-| 安装技能 | `references/lifecycle-install.md` | `wopal skills install` |
-| 管理 INBOX | `references/lifecycle-install.md` | `wopal skills inbox` |
-| 卸载技能 | `references/lifecycle-install.md` | `wopal skills remove` |
-| 创建新技能 | `references/lifecycle-develop.md` | Use `skill-creator` |
-| 优化/修复技能 | `references/lifecycle-develop.md` | Edit source + reinstall |
-| 评估技能质量 | `references/evaluate-skill.md` | Read reference |
+- **Check Status & Mode (Pre-check)**: `wopal ontology status`
+- **Merge Space into Type**: `wopal space contribute --message "feat(scope): description" --confirm`
+- **Create Upstream PR (Fork Mode, Chained `--include`)**:
+  ```bash
+  wopal ontology contribute \
+    --type coding \
+    --include "skills/dev-flow/**" \
+    --include "skills/space-master/**" \
+    --message "feat(skills): update dev-flow and space-master skills" \
+    --confirm
+  ```
+- **Post-Merge Downstream Sync**: `wopal ontology update --confirm`
+- **Promote Generic to Main**:
+  ```bash
+  wopal ontology promote \
+    --from type/coding \
+    --include "templates/**" \
+    --include "docs/**" \
+    --message "feat(ontology): promote generic templates to main" \
+    --confirm
+  ```
+
+### 3. Verification & Self-Inspection Protocol
+Agents MUST perform verification after executing commands or modifying skills, and never assume success:
+- **Skill Modification Verification**: `ls -la .wopal/skills/<skill-name>/SKILL.md` and `wopal skills list`
+- **PR Contribution Verification**: `wopal ontology status` and `git diff --stat upstream/main origin/main`
+- **Plugin Modification Verification**: Inspect `<workspace>/.wopal-space/logs/wopal-plugin.log`
+
+### 4. Core Iron Laws
+- **Mode Enforcement**: NEVER construct or invoke `contribute` commands in Clone mode.
+- **Read Status First**: Always call `wopal ontology status` to inspect Mode and topology before building modifying commands.
+- **Chained `--include` Whitelist**: Always specify explicit whitelist paths using chained `--include` flags when contributing or promoting.
+- **Topic-Based Contributions**: Never combine unrelated changes into a single PR.
 
 ---
 
-## Quick Commands
+## Section 5: Deep Reference Entry
 
-```bash
-# Ontology 协作
-wopal ontology status                          # 查看 ontology 分支与同步状态
-wopal ontology list                            # 列出所有已注册 ontology
-# 提交变更：直接在 .wopal/ worktree 内 git 提交（无 wopal ontology save）
-git -C .wopal add -A && git -C .wopal commit -m "feat(scope): description"
-wopal ontology update --confirm                # 下行同步：上游 type 分支 → 本地（默认 dry-run）
-wopal ontology promote --from type/coding --confirm  # 上行提升：type 分支通用改动回流 main
-wopal space contribute --message "..." --confirm    # 先把 space 改动合入本地 type 分支
-wopal ontology contribute --type coding --message "..." --confirm  # 贡献上游（squash merge + PR）
-
-# 技能管理
-wopal skills find "query"
-wopal skills download owner/repo@skill
-wopal skills scan skill-name
-wopal skills install /path/to/skill --force
-wopal skills remove <skill-name> --force
-```
-
----
-
-## Post-Install Verification
-
-```bash
-ls -la .wopal/skills/<skill-name>/SKILL.md
-wopal skills list
-```
-
----
-
-## 上下文压缩
-
-上下文压缩策略和操作方法见 agents-collab 技能「子会话上下文压缩」章节。
-
----
-
-## Tips
-
-1. **Ontology 协作必读** — 贡献/同步上游前读 `references/ontology-maintenance.md`（check 结果解读、下行同步、上行贡献 PR 流程、冲突解决）
-2. **能力分层必读** — 修改、裁剪或下放 ontology 能力（plugin/skill/agent）前读 `references/capability-layers.md`（层级模型、同步契约、删除安全）
-3. **Agent 驱动的工作流** — ontology 协作操作遵循「读取状态 → 与用户讨论 → 构建命令」模式。先执行 `wopal ontology status` 了解当前状态，再与用户确认后再构建 CLI 命令。不要跳过状态读取步骤。
-4. **Edit in workspace** — `.wopal/skills/<name>/` 可直接编辑
-5. **Scan before install** — Downloaded skills need explicit scan
-6. **Verify after install** — `ls .wopal/skills/<name>/SKILL.md`
-
----
-
-## Browse Online
-
-https://skills.sh/
+* [ontology-maintenance.md](references/ontology-maintenance.md) — Three-layer capability architecture, Clone vs Fork mode contracts, status interpretation matrix, deletion-risk handling, and conflict resolution guide
+* [skills-maintenance.md](references/skills-maintenance.md) — Skill lifecycle management (find/download/scan/install), security protocols, and quality evaluation guide
