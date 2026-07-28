@@ -1,18 +1,19 @@
 ---
 name: git-worktrees
-description: Workspace-level Git worktree management for parallel development across multiple branches. Supports dynamic project validation and automated dependency installation. Use this skill when creating isolated development environments or working on multiple features in parallel.
+description: Workspace-level Git worktree management — create, list, remove, and prune isolated development environments. Use this skill whenever the user needs to create a worktree, set up an isolated workspace, work on multiple features in parallel, list existing worktrees, check what worktrees exist, remove or delete a worktree, clean up stale worktrees, or manage git working trees in any way. Triggers include "create worktree", "new worktree", "list worktrees", "show worktrees", "remove worktree", "delete worktree", "clean up worktree", "prune worktree", "isolated environment", "parallel development", "worktree for <project>", or any request involving git worktree operations.
 ---
 
 # Git Worktree 管理工具
 
 ## 概述
 
-工作空间级 Git worktree 管理工具，实现统一的 worktree 创建、管理和清理。支持多分支并行开发、实验性功能隔离。
+工作空间级 Git worktree 管理工具，用于创建隔离的开发环境。基于本地主分支最新已提交状态创建，不检查脏区、不触碰未提交变更，对其他 agent 零干扰。
 
 **核心特性**：
 - 工作空间级统一管理（`.worktrees/` 目录）
-- 动态项目验证（自动扫描 `projects/` 下包含 `.git` 的仓库）
-- 自动依赖安装和测试验证
+- 自动识别项目主分支（`git ls-remote --symref` → `symbolic-ref` → `main`）
+- 基于本地主分支最新已提交状态创建 worktree
+- 创建后提示依赖安装命令，不自动执行
 
 ## 快速开始
 
@@ -35,17 +36,13 @@ description: Workspace-level Git worktree management for parallel development ac
 ### 创建 Worktree
 
 ```bash
-# 创建新分支（默认）
-./scripts/worktree.sh create ontology feature/wopal-cli-scan
+# 基于主分支创建新功能分支的 worktree（默认）
+./scripts/worktree.sh create ellamaka feature/optimize-workbench-ux
 
-# 使用已存在的分支
-./scripts/worktree.sh create wopal hotfix-123 --existing
+# 复用已有分支创建 worktree
+./scripts/worktree.sh create ellamaka existing-branch --existing
 
-# 跳过依赖安装
-./scripts/worktree.sh create ontology feature/test --no-install
-
-# 跳过测试
-./scripts/worktree.sh create ontology feature/test --no-test
+# 创建后脚本会提示依赖安装命令，需手动执行
 ```
 
 ## 使用场景
@@ -53,27 +50,23 @@ description: Workspace-level Git worktree management for parallel development ac
 ### 1. 并行开发多个功能
 
 ```bash
-# 在 ontology 上开发两个功能
-./scripts/worktree.sh create ontology feature/auth
-./scripts/worktree.sh create ontology feature/logging
+./scripts/worktree.sh create ellamaka feature/auth
+./scripts/worktree.sh create ellamaka feature/logging
 
-# 切换到不同功能开发
-cd .worktrees/ontology-feature-auth
-cd .worktrees/ontology-feature-logging
+cd .worktrees/ellamaka-feature-auth
+cd .worktrees/ellamaka-feature-logging
 ```
 
 ### 2. 紧急修复隔离
 
 ```bash
-# 创建紧急修复的隔离环境
-./scripts/worktree.sh create wopal hotfix/security-patch
+./scripts/worktree.sh create ellamaka hotfix/security-patch
 
-# 修复完成后合并并清理
-cd .worktrees/wopal-hotfix-security-patch
-git commit -m "fix: 安全补丁"
-cd ../../projects/web/wopal
+cd .worktrees/ellamaka-hotfix-security-patch
+# 修复、提交...
+cd ../../projects/ellamaka
 git merge hotfix/security-patch
-./scripts/worktree.sh remove wopal hotfix/security-patch
+./scripts/worktree.sh remove ellamaka hotfix/security-patch
 ```
 
 ## 命令详解
@@ -84,26 +77,29 @@ git merge hotfix/security-patch
 
 **语法**：
 ```bash
-./scripts/worktree.sh create <project> <branch> [选项]
+./scripts/worktree.sh create <project> <branch> [--existing]
 ```
 
 **参数**：
 - `<project>`: 项目名（从 `projects/` 下扫描到的 git 仓库中选择）
 - `<branch>`: 分支名（分支中的 `/` 会自动转换为 `-`）
+- `--existing`: 复用已有分支（默认创建新分支，分支已存在则报错）
 
-**选项**：
-- `--existing`: 使用已存在的分支而非创建新分支
-- `--no-install`: 跳过依赖安装
-- `--no-test`: 跳过测试运行
+**行为**：
+- 自动识别项目的主分支名
+- 默认模式：基于本地主分支最新已提交状态创建新分支的 worktree
+- `--existing` 模式：使用已有分支创建 worktree，分支不存在则报错
+- 不检查工作区是否脏，不触碰未提交变更
+- 创建后输出依赖安装提示
 
 **路径规则**：
 ```
-工作空间根目录/.worktrees/<project>-<branch>
+.worktrees/<project>-<branch>
 ```
 
 示例：
-- 项目: `ontology`, 分支: `feature/auth`
-- 路径: `.worktrees/ontology-feature-auth`
+- 项目: `ellamaka`, 分支: `feature/optimize-workbench-ux`
+- 路径: `.worktrees/ellamaka-feature-optimize-workbench-ux`
 
 ### list
 
@@ -120,14 +116,14 @@ git merge hotfix/security-patch
 
 ### remove
 
-删除 worktree。
+删除 worktree 和对应分支。
 
 **语法**：
 ```bash
 ./scripts/worktree.sh remove <project> <branch>
 ```
 
-删除时会提示确认，并询问是否同时删除分支。
+自动执行：`git worktree remove` → 删除本地分支（跳过当前分支）。
 
 ### prune
 
@@ -140,83 +136,61 @@ git merge hotfix/security-patch
 
 ## 项目列表
 
-可用项目名由脚本自动扫描工作空间根目录 `projects/` 下包含 `.git` 的仓库目录得到。
+可用项目名由脚本自动扫描 `projects/` 下包含 `.git` 的仓库目录得到。
 
 ```bash
-# 查看脚本识别到的项目
+# 查看可用项目
 ./scripts/worktree.sh list --all
 ```
 
-当前工作空间的项目（示例）：
-- `ontology` - AI 工具研发中心
-- `wopal` - Wopal 平台
-- `flex-scheduler` - 任务调度系统
+## 依赖安装
 
-## 自动化流程
+脚本不自动安装依赖。创建 worktree 后会根据项目类型输出安装提示：
 
-创建 worktree 时自动执行：
-
-1. **项目验证**：检查项目名是否存在于 `projects/` 下的 git 仓库目录
-2. **路径构建**：构建工作空间级路径（`${workspace}/.worktrees/${project}-${branch}`）
-3. **依赖安装**：检测项目类型并安装依赖（可通过 `--no-install` 跳过）
-   - Node.js: `pnpm install` 或 `npm install`
-   - Python: 跳过（假设环境已配置）
-   - Rust: `cargo build`
-   - Go: `go mod download`
-4. **测试验证**：运行测试验证基线（可通过 `--no-test` 跳过）
+- Node.js: 检测 `packageManager` 字段（bun/pnpm/npm），提示对应命令
+- Python: 提示 `pip install -e .`
+- Rust: 提示 `cargo build`
+- Go: 提示 `go mod download`
 
 ## 注意事项
 
 ### 清理顺序
 
-删除 worktree 的正确顺序：
-
 ```bash
-# 1. 删除 worktree（脚本会自动处理）
 ./scripts/worktree.sh remove <project> <branch>
-
-# 脚本会按顺序执行：
-# - git worktree remove
-# - 询问是否删除分支（可选）
 ```
+
+脚本自动处理 worktree 删除和分支清理。
 
 ### 常见问题
 
 **Q: 提示"无效项目名"？**
-A: 项目名必须来自 `projects/` 下扫描到的 git 仓库目录，查看可用项目：
-```bash
-./scripts/worktree.sh help
-```
+A: 项目名必须来自 `projects/` 下扫描到的 git 仓库目录。使用 `list --all` 查看可用项目。
 
 **Q: worktree 已存在？**
 A: 使用 `list` 命令查看现有 worktree，然后删除或使用不同的分支名。
 
-**Q: 测试失败？**
-A: 脚本会警告但不会阻止创建。检查测试失败原因，确认是否为预存在问题。
+**Q: 提示"本地不存在 main 分支"？**
+A: 脚本需要本地有主分支 ref。执行 `git fetch origin main:main` 或 `git checkout main` 后再试。
 
 ## 完整工作流示例
 
-### 功能开发流程
-
 ```bash
 # 1. 创建功能分支 worktree
-./scripts/worktree.sh create ontology feature/new-skill
+./scripts/worktree.sh create ellamaka feature/new-feature
 
-# 2. 切换到 worktree
-cd .worktrees/ontology-feature-new-skill
+# 2. 安装依赖（按脚本提示执行）
+cd .worktrees/ellamaka-feature-new-feature
+bun install
 
-# 3. 开发
-# ... 编写代码、测试 ...
-
-# 4. 提交
+# 3. 开发、提交
 git add .
-git commit -m "feat: 添加新技能"
+git commit -m "feat: add new feature"
 
-# 5. 回到主工作区合并
-cd ../../projects/ontology
-git checkout main
-git merge feature/new-skill --no-ff
+# 4. 回到主工作区合并
+cd ../../projects/ellamaka
+git merge feature/new-feature --no-ff
 
-# 6. 清理 worktree
-./scripts/worktree.sh remove ontology feature/new-skill
+# 5. 清理 worktree
+./scripts/worktree.sh remove ellamaka feature/new-feature
 ```
