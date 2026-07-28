@@ -80,7 +80,7 @@ dev-flow 是默认开发流程。WSF 仅用于产品级里程碑管理。
 │
 ├─ NO → 直接编辑 .wopal/
 │    → 立即影响运行插件（无需重启即可生效）
-│    → 验证后 wopal ontology save
+│    → 验证后在 .wopal/ worktree 内用 git 提交
 ```
 
 ### Worktree 合并流程
@@ -105,8 +105,8 @@ git push origin --delete feature/<name>  # 如有远程分支
 ### 提交变更
 
 ```bash
-# 通过 CLI 提交（推荐）
-wopal ontology save -m "feat(scope): description"
+# 提交变更：.wopal/ 是 git worktree，直接在 worktree 内提交（无 wopal ontology save 命令）
+git -C .wopal add -A && git -C .wopal commit -m "feat(scope): description"
 
 # 验证：重启 ellamaka → 测试功能
 ```
@@ -194,10 +194,10 @@ Find → Download → Scan → Install → Develop → Optimize → Evaluate
 | 用户意图 | 参考文档 | 推荐操作 |
 |---------|---------|---------|
 | 查看 ontology 状态 | — | `wopal ontology status` |
-| 保存 ontology 变更 | — | `wopal ontology save -m "message"` |
+| 提交 ontology 变更 | — | 在 `.wopal/` worktree 内 `git add -A && git commit -m "..."` |
 | 更新 ontology | `references/upstream-sync.md` | `wopal ontology update` |
-| 同步分支 | `references/upstream-sync.md` | `wopal ontology sync --from A --to B` |
-| 贡献到上游 | `references/upstream-sync.md` | `wopal ontology contribute` |
+| 同步/提升分支 | `references/upstream-sync.md` | 下行 `wopal ontology update`；上行 `wopal ontology promote --from type/<type>`；space→type `wopal space contribute` |
+| 贡献到上游 | `references/upstream-sync.md` | 先 `wopal space contribute`，再 `wopal ontology contribute --type <type> --message <msg> --confirm`（squash merge + PR） |
 | 查找/搜索技能 | `references/lifecycle-install.md` | `wopal skills find` |
 | 下载审查 | `references/lifecycle-install.md` | `wopal skills download` |
 | 安全扫描 | `references/lifecycle-install.md` | `wopal skills scan` |
@@ -215,10 +215,13 @@ Find → Download → Scan → Install → Develop → Optimize → Evaluate
 ```bash
 # Ontology 协作
 wopal ontology status                          # 查看 ontology 分支与同步状态
-wopal ontology save -m "message"               # 提交变更
-wopal ontology update                          # 从上游合并更新到当前分支
-wopal ontology sync --from main --to space/sam/main  # 在分支间同步
-wopal ontology contribute                       # 贡献变更到上游（自动 cherry-pick + PR）
+wopal ontology list                            # 列出所有已注册 ontology
+# 提交变更：直接在 .wopal/ worktree 内 git 提交（无 wopal ontology save）
+git -C .wopal add -A && git -C .wopal commit -m "feat(scope): description"
+wopal ontology update --confirm                # 下行同步：上游 type 分支 → 本地（默认 dry-run）
+wopal ontology promote --from type/coding --confirm  # 上行提升：type 分支通用改动回流 main
+wopal space contribute --message "..." --confirm    # 先把 space 改动合入本地 type 分支
+wopal ontology contribute --type coding --message "..." --confirm  # 贡献上游（squash merge + PR）
 
 # 技能管理
 wopal skills find "query"

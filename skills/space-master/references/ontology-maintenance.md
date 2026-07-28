@@ -17,10 +17,20 @@
 ### 第一步：Check
 
 ```
-wopal ontology check
+wopal ontology status
 ```
 
-获取四层检测结果：每个段的 tree hash 门控、文件差异清单、方向信号（downstream/upstream）、merge 冲突预测。
+读取三段输出：
+- **Downstream**（upstream → origin → local）：下行同步状态
+- **Common Comparison**（type vs main）：层级差异分析
+- **Upstream**（origin → upstream）：上行待贡献列表
+
+合并 `git` 命令交叉验证差异：
+
+```bash
+git diff --stat upstream/main origin/main      # 真实文件差异
+git rev-list --count origin/main..upstream/main # commit 差距
+```
 
 ### 第二步：解读信号，确定操作
 
@@ -29,58 +39,107 @@ wopal ontology check
 | 优先级 | 检查项 | 条件 | 操作 |
 |--------|--------|------|------|
 | 1 | worktree 状态 | 有未提交变更 | 先提交 |
-| 2 | D1-D4 downstream | merge-tree clean | `ontology update` |
-| 3 | D1-D4 downstream | merge-tree conflicts | cherry-pick 具体变更，手动解决冲突 |
-| 4 | D5 超集 | FAIL | merge main 到 type/coding 修复 |
-| 5 | D6 downstream | space 落后 type/coding | `space update` |
-| 6 | U1 upstream | space 有有价值变更 | 与用户讨论是否贡献 |
-| 7 | U2/U3 upstream | 本地有未推送变更 | push |
-| 8 | U4/U5 upstream | fork 有待贡献上游的变更 | 与用户讨论是否 PR |
+| 2 | 下行 `upstream → origin` | 有文件变更 | `ontology update` |
+| 3 | 下行 deletion-risk | main → type 会删除 type 专属文件 | `ontology reconcile` → 再 `ontology update` |
+| 4 | 下行 `type → space` | space 落后 type | `space update` |
+| 5 | 上行 `space → type` | space 有通用价值变更 | 按主题 `space contribute --include` |
+| 6 | 上行 `origin → upstream` | fork 领先上游 | 按主题 `ontology contribute --include` |
+| 7 | promote `type → main` | type 有 M/D 通用改进 | `ontology promote` → 再贡献到上游 |
 
-**关键原则**：agent 不自动执行贡献——贡献涉及"哪些变更有普遍价值"的语义判断，必须与用户讨论后决定。下行同步（update）在 merge-tree clean 时可以自动建议执行。
+**关键原则**：
+- **不自动执行贡献**：贡献涉及"哪些变更有普遍价值"的语义判断，必须与用户讨论后决定
+- **按主题分批**：绝不允许一次把所有变更 squash 成一个 PR
+- **用 git 验证**：CLI 命令执行后，用 `git diff --stat` 和 `git rev-list --count` 交叉验证
 
-### 第三步：执行下行同步（如有 downstream 信号）
+### 第三步：执行下行同步
 
 **ontology update（HOME 级）**：
 
-1. `wopal ontology update --confirm`（merge-tree clean 时自动 merge）
-2. 如有冲突 → 报告冲突文件 → 手动解决 → commit
-3. D5 超集 FAIL → merge main 到 type/coding → commit
-4. fork 模式 → push 到 origin
+```bash
+# 1. 初次执行（可能触发 deletion-risk 保护）
+wopal ontology update --confirm
+
+# 2. 如有 deletion-risk 拦截 →
+wopal ontology reconcile --type coding --confirm
+wopal ontology update --confirm     # 重跑完成同步
+
+# 3. 推送到 origin（fork 模式自动推送，失败时输出 pushErrors）
+```
+
+> ⚠️ 经验教训：`ontology update` 对 type/* 分支的 push 可能失败（catch 块静默吞掉）。如果输出显示 `Pushed: no` 或 `Pushed: partial`，手动运行 `git push origin <branch>` 完成推送。
 
 **space update（Space 级）**：
 
-1. `wopal space update --confirm`（在 space worktree 中 merge type/coding）
-2. 如有冲突 → 手动解决（保留空间定制 + 接收本体变更）→ `git add` → `git commit --no-edit`
+```bash
+wopal space update            # dry-run 检查状态
+wopal space update --confirm  # 执行合并
+```
 
-### 第四步：执行上行贡献（如有 upstream 信号 + 用户确认）
+> ⚠️ dry-run 逻辑：`analyzeFlowSegment` 用 `git merge-tree --write-tree` 比较 tree。当 type 有 commits 但 tree 相同时（合并仅对齐拓扑），dry-run 可能误报 "already up to date"。`--confirm` 会正确执行 `git merge`。此 bug 已在 wopal-cli 0.3.2 修复（增加 `gitRevListCount` 检查）。
+
+### 第四步：执行上行贡献（按主题分批）
 
 上行是链条，必须从 U1 开始逐级上行：
 
 **U1（space → type/coding）**：
 
-贡献路径选择（与用户讨论后决定）：
-
-| 变更适用范围 | 贡献到 | 方式 |
-|-------------|--------|------|
-| 同类空间通用 | type/coding | 直接 PR 或精选 PR |
-| 所有空间通用 | main | 精选 PR（贡献分支） |
-| 本空间特有 | 不贡献 | 留在 space 分支 |
-
-直接 PR：差异全是通用变更 → 从 space 分支创建 PR 到父层（squash merge）。
-
-精选 PR：混合了通用和私有变更 → 从目标层创建贡献分支 → cherry-pick 选定提交 → PR 贡献分支到目标层。
-
-**U2/U3（local → origin）**：
-
+```bash
+# 按主题分批贡献，每次一个 --include 模式
+wopal space contribute \
+  --include 'skills/dev-flow/**' \
+  --message 'enhance(dev-flow): ...' \
+  --confirm
 ```
-git push origin main
-git push origin type/coding
-```
+
+`--include` 接受逗号分隔的 glob 模式。用 `--confirm` 前先 dry-run 验证过滤结果。
+
+建议按主题拆分（参考）：
+
+| 批次 | include 模式 | 说明 |
+|------|-------------|------|
+| 清理废弃文档 | `docs/references/**,docs/research/**` | 删除过时研究/参考 |
+| 技能改进 | `skills/dev-flow/**,skills/agents-collab/**` | 工作流和协作技能 |
+| 扩展更新 | `extensions/opencode-usage-extension/**` | 浏览器扩展 |
+| 模板/配置 | `templates/**,config/settings.jsonc` | 空间初始化和配置 |
+| 命令更新 | `commands/**` | CLI 命令改进 |
 
 **U4/U5（origin → upstream）**：
 
-跨仓库 PR。选择有价值的提交 → cherry-pick 到 contribute 分支 → push → 创建 PR（base = upstream 目标分支）。
+```bash
+# 同样按主题分批，--include 模式
+wopal ontology contribute \
+  --type coding \
+  --include 'skills/dev-flow/**' \
+  --message 'enhance(dev-flow): ...' \
+  --confirm
+```
+
+每次执行后确认 PR 创建成功，等待用户合并后再做下一批。
+
+**Promote（type → main） + 贡献到上游**：
+
+```bash
+# 1. 将 type 的 M/D 通用改进 promote 到 main
+wopal ontology promote --from type/coding --confirm
+
+# 2. promote 后 origin/main 领先 upstream/main，需再贡献
+wopal ontology contribute \
+  --type common \
+  --include 'skills/dev-flow/**,~~' \
+  --message '...' \
+  --confirm
+```
+
+> promote 自动排除 A-status 文件（type 专属能力，如 WSF 技能、Agent 角色）。promote 后的 main 变更需要单独 PR 到 upstream。
+
+### PR 合并后的收尾
+
+每次上游 PR 合并后：
+
+```bash
+wopal ontology update --confirm    # 同步上游到本地
+wopal space update --confirm       # 同步 type 到 space worktree
+```
 
 ---
 
@@ -88,7 +147,9 @@ git push origin type/coding
 
 ### 预测
 
-check 第四层（`git merge-tree`）在执行前预测冲突。clean 时自动 merge；conflicts 时报告冲突文件列表。
+check 输出中的 `mergePrediction` 字段在执行前预测冲突（基于 `git merge-tree`）：
+- `clean` → 自动 merge
+- `conflict` → 报告冲突文件列表
 
 ### 解决
 
@@ -107,13 +168,52 @@ agent 手动编辑冲突文件，保留双方有价值的改动：
 
 ## PR 规范
 
-所有上行回流采用 PR merge（squash merge）。提交标题遵循 Conventional Commits 格式。贡献分支是临时分支，PR 合并后删除。
+| 规范 | 说明 |
+|------|------|
+| 提交格式 | Conventional Commits（`feat/fix/enhance/chore(scope): <desc>`） |
+| 提交语言 | 上游仓库用英文，空间仓库用用户偏好语言 |
+| squash merge | 所有上行回流采用 squash merge |
+| 贡献分支 | 临时分支，PR 合并后自动清理 |
+| **按主题拆分** | **严禁一批提交包含多个无关主题** |
 
 ---
 
 ## 验证
 
-每次操作后验证：
-- 下行同步后：重跑 check 确认 downstream 信号消失
-- 上行贡献后：确认 PR 创建成功，等待合并
-- 超集修复后：D5 段 PASS
+每次操作后用 git 命令交叉验证：
+
+```bash
+# 下行同步后：确认零差异
+git diff --stat upstream/main origin/main
+git diff --stat origin/main..main
+
+# 上行贡献后：确认 PR 创建成功
+# 空间同步后
+wopal space update   # 应显示 "already up to date"
+wopal ontology status # down/up 均应 "Up to date"
+
+# promote 后
+git diff --stat type/coding..main  # 检查 promote 内容
+wopal ontology status              # 检查 upstream 状态
+```
+
+最终状态检查清单：
+
+| 检查项 | 正常状态 |
+|--------|---------|
+| `upstream → origin` | 0 diff |
+| `origin → upstream` | 0 diff |
+| `origin → local` | 0 diff |
+| `space → type` | space 领先 type（正常，space 比 type 多） |
+| `host repo 分支` | `main`（非 worktree） |
+
+---
+
+## 常见问题
+
+| 问题 | 原因 | 解决 |
+|------|------|------|
+| `ontology update` 输出 `Pushed: no` | push 被 catch 块静默吞掉 | 手动 `git push origin <branch>` |
+| `ontology update` 拦截 type/coding | deletion-risk 保护 | 先 `reconcile` 再重跑 `update` |
+| `space update` dry-run 说 up to date，但 `--confirm` 执行了合并 | topology gap（tree 相同但 commits 不同） | wopal-cli 0.3.2 已修复。旧版本直接 `--confirm` |
+| `ontology contribute` 一次性 PR 了所有变更 | 没加 `--include` 过滤 | abort 后按主题重新分批执行 |
