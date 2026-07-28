@@ -76,11 +76,11 @@ export function loadWopalEnv(): void {
 }
 
 let _memorySystem: {
-  injector: import("./memory/injector").MemoryInjector;
-  distillEngine: import("./memory/distill").DistillEngine;
-  store: import("./memory/store").MemoryStore;
-  embedder: import("./memory/embedder").EmbeddingClient;
-  llm: import("./llm-client").LLMClient;
+  injector: import("./memory/injector.js").MemoryInjector;
+  distillEngine: import("./memory/distill.js").DistillEngine;
+  store: import("./memory/store.js").MemoryStore;
+  embedder: import("./memory/embedder.js").EmbeddingClient;
+  llm: import("./llm-client.js").LLMClient;
 } | null = null;
 
 /** Check required env vars for memory system. Returns list of missing var names. */
@@ -108,12 +108,12 @@ async function ensureMemorySystem(): Promise<typeof _memorySystem> {
   }
 
   try {
-    const { MemoryStore } = await import("./memory/store");
-    const { EmbeddingClient } = await import("./memory/embedder");
-    const { getLLMClient } = await import("./llm-client");
-    const { DistillEngine } = await import("./memory/distill");
-    const { MemoryRetriever } = await import("./memory/retriever");
-    const { MemoryInjector } = await import("./memory/injector");
+    const { MemoryStore } = await import("./memory/store.js");
+    const { EmbeddingClient } = await import("./memory/embedder.js");
+    const { getLLMClient } = await import("./llm-client.js");
+    const { DistillEngine } = await import("./memory/distill.js");
+    const { MemoryRetriever } = await import("./memory/retriever.js");
+    const { MemoryInjector } = await import("./memory/injector.js");
 
     const store = new MemoryStore();
     await store.init();
@@ -239,7 +239,7 @@ const openCodeRulesPlugin = async (pluginInput: PluginInput): Promise<Hooks> => 
   const tools = createWopalTools(taskManager, memory?.store, memory?.embedder, sessionStore, memory?.distillEngine, pluginInput.client);
 
   if (memory) {
-    const { createContextManageTool } = await import("./tools/context-manage");
+    const { createContextManageTool } = await import("./tools/context-manage.js");
 
     tools.context_manage = createContextManageTool(
       pluginInput.client as unknown as OpenCodeClient,

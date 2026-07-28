@@ -23,6 +23,7 @@ export interface EventRouterHookContext {
   taskLogger: LoggerInstance
   coreLogger: LoggerInstance
   taskManager: SimpleTaskManager | undefined
+  directory: string
 }
 
 export function createEventRouter(ctx: EventRouterHookContext) {
@@ -78,20 +79,20 @@ export function createEventRouter(ctx: EventRouterHookContext) {
           "Message updated",
         )
         handleMessageUpdated(
-          { client: ctx.client, sessionStore: ctx.sessionStore, taskManager: ctx.taskManager, contextLog: ctx.contextLogger },
+          { client: ctx.client, sessionStore: ctx.sessionStore, taskManager: ctx.taskManager, contextLog: ctx.contextLogger, directory: ctx.directory },
           sessionID,
           info,
         )
       }
     } else if (eventType === "message.part.delta") {
       handleMessagePartDelta(
-        { client: ctx.client, sessionStore: ctx.sessionStore, taskManager: ctx.taskManager, contextLog: ctx.contextLogger },
+        { client: ctx.client, sessionStore: ctx.sessionStore, taskManager: ctx.taskManager, contextLog: ctx.contextLogger, directory: ctx.directory },
         sessionID,
       )
     } else if (eventType === "message.part.updated") {
       const part = props?.part as { type?: string; snapshot?: unknown; tokens?: { input?: number; output?: number; reasoning?: number; cache?: { read?: number; write?: number } } } | undefined
       await handleMessagePartUpdated(
-        { client: ctx.client, sessionStore: ctx.sessionStore, taskManager: ctx.taskManager, contextLog: ctx.contextLogger },
+        { client: ctx.client, sessionStore: ctx.sessionStore, taskManager: ctx.taskManager, contextLog: ctx.contextLogger, directory: ctx.directory },
         sessionID,
         part,
       )

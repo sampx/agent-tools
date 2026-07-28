@@ -24,6 +24,7 @@ function createMockContext(overrides?: {
   sessionStore?: SessionStore
   taskManager?: Partial<SimpleTaskManager>
   promptAsync?: ReturnType<typeof vi.fn>
+  directory?: string
 }): {
   ctx: MessageTokenHandlerContext
   sessionStore: SessionStore
@@ -64,6 +65,7 @@ function createMockContext(overrides?: {
     sessionStore,
     taskManager: overrides?.taskManager as SimpleTaskManager | undefined,
     contextLog: createMockLogger(),
+    directory: overrides?.directory ?? "/test/instance",
   }
 
   return { ctx, sessionStore, promptAsync }
@@ -183,6 +185,7 @@ describe("consumeContextWarning", () => {
       sessionStore,
       taskManager: undefined,
       contextLog: logger,
+      directory: "/test/instance",
     }
     sessionStore.upsert("ses_main", (s) => {
       s.pendingContextWarningPct = 75
@@ -316,6 +319,7 @@ describe("handleMessagePartUpdated", () => {
       sessionStore,
       taskManager: undefined,
       contextLog,
+      directory: "/test/instance",
     }
     sessionStore.upsert("ses_main", (s) => {
       s.agent = "trusted-agent"
@@ -363,6 +367,7 @@ describe("handleMessagePartUpdated", () => {
       sessionStore,
       taskManager: undefined,
       contextLog: createMockLogger(),
+      directory: "/test/instance",
     }
     sessionStore.upsert("ses_main", (s) => {
       s.agent = existingAgent
@@ -411,6 +416,47 @@ describe("handleMessagePartUpdated", () => {
     // Pending should remain
     const state = sessionStore.get("ses_task")
     expect(state?.pendingContextWarningPct).toBe(80)
+  })
+
+  it("preserves current instance directory in provider configuration lookup", async () => {
+    const directory = "/workspace"
+    const sessionStore = new SessionStore({ max: 100 })
+    const providersMock = vi.fn().mockResolvedValue({
+      data: {
+        providers: [{
+          id: "test-provider",
+          models: { "gpt-5.5": { limit: { context: 400_000 } } },
+        }],
+      },
+    })
+    const promptAsync = vi.fn().mockResolvedValue(undefined)
+    const ctx: MessageTokenHandlerContext = {
+      client: {
+        session: {
+          messages: vi.fn().mockResolvedValue({
+            data: [{ info: { role: "assistant", providerID: "test-provider", modelID: "gpt-5.5" } }],
+          }),
+          promptAsync,
+        },
+        config: { providers: providersMock },
+      } as unknown as MessageTokenHandlerContext["client"],
+      sessionStore,
+      taskManager: undefined,
+      contextLog: createMockLogger(),
+      directory,
+    }
+    sessionStore.upsert("ses_main", (s) => {
+      s.agent = "test-agent"
+      s.providerID = "test-provider"
+      s.modelID = "gpt-5.5"
+    })
+
+    await handleMessagePartUpdated(ctx, "ses_main", {
+      type: "step-finish",
+      tokens: { input: 5000, output: 2000 },
+    })
+
+    expect(providersMock).toHaveBeenCalledWith({ query: { directory } })
   })
 
   it("does not send warning when no pending", async () => {
