@@ -20,28 +20,48 @@ import type {
   TuiPluginModule,
   TuiSlotPlugin,
 } from "@opencode-ai/plugin/tui";
+import { join } from "node:path";
 
 // ─── Sound ───────────────────────────────────────────────────────────
 
-// Sound effects now use api.attention for playback
-// instead of external audio processes. See tui() entry for initialization.
+const ASSET_DIR = import.meta.dir + "/asset";
+const PULSE_FILES = ["pulse-a.wav", "pulse-b.wav", "pulse-c.wav"];
 
-let attention: { notify: (opts: { message?: string; notification?: false; sound?: { name?: string; when?: string; volume?: number } }) => Promise<unknown> } | undefined
+let humProc: ReturnType<typeof Bun.spawn> | undefined;
+let shot = 0;
 
 function soundStart() {
-  void attention?.notify({ message: "·", notification: false, sound: { name: "permission", when: "always" } })
+  soundStop();
+  try {
+    humProc = Bun.spawn(["afplay", join(ASSET_DIR, "charge.wav")], {
+      stdin: "ignore",
+      stdout: "ignore",
+      stderr: "ignore",
+    });
+  } catch {}
 }
 
 function soundStop() {
-  // no-op: attention API manages its own lifecycle
+  if (!humProc) return;
+  try {
+    humProc.kill();
+  } catch {}
+  humProc = undefined;
 }
 
-function soundPulse(volume = 1) {
-  void attention?.notify({ message: "·", notification: false, sound: { name: "default", when: "always", volume } })
+function soundPulse(_volume = 1) {
+  const file = PULSE_FILES[shot++ % PULSE_FILES.length];
+  try {
+    Bun.spawn(["afplay", join(ASSET_DIR, file)], {
+      stdin: "ignore",
+      stdout: "ignore",
+      stderr: "ignore",
+    });
+  } catch {}
 }
 
 function soundDispose() {
-  // no-op
+  soundStop();
 }
 
 // ─── Animation Constants ─────────────────────────────────────────────
@@ -1114,12 +1134,11 @@ const branding = (theme: ThemeLike, label?: string): TuiSlotPlugin => ({
 
 const tui: TuiPlugin = async (api, options) => {
   if (options?.enabled === false) return;
-  attention = api.attention
   api.attention.soundboard.registerPack({
     id: "wopal-space",
     name: "WopalSpace",
     sounds: {
-      permission: "./asset/charge.wav",
+      permission: "./asset/silent.wav",
       default: "./asset/pulse-a.wav",
     },
   })
