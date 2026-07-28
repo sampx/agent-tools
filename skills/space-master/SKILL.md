@@ -95,11 +95,11 @@ Before suggesting or executing any upstream operations, Agents MUST run `wopal o
 [Upstream upstream] (Merge on GitHub UI)
       │ 3. ontology update (--confirm) ➔ Downstream topology sync + Auto-clean stale origin branches
       ▼
-[Main Promotion promote] (chained --include) ➔ Promote generic capabilities to main
+[Main Promotion promote] (chained --include) ➔ MUST discuss with user to confirm scope before promoting to main
 ```
 
 - **Check Status & Mode (Pre-check)**: `wopal ontology status`
-- **Merge Space into Type**: `wopal space contribute --message "feat(scope): description" --confirm`
+- **Merge Space into Type**: `wopal space contribute --message "feat(scope): short description" --confirm`
 - **Create Upstream PR (Fork Mode, Chained `--include`)**:
   ```bash
   wopal ontology contribute \
@@ -110,7 +110,7 @@ Before suggesting or executing any upstream operations, Agents MUST run `wopal o
     --confirm
   ```
 - **Post-Merge Downstream Sync**: `wopal ontology update --confirm`
-- **Promote Generic to Main**:
+- **Promote Generic to Main (MUST discuss scope with user first)**:
   ```bash
   wopal ontology promote \
     --from type/coding \
@@ -127,6 +127,7 @@ Agents MUST perform verification after executing commands or modifying skills, a
 - **Plugin Modification Verification**: Inspect `<workspace>/.wopal-space/logs/wopal-plugin.log`
 
 ### 4. Core Iron Laws
+- **MANDATORY User Discussion for Promote**: **The scope of `wopal ontology promote` MUST be thoroughly discussed with and explicitly confirmed by the user beforehand. Agents are STRICTLY FORBIDDEN from acting on their own assumptions!**
 - **Mode Enforcement**: NEVER construct or invoke `contribute` commands in Clone mode.
 - **Read Status First**: Always call `wopal ontology status` to inspect Mode and topology before building modifying commands.
 - **Chained `--include` Whitelist**: Always specify explicit whitelist paths using chained `--include` flags when contributing or promoting.
