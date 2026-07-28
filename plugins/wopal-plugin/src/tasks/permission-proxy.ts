@@ -37,7 +37,7 @@ export async function handlePermissionAsked(
 
   const taskID = formatSessionID(sessionID, true)
 
-  log.info(
+  log.debug(
     { task_id: taskID, permission, patterns: patterns?.join(",") ?? "" },
     `Permission auto-approved for background task`,
   )

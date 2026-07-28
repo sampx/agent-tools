@@ -11,6 +11,7 @@ import { homedir } from "os";
 import { join } from "path";
 import { existsSync, mkdirSync } from "fs";
 import { randomUUID } from "crypto";
+import { getRuntimeContext } from "../runtime-context.js";
 import {
   type Memory,
   type MemoryInput,
@@ -22,6 +23,19 @@ import {
 
 // Re-export types for backward compatibility
 export type { Memory, MemoryInput, MemoryCategory, QueryType } from "./types.js";
+
+function getDefaultMemoryDbPath(): string {
+  try {
+    const ctx = getRuntimeContext();
+    if (ctx?.wopalHome) {
+      return join(ctx.wopalHome, "storage", "memory");
+    }
+  } catch {
+    // Fallback if RuntimeContext is not initialized
+  }
+  const wopalHome = process.env.WOPAL_HOME || join(homedir(), ".wopal");
+  return join(wopalHome, "storage", "memory");
+}
 
 /** LanceDB connection and table manager */
 export class MemoryStore {
@@ -49,7 +63,7 @@ export class MemoryStore {
   }
 
   constructor(dbPath?: string) {
-    this.dbPath = dbPath ?? join(homedir(), ".wopal", "memory", "lancedb");
+    this.dbPath = dbPath ?? getDefaultMemoryDbPath();
   }
 
   async init(): Promise<void> {
