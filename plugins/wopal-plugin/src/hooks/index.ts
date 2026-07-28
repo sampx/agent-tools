@@ -153,6 +153,7 @@ export function createAllHooks(ctx: HookContext): AllHooksResult {
     taskLogger: ctx.taskLogger,
     coreLogger: ctx.coreLogger,
     taskManager: ctx.taskManager,
+    directory: ctx.directory,
   });
 
   const compactionHooks = createCompactionHooks({

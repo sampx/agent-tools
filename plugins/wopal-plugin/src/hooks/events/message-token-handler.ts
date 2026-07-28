@@ -52,7 +52,7 @@ async function resolveContextLimit(
   modelInfo: { providerID: string; modelID: string } | null,
 ): Promise<number | undefined> {
   if (!modelInfo || typeof ctx.client.config?.providers !== "function") return undefined
-  const providersResult = await ctx.client.config.providers({ query: { directory: "" } })
+  const providersResult = await ctx.client.config.providers({ query: { directory: ctx.directory } })
   const providers = providersResult?.data?.providers ?? []
   const provider = providers.find((p) => p.id === modelInfo.providerID)
   return provider?.models?.[modelInfo.modelID]?.limit?.context
@@ -72,6 +72,7 @@ export interface MessageTokenHandlerContext {
   sessionStore: SessionStore
   taskManager: SimpleTaskManager | undefined
   contextLog: LoggerInstance
+  directory: string
 }
 
 /**
