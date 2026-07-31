@@ -23,14 +23,6 @@ const { mockCompleteJson } = vi.hoisted(() => ({
   mockCompleteJson: vi.fn().mockResolvedValue({ title: "Generated Session Title" }),
 }))
 
-vi.mock("../../llm-client.js", () => ({
-  getLLMClient: vi.fn().mockReturnValue({
-    completeJson: mockCompleteJson,
-  }),
-}))
-
-import { getLLMClient } from "../../llm-client.js"
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -72,6 +64,7 @@ function createMockContext(overrides?: {
     taskManager: overrides?.taskManager as SimpleTaskManager | undefined,
     contextLogger: createMockLogger(),
     taskLogger: createMockLogger(),
+    generateSessionTitle: mockCompleteJson,
   }
 
   return { ctx, sessionStore, promptAsync, updateSessionTitle }
@@ -191,14 +184,7 @@ describe("handleSessionCompacted — background title generation", () => {
     expect(promptAsync).toHaveBeenCalled()
 
     // Wait for background title generation to complete
-    await vi.waitFor(() => {
-      expect(getLLMClient).toHaveBeenCalled()
-    })
-
-    // Verify LLM was called with compaction summary in prompt
-    expect(mockCompleteJson).toHaveBeenCalledWith(
-      expect.stringContaining(compactionText),
-    )
+    await vi.waitFor(() => expect(mockCompleteJson).toHaveBeenCalledWith(compactionText))
 
     // Verify session title was updated
     await vi.waitFor(() => {

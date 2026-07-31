@@ -6,12 +6,11 @@
 
 import * as lancedb from "@lancedb/lancedb";
 import { makeArrowTable } from "@lancedb/lancedb";
-import { memoryLogger } from "../logger.js";
+import { memoryLogger, type LoggerInstance } from "../logger.js";
 import { homedir } from "os";
 import { join } from "path";
 import { existsSync, mkdirSync } from "fs";
 import { randomUUID } from "crypto";
-import { getRuntimeContext } from "../runtime-context.js";
 import {
   type Memory,
   type MemoryInput,
@@ -24,16 +23,9 @@ import {
 // Re-export types for backward compatibility
 export type { Memory, MemoryInput, MemoryCategory, QueryType } from "./types.js";
 
-function getDefaultMemoryDbPath(): string {
-  try {
-    const ctx = getRuntimeContext();
-    if (ctx?.wopalHome) {
-      return join(ctx.wopalHome, "storage", "memory");
-    }
-  } catch {
-    // Fallback if RuntimeContext is not initialized
-  }
-  const wopalHome = process.env.WOPAL_HOME || join(homedir(), ".wopal");
+export function getDefaultMemoryDbPath(
+  wopalHome = process.env.WOPAL_HOME || join(homedir(), ".wopal"),
+): string {
   return join(wopalHome, "storage", "memory");
 }
 
@@ -44,6 +36,7 @@ export class MemoryStore {
   private initialized = false;
   private readonly dbPath: string;
   private readonly tableName = "memories";
+  private readonly logger: LoggerInstance;
 
   private async findExactDuplicate(
     text: string,
@@ -62,15 +55,20 @@ export class MemoryStore {
     ) ?? null;
   }
 
-  constructor(dbPath?: string) {
-    this.dbPath = dbPath ?? getDefaultMemoryDbPath();
+  constructor(
+    dbPath?: string,
+    wopalHome?: string,
+    logger: LoggerInstance = memoryLogger,
+  ) {
+    this.dbPath = dbPath ?? getDefaultMemoryDbPath(wopalHome);
+    this.logger = logger;
   }
 
   async init(): Promise<void> {
     try {
       if (!existsSync(this.dbPath)) {
         mkdirSync(this.dbPath, { recursive: true });
-        memoryLogger.debug(`Created memory database directory: ${this.dbPath}`);
+        this.logger.debug(`Created memory database directory: ${this.dbPath}`);
       }
 
       this.db = await lancedb.connect(this.dbPath);
@@ -99,14 +97,14 @@ export class MemoryStore {
         ]);
         this.table = await this.db.createTable(this.tableName, schemaData);
         await this.table.delete("id = ''");
-        memoryLogger.debug(`Table '${this.tableName}' created with schema`);
+        this.logger.debug(`Table '${this.tableName}' created with schema`);
       }
 
       // Schema migration: add 'tags' column if missing (upgrade from pre-83)
       const schema = await this.table.schema();
       const hasTags = schema.fields.some((f) => f.name === "tags");
       if (!hasTags) {
-        memoryLogger.debug(`Schema migration: adding 'tags' column`);
+        this.logger.debug(`Schema migration: adding 'tags' column`);
         const allRows = await this.table.query().toArray();
         const migrated = allRows.map((row) => {
           const r = row as Record<string, unknown>;
@@ -134,7 +132,7 @@ export class MemoryStore {
         // Drop old table and recreate with tags column
         await this.db.dropTable(this.tableName);
         this.table = await this.db.createTable(this.tableName, makeArrowTable(migrated));
-        memoryLogger.debug(`Migrated ${migrated.length} rows with 'tags' column`);
+        this.logger.debug(`Migrated ${migrated.length} rows with 'tags' column`);
       }
 
       await this.table.createIndex("text", {
@@ -154,12 +152,12 @@ export class MemoryStore {
           }),
         });
       } catch (idxErr) {
-        memoryLogger.debug(`FTS index on 'tags' skipped (may already exist): ${idxErr}`);
+        this.logger.debug(`FTS index on 'tags' skipped (may already exist): ${idxErr}`);
       }
 
       this.initialized = true;
     } catch (error) {
-      memoryLogger.warn(`MemoryStore init failed, gracefully degrading: ${error}`);
+      this.logger.warn(`MemoryStore init failed, gracefully degrading: ${error}`);
       this.initialized = false;
     }
   }
@@ -248,7 +246,7 @@ export class MemoryStore {
       input.session_id,
     );
     if (existing) {
-      memoryLogger.debug(`Skipped exact duplicate memory: ${existing.id} (${existing.category})`);
+      this.logger.debug(`Skipped exact duplicate memory: ${existing.id} (${existing.category})`);
       return existing;
     }
 
@@ -270,7 +268,7 @@ export class MemoryStore {
     };
 
     await this.table.add([this.toStoredRow(memory)]);
-    memoryLogger.debug(`Added memory: ${memory.id} (${memory.category})`);
+    this.logger.debug(`Added memory: ${memory.id} (${memory.category})`);
 
     return memory;
   }
@@ -388,7 +386,7 @@ export class MemoryStore {
 
     await this.table.delete(`id = '${id}'`);
     await this.table.add([this.toStoredRow(updated)]);
-    memoryLogger.debug(`Updated memory: ${id}`);
+    this.logger.debug(`Updated memory: ${id}`);
   }
 
   async delete(id: string): Promise<void> {
@@ -397,7 +395,7 @@ export class MemoryStore {
     }
 
     await this.table.delete(`id = '${id}'`);
-    memoryLogger.debug(`Deleted memory: ${id}`);
+    this.logger.debug(`Deleted memory: ${id}`);
   }
 
   async count(): Promise<number> {

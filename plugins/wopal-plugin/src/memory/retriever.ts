@@ -9,7 +9,7 @@
 
 import type { MemoryStore, Memory } from "./store.js";
 import type { EmbeddingClient } from "./embedder.js";
-import { memoryLogger } from "../logger.js";
+import { memoryLogger, type LoggerInstance } from "../logger.js";
 
 const DEFAULT_LIMIT = 8;
 
@@ -27,13 +27,19 @@ interface MemoryWithScore extends Memory {
 }
 
 export class MemoryRetriever {
+  private readonly logger: LoggerInstance;
   private store: MemoryStore;
   private embedder: EmbeddingClient;
   private emptyCache: boolean | undefined;
 
-  constructor(store: MemoryStore, embedder: EmbeddingClient) {
+  constructor(
+    store: MemoryStore,
+    embedder: EmbeddingClient,
+    logger: LoggerInstance = memoryLogger,
+  ) {
     this.store = store;
     this.embedder = embedder;
+    this.logger = logger;
   }
 
   async isEmpty(): Promise<boolean> {
@@ -68,7 +74,7 @@ export class MemoryRetriever {
     const vectorResults = await this.store.search(queryVector, limit * 2);
 
     if (vectorResults.length === 0) {
-      memoryLogger.debug("No vector search results");
+      this.logger.debug("No vector search results");
       return [];
     }
 
