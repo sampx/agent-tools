@@ -683,6 +683,33 @@ describe("discoverRuleFiles", () => {
   });
 });
 
+describe("explicit runtime roots", () => {
+  it("uses only the supplied home and space roots", async () => {
+    const root = mkdtempSync(path.join(os.tmpdir(), "wopal-rules-runtime-"));
+    const wopalHome = path.join(root, "home");
+    const spaceA = path.join(root, "space-a");
+    const spaceB = path.join(root, "space-b");
+    try {
+      mkdirSync(path.join(wopalHome, "rules"), { recursive: true });
+      mkdirSync(path.join(spaceA, ".wopal", "rules"), { recursive: true });
+      mkdirSync(path.join(spaceB, ".wopal", "rules"), { recursive: true });
+      writeFileSync(path.join(wopalHome, "rules", "global.md"), "global");
+      writeFileSync(path.join(spaceA, ".wopal", "rules", "space.md"), "a");
+      writeFileSync(path.join(spaceB, ".wopal", "rules", "space.md"), "b");
+
+      const rulesA = await discoverRuleFiles(undefined, undefined, { wopalHome, wopalSpaceRoot: spaceA });
+      const rulesB = await discoverRuleFiles(undefined, undefined, { wopalHome, wopalSpaceRoot: spaceB });
+      const global = await discoverRuleFiles(undefined, undefined, { wopalHome });
+
+      expect(rulesA.map((rule) => rule.filePath)).toContain(path.join(spaceA, ".wopal", "rules", "space.md"));
+      expect(rulesB.map((rule) => rule.filePath)).toContain(path.join(spaceB, ".wopal", "rules", "space.md"));
+      expect(global.map((rule) => rule.relativePath)).toEqual(["global.md"]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("YAML Parsing Edge Cases", () => {
   beforeEach(() => {
     setupTestDirs();

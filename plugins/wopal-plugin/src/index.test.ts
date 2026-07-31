@@ -28,9 +28,13 @@ function saveAndClearInjectionEnv() {
   savedInjectionEnv = {
     WOPAL_RULES_INJECTION_ENABLED: process.env.WOPAL_RULES_INJECTION_ENABLED,
     WOPAL_MEMORY_INJECTION_ENABLED: process.env.WOPAL_MEMORY_INJECTION_ENABLED,
+    WOPAL_MEMORY_ENABLED: process.env.WOPAL_MEMORY_ENABLED,
+    WOPAL_HOME: process.env.WOPAL_HOME,
   };
   delete process.env.WOPAL_RULES_INJECTION_ENABLED;
   delete process.env.WOPAL_MEMORY_INJECTION_ENABLED;
+  process.env.WOPAL_MEMORY_ENABLED = "false";
+  process.env.WOPAL_HOME = path.join(testDir, ".wopal");
 }
 
 function restoreInjectionEnv() {
@@ -39,6 +43,18 @@ function restoreInjectionEnv() {
   }
   if (savedInjectionEnv.WOPAL_MEMORY_INJECTION_ENABLED !== undefined) {
     process.env.WOPAL_MEMORY_INJECTION_ENABLED = savedInjectionEnv.WOPAL_MEMORY_INJECTION_ENABLED;
+  } else {
+    delete process.env.WOPAL_MEMORY_INJECTION_ENABLED;
+  }
+  if (savedInjectionEnv.WOPAL_MEMORY_ENABLED !== undefined) {
+    process.env.WOPAL_MEMORY_ENABLED = savedInjectionEnv.WOPAL_MEMORY_ENABLED;
+  } else {
+    delete process.env.WOPAL_MEMORY_ENABLED;
+  }
+  if (savedInjectionEnv.WOPAL_HOME !== undefined) {
+    process.env.WOPAL_HOME = savedInjectionEnv.WOPAL_HOME;
+  } else {
+    delete process.env.WOPAL_HOME;
   }
 }
 
@@ -392,11 +408,10 @@ describe("MonitorEngine registration", () => {
 // Two-layer env loading
 // ---------------------------------------------------------------------------
 
-describe("Two-layer env loading", () => {
+describe("Per-invocation env loading", () => {
   let envTestDir: string;
   let wopalHomeDir: string;
   let savedWopalHome: string | undefined;
-  let savedWopalSpaceRoot: string | undefined;
   let savedInjectionEnv: Record<string, string | undefined>;
 
   beforeEach(() => {
@@ -406,7 +421,6 @@ describe("Two-layer env loading", () => {
     mkdirSync(path.join(wopalHomeDir, "logs"), { recursive: true });
 
     savedWopalHome = process.env.WOPAL_HOME;
-    savedWopalSpaceRoot = process.env.WOPAL_SPACE_ROOT;
     savedInjectionEnv = {
       WOPAL_RULES_INJECTION_ENABLED: process.env.WOPAL_RULES_INJECTION_ENABLED,
       WOPAL_MEMORY_INJECTION_ENABLED: process.env.WOPAL_MEMORY_INJECTION_ENABLED,
@@ -416,7 +430,6 @@ describe("Two-layer env loading", () => {
     delete process.env.WOPAL_MEMORY_INJECTION_ENABLED;
     delete process.env.WOPAL_MEMORY_ENABLED;
     delete process.env.WOPAL_HOME;
-    delete process.env.WOPAL_SPACE_ROOT;
   });
 
   afterEach(() => {
@@ -424,11 +437,6 @@ describe("Two-layer env loading", () => {
       process.env.WOPAL_HOME = savedWopalHome;
     } else {
       delete process.env.WOPAL_HOME;
-    }
-    if (savedWopalSpaceRoot !== undefined) {
-      process.env.WOPAL_SPACE_ROOT = savedWopalSpaceRoot;
-    } else {
-      delete process.env.WOPAL_SPACE_ROOT;
     }
     for (const [key, value] of Object.entries(savedInjectionEnv)) {
       if (value !== undefined) {
@@ -453,18 +461,21 @@ describe("Two-layer env loading", () => {
       "utf-8",
     );
 
-    const { initRuntimeContext } = await import("./runtime-context.js");
-    const { loadWopalEnv } = await import("./index.js");
+    const { createRuntimeContext } = await import("./runtime-context.js");
+    const { loadRuntimeEnvironment } = await import("./runtime-environment.js");
 
     // Plain project without .wopal/
     const plainDir = path.join(envTestDir, "plain-project");
     mkdirSync(plainDir, { recursive: true });
 
-    initRuntimeContext(plainDir);
-    loadWopalEnv();
+    const env = loadRuntimeEnvironment(createRuntimeContext({
+      directory: plainDir,
+      wopalHome: wopalHomeDir,
+    }));
 
-    expect(process.env.WOPAL_LLM_MODEL).toBe("qwen-3-next");
-    expect(process.env.WOPAL_TEST_VAR).toBe("hello");
+    expect(env.WOPAL_LLM_MODEL).toBe("qwen-3-next");
+    expect(env.WOPAL_TEST_VAR).toBe("hello");
+    expect(process.env.WOPAL_TEST_VAR).toBeUndefined();
 
     delete process.env.WOPAL_LLM_MODEL;
     delete process.env.WOPAL_TEST_VAR;
@@ -483,7 +494,6 @@ describe("Two-layer env loading", () => {
     // Create a wopal-space workspace with .wopal/ directory
     const spaceDir = path.join(envTestDir, "workspace");
     mkdirSync(path.join(spaceDir, ".wopal"), { recursive: true });
-    process.env.WOPAL_SPACE_ROOT = spaceDir;
 
     // Create space-level .env
     writeFileSync(
@@ -492,15 +502,19 @@ describe("Two-layer env loading", () => {
       "utf-8",
     );
 
-    const { initRuntimeContext } = await import("./runtime-context.js");
-    const { loadWopalEnv } = await import("./index.js");
+    const { createRuntimeContext } = await import("./runtime-context.js");
+    const { loadRuntimeEnvironment } = await import("./runtime-environment.js");
 
-    initRuntimeContext(spaceDir);
-    loadWopalEnv();
+    const env = loadRuntimeEnvironment(createRuntimeContext({
+      directory: spaceDir,
+      wopalHome: wopalHomeDir,
+      wopalSpaceRoot: spaceDir,
+    }));
 
     // Space-level overrides user-level
-    expect(process.env.WOPAL_LLM_MODEL).toBe("deepseek-chat");
-    expect(process.env.WOPAL_SPACE_ONLY).toBe("true");
+    expect(env.WOPAL_LLM_MODEL).toBe("deepseek-chat");
+    expect(env.WOPAL_SPACE_ONLY).toBe("true");
+    expect(process.env.WOPAL_SPACE_ONLY).toBeUndefined();
 
     delete process.env.WOPAL_LLM_MODEL;
     delete process.env.WOPAL_SPACE_ONLY;
@@ -520,13 +534,15 @@ describe("Two-layer env loading", () => {
     const plainDir = path.join(envTestDir, "plain-project");
     mkdirSync(plainDir, { recursive: true });
 
-    const { initRuntimeContext } = await import("./runtime-context.js");
-    const { loadWopalEnv } = await import("./index.js");
+    const { createRuntimeContext } = await import("./runtime-context.js");
+    const { loadRuntimeEnvironment } = await import("./runtime-environment.js");
 
-    initRuntimeContext(plainDir);
-    loadWopalEnv();
+    const env = loadRuntimeEnvironment(createRuntimeContext({
+      directory: plainDir,
+      wopalHome: wopalHomeDir,
+    }));
 
-    expect(process.env.WOPAL_LLM_MODEL).toBe("user-model");
+    expect(env.WOPAL_LLM_MODEL).toBe("user-model");
 
     delete process.env.WOPAL_LLM_MODEL;
   });
@@ -542,16 +558,18 @@ describe("Two-layer env loading", () => {
       "utf-8",
     );
 
-    const { initRuntimeContext } = await import("./runtime-context.js");
-    const { loadWopalEnv } = await import("./index.js");
+    const { createRuntimeContext } = await import("./runtime-context.js");
+    const { loadRuntimeEnvironment } = await import("./runtime-environment.js");
 
     const plainDir = path.join(envTestDir, "plain-project");
     mkdirSync(plainDir, { recursive: true });
 
-    initRuntimeContext(plainDir);
-    loadWopalEnv();
+    const env = loadRuntimeEnvironment(createRuntimeContext({
+      directory: plainDir,
+      wopalHome: wopalHomeDir,
+    }));
 
-    expect(process.env.WOPAL_LLM_MODEL).toBe("existing-model");
+    expect(env.WOPAL_LLM_MODEL).toBe("existing-model");
 
     delete process.env.WOPAL_LLM_MODEL;
   });
@@ -565,17 +583,19 @@ describe("Two-layer env loading", () => {
       "utf-8",
     );
 
-    const { initRuntimeContext } = await import("./runtime-context.js");
-    const { loadWopalEnv } = await import("./index.js");
+    const { createRuntimeContext } = await import("./runtime-context.js");
+    const { loadRuntimeEnvironment } = await import("./runtime-environment.js");
 
     const plainDir = path.join(envTestDir, "plain-project");
     mkdirSync(plainDir, { recursive: true });
 
-    initRuntimeContext(plainDir);
-    loadWopalEnv();
+    const env = loadRuntimeEnvironment(createRuntimeContext({
+      directory: plainDir,
+      wopalHome: wopalHomeDir,
+    }));
 
-    expect(process.env.WOPAL_LLM_MODEL).toBe("valid");
-    expect(process.env.OTHER_VAR).toBeUndefined();
+    expect(env.WOPAL_LLM_MODEL).toBe("valid");
+    expect(env.OTHER_VAR).toBeUndefined();
 
     delete process.env.WOPAL_LLM_MODEL;
   });

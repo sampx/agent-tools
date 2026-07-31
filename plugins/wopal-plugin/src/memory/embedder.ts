@@ -6,7 +6,8 @@
  */
 
 import OpenAI from "openai";
-import { memoryLogger } from "../logger.js";
+import { memoryLogger, type LoggerInstance } from "../logger.js";
+import type { RuntimeEnvironment } from "../runtime-environment.js";
 
 /**
  * Embedding client using OpenAI-compatible API
@@ -19,10 +20,15 @@ import { memoryLogger } from "../logger.js";
 export class EmbeddingClient {
   private client: OpenAI;
   private model: string;
+  private logger: LoggerInstance;
 
-  constructor() {
-    const baseURL = process.env.WOPAL_EMBEDDING_BASE_URL;
-    const apiKey = process.env.WOPAL_EMBEDDING_API_KEY;
+  constructor(
+    environment: RuntimeEnvironment = process.env,
+    logger: LoggerInstance = memoryLogger,
+  ) {
+    this.logger = logger;
+    const baseURL = environment.WOPAL_EMBEDDING_BASE_URL;
+    const apiKey = environment.WOPAL_EMBEDDING_API_KEY;
 
     if (!baseURL) {
       throw new Error(
@@ -30,7 +36,7 @@ export class EmbeddingClient {
       );
     }
 
-    this.model = process.env.WOPAL_EMBEDDING_MODEL ?? "";
+    this.model = environment.WOPAL_EMBEDDING_MODEL ?? "";
 
     if (!this.model) {
       throw new Error(
@@ -44,7 +50,7 @@ export class EmbeddingClient {
       timeout: 60_000,
     });
 
-    memoryLogger.info(`EmbeddingClient ready: ${this.model} @ ${baseURL}`);
+    this.logger.info(`EmbeddingClient ready: ${this.model} @ ${baseURL}`);
   }
 
   /**
@@ -69,7 +75,7 @@ export class EmbeddingClient {
       return embeddings;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      memoryLogger.warn(`Embedding failed: ${message}`);
+      this.logger.warn(`Embedding failed: ${message}`);
       throw new Error(`Embedding failed: ${message}`);
     }
   }
