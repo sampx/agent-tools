@@ -5,137 +5,147 @@ description: |
 
   Triggers: 任何意图不明确的任务、"用什么流程"、"该加载什么技能"、
   技能管理（安装/卸载/搜索）、空间运维（worktree/同步/上游/PR贡献）、多 Space 管理。
-  
+
   [CRITICAL] 即使用户未明确说"上游同步"，只要涉及 ontology 仓库协作（update/sync/contribute/promote/PR），就必须加载本技能。
 ---
 
-# space-master — 空间工作规范总纲
+# space-master
 
-本技能定义 Wopal 空间流程选择、场景技能路由、Ontology 本体开发契约、插件配置诊断机制、以及标准本体维护与 PR 贡献操作规程。
-
----
-
-## 一、 空间工作体系与技能路由
-
-### 1. 空间工作流程表
-
-| 流程 | 适用场景 | 加载技能 |
-|------|---------|---------|
-| **dev-flow** | 开发/修复/重构 GitHub Issue、Plan 驱动的小功能迭代 | dev-flow + agents-collab |
-| **无流程** | 单纯研究、讨论、解释、评审、临时小改动 | 无（Wopal Directly Process） |
-
-`dev-flow` 是默认开发流程。
-
-### 2. 场景➔技能路由表
-
-| 场景 | 加载技能 | 说明 |
-|------|---------|------|
-| 开发/修复/重构 Issue | dev-flow + agents-collab | 先加载 agents-collab，再走 dev-flow |
-| 委派任何子 Agent | agents-collab | 任何委派前必须加载 |
-| 空间与本体运维（技能安装/同步/上游PR/Promote） | 仅本技能 | 不加载 dev-flow 或 agents-collab |
-| 创建/修改技能 | skill-creator | 独立技能（修改/创建技能前必载） |
-| 配置 ellamaka | ellamaka-config | 独立技能 |
+负责 Wopal 的流程选择、场景路由、Ontology 本体维护和技能生命周期管理。
 
 ---
 
-## 二、 Ontology 本体开发契约与 dev-flow 规范
+## 一、何时使用
 
-对本体能力或项目进行开发、修复与重构时，遵循以下官方标准契约：
+| 场景 | 加载 | 说明 |
+|------|------|------|
+| 开发/修复/重构（Issue/Plan） | `dev-flow` + `agents-collab` | 先 agents-collab，再 dev-flow |
+| 委派子 Agent | `agents-collab` | 委派前必须加载 |
+| Ontology 运维（同步/贡献/升维） | 仅 `space-master` | 不加载 dev-flow 或 agents-collab |
+| 创建/修改技能 | `skill-creator` | 独立技能 |
 
-### 1. 本体运行时契约
-`.wopal/` 目录是当前空间绑定的本体运行时 worktree（对应 `space/<name>` 分支）。在 `.wopal/` 内直接编辑会实时作用于正在运行的插件与技能。
-
-### 2. Issue / Plan 驱动开发契约 (dev-flow)
-当任务涉及开发、修复、重构或小功能迭代时，**必须加载并遵循 `dev-flow` 技能**：
-- 任务必须由 Issue 或 Plan 驱动，走 `flow.sh` 标准状态机：`planning → reviewing → executing → verifying → done`。
-- 严禁绕过 `dev-flow` 手动进行非标准的分支或隔离开发。
-
-### 3. 基础设施与分支管理铁律
-- **基础设施独占**：Worktree 与 Feature 分支的生命周期由 `dev-flow` 脚本（`approve` / `verify-switch` / `archive`）独占管理。
-- **Agent 分支约束**：Agent **禁止**手动创建或删除任何分支（禁止 `git branch -d/-D`）、**禁止**手动删除或创建 Worktree。Agent 唯一允许的分支操作是 `git merge`。
+`dev-flow` 是默认开发流程，任务必须走标准状态机：`planning → reviewing → executing → verifying → done`。
 
 ---
 
-## 三、 插件配置与诊断日志 (wopal-plugin)
+## 二、Ontology 本体维护
 
-### 1. 配置文件加载优先级
-```
-3. 系统/Shell 环境变量（最高优先，不被 .env 覆盖）
-2. 空间级 .wopal/.env               (仅当前空间生效)
-1. 用户级 <WOPAL_HOME>/.env         (跨空间共享配置)
-```
+### 2.1 运行模式
 
-### 2. 诊断日志路径
-- **空间内运行日志**：`<workspace>/.wopal-space/logs/wopal-plugin.log`
-- **空间外运行日志**：`<WOPAL_HOME>/logs/wopal-plugin.log`
-当插件运行异常或权限被拒时，Agent 应优先查看上述日志文件排查根因。
+操作前先确认模式：
 
----
+| 模式 | 能力 | Origin |
+|------|------|--------|
+| **clone** | 仅 `update`（下行同步） | 直连上游仓库 |
+| **fork** | `update` + `contribute`（上游 PR）+ `promote` | 用户 Fork → 上游 |
 
-## 四、 Ontology 运维与 PR 贡献规程
+命令：`wopal ontology status`
 
-### 1. 本体运行模式契约（Clone vs Fork Mode）
-在建议或执行任何上游操作前，必须先调用 `wopal ontology status` 明确当前的本体运行模式（Mode）：
-
-- **Clone 模式 (clone)**：默认单仓库源模式。`origin` 即官方/私有上游，无独立 Fork。
-  - **能力限制**：**完全不支持 `contribute` 上游 PR 贡献操作，仅供自用与下行同步 (`update`)**。
-  - **Agent 行为**：若用户要求提交上游 PR，Agent 必须提示 Clone 模式不支持 `contribute`，引导用户配置为 Fork 模式后再操作。
-- **Fork 模式 (fork)**：开发者跨仓库模式。`origin` 为用户的 Fork 仓库，`upstream` 为官方上游。
-  - **能力支持**：完整支持下行同步 (`update`) + 上游 PR 贡献 (`contribute`) + 主干提炼升维 (`promote`)。
-
-### 2. 标准运维与 PR 贡献流程 (Fork 模式)
+### 2.2 标准流程（Fork 模式）
 
 ```
-[空间层 space/*] 
-      │ 1. space contribute (--include 链式)
-      ▼
-[类型层 type/*] 
-      │ 2. ontology contribute (--include 链式) ➔ 在 GitHub Fork 远端自动创建 PR
-      ▼
-[官方上游 upstream] (GitHub 网页点击 Merge)
-      │ 3. ontology update (--confirm) ➔ 拓扑平滑对齐 + 自动擦除 origin 陈旧临时分支
-      ▼
-[主干升维 promote] (--include 链式) ➔ 必须与用户讨论确认范围后，将通用能力回流 main 主干
+1. space contribute   space/* → type/*
+2. ontology update    上游 → 本地（上行贡献前先拉取最新）
+3. ontology contribute  PR type/* → upstream（GitHub）
+4. ontology update    上游合并后下行同步
+5. ontology promote   type/* → main（先与用户讨论范围）
 ```
 
-- **检查状态与 Mode（预检）**：`wopal ontology status`
-- **空间合入类型**：`wopal space contribute --message "feat(scope): description" --confirm`
-- **创建上游 PR（Fork 模式，链式 `--include`）**：
-  ```bash
-  wopal ontology contribute \
-    --type coding \
-    --include "skills/dev-flow/**" \
-    --include "skills/space-master/**" \
-    --message "feat(skills): update dev-flow and space-master skills" \
-    --confirm
-  ```
-- **网页合并后下行收尾**：`wopal ontology update --confirm`
-- **主干提炼升维（必须与用户讨论确认范围）**：
-  ```bash
-  wopal ontology promote \
-    --from type/coding \
-    --include "templates/**" \
-    --include "docs/**" \
-    --message "feat(ontology): promote generic templates to main" \
-    --confirm
-  ```
+`contribute` 前必须先 `update`——不拉取上游最新就直接推送，容易产生冲突和过期 diff。
 
-### 3. 验证与自我推查规程
-命令执行或技能修改后，Agent 必须进行自我验证，严禁未经验证即声明成功：
-- **技能改动验证**：`ls -la .wopal/skills/<skill-name>/SKILL.md` 以及 `wopal skills list`
-- **PR 贡献/推送验证**：`wopal ontology status` 以及 `git diff --stat upstream/main origin/main`
-- **插件改动验证**：检查日志 `<workspace>/.wopal-space/logs/wopal-plugin.log`
+**命令**（全部需要链式 `--include`）：
 
-### 4. 核心硬约束
-- **Promote 用户讨论铁律**：**Promote 升维的范围必须提前与用户充分讨论并逐项确认，严禁 Agent 自以为是擅作主张！**
-- **Mode 检查约束**：Clone 模式下坚决禁止构建或调用 `contribute` 命令。
-- **先状态后操作**：构建并执行修改类命令前，必须先调用 `wopal ontology status` 确认 Mode 与拓扑。
-- **链式 `--include` 白名单**：贡献或升维时必须传入链式 `--include` 明确白名单范围。
-- **分主题独立贡献**：禁止合并提交不同主题的改动。
+```bash
+# 1. 空间 → 类型
+wopal space contribute \
+  --include "skills/<name>/**" \
+  --message "feat(scope): description" --confirm
+
+# 2. 下行同步
+wopal ontology update --confirm
+
+# 3. 类型 → 上游 PR
+wopal ontology contribute \
+  --type coding \
+  --include "skills/<name>/**" \
+  --include "docs/**" \
+  --message "feat(scope): description" --confirm
+
+# 4. 合并后下行同步
+wopal ontology update --confirm
+
+# 5. 升维到 main
+wopal ontology promote \
+  --from type/coding \
+  --include "templates/**" \
+  --message "feat(ontology): promote generic templates to main" --confirm
+```
+
+### 2.3 同步门禁
+
+每次同步操作（`contribute`、`update`、`promote`）必须依次通过两道门禁：
+
+#### 门禁一：同步分析
+
+禁止自动同步。Agent 必须先掌握完整状态：
+
+1. `wopal space status` — 空间层差异
+2. `wopal ontology status` — 本体层差异（领先/落后、文件级 diff）
+3. 向用户汇报：变更文件、同步范围、排除策略
+4. 用户明确确认后才进入下一步
+
+#### 门禁二：飞前检查
+
+先看再推：
+
+1. **不加 `--confirm`** 先跑 dry-run
+2. 确认列表中只有你改的文件
+3. 不对则调整 `--include` glob，重跑
+4. 确认无误才加 `--confirm`
+
+> 不加 `--include` 会把分支上所有人的所有积累变更一次性全推出去。不可逆。
+
+### 2.4 本体规则
+
+1. **禁止自动同步。** 先分析后汇报用户，确认再执行。
+2. **必须链式 `--include`。** 多个叠加生效，每个 glob 对应一个目录。
+3. **分主题独立 PR。** 按目录或功能区域拆分子主题。
+4. **Promote 必须与用户讨论。** M-status 能力（跨空间共享）可升维；A-status（类型专属）不可。
+5. **Clone 模式不支持 `contribute`。** 如需 PR，引导用户切换到 Fork 模式。
+6. **删除风险需 `reconcile`。** `update` 报 deletion-risk 时，`type/*` 独有的文件面临被删风险。先跑 `wopal ontology reconcile --type <type> --theirs --confirm` 保留它们，再重试 `update`。
+7. **执行后必须验证。** `wopal ontology status` 和 `git diff --stat upstream/main origin/main`。
 
 ---
 
-## 五、 深度参考入口
+## 三、技能维护
 
-* [ontology-maintenance.md](references/ontology-maintenance.md) — 本体三层架构、Clone/Fork 模式契约、Status 三段解读、Deletion-Risk 响应与冲突矩阵
-* [skills-maintenance.md](references/skills-maintenance.md) — 技能 lifecycle 管理、安全扫描、安装与质量评估规程
+### 3.1 生命周期
+
+```
+找 → 下 → 扫 → 装 → 评 → 删
+```
+
+```bash
+wopal skills find "<query>"              # 搜索注册表
+wopal skills download owner/repo@name    # 下载到审核区
+wopal skills scan <name>                 # 安全扫描（强制步骤）
+wopal skills install /path --force       # 安装到运行时
+wopal skills remove <name> --force       # 从空间移除
+```
+
+### 3.2 技能规则
+
+1. **安装前必须扫描。** `wopal skills scan` 是强制步骤——检查恶意代码、数据外泄、非法触发器。禁止跳过。
+2. **变更后必须验证。** 安装或编辑后：`ls -la .wopal/skills/<name>/SKILL.md` 和 `wopal skills list`。
+3. **创建/修改走 `skill-creator`。** 新建或编辑技能必须加载 `skill-creator` 技能。
+
+---
+
+## 四、参考资料
+
+技能正文覆盖核心要点。遇到故障或边缘场景时，**必须阅读参考文档**——完整协议在其中：
+
+| 文档 | 内容 |
+|------|------|
+| `references/ontology-maintenance.md` | 三层架构（main → type/* → space/*）、状态信号解读矩阵、按文件类型的冲突处理、远程分支清理 |
+| `references/skills-maintenance.md` | 完整生命周期细节、安全扫描检查项、质量评估标准 |
