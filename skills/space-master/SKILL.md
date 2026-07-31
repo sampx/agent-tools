@@ -41,7 +41,24 @@ Before any ontology operation, check the mode:
 
 Command: `wopal ontology status`
 
-### 2.2 Two Contribution Paths
+### 2.2 What "Sync Ontology" Means
+
+"Sync ontology" covers both directions — neither is optional:
+
+| Direction | Meaning | Command |
+|-----------|---------|---------|
+| **Downstream** | Pull latest upstream changes to local | `wopal ontology update --confirm` |
+| **Upstream** | Contribute local changes back to upstream | `wopal space contribute` → `wopal ontology contribute` / `wopal ontology promote` |
+
+Sync is not one fixed command sequence. Run downstream updates before starting a contribution batch and after PR merges. Upstream contribution always follows this layer order:
+
+```
+space/<name> → local type/* → origin/type/* → upstream PR
+```
+
+Use `space status` to identify the files to contribute. When selected files still exist on the space branch, run `space contribute` first. Run `ontology contribute` only after those files have entered local type/*. Do not insert `ontology update` between `space contribute` and the type PR.
+
+### 2.3 Two Contribution Paths
 
 Not all changes follow the same pipeline. Ontology has a three-layer architecture (main → type/* → space/*), and files fall into two status categories:
 
@@ -57,10 +74,10 @@ space → type → upstream(type) → ✓ done
 ```
 
 ```
-1. space contribute     space/* → type/*
-2. ontology update      upstream → local (sync baseline)
-3. ontology contribute  type/* → upstream(type) (topic PR)
-4. ontology update      downstream sync after upstream merge
+0. ontology update      complete pending downstream sync before this batch
+1. space contribute     space/* → local type/* → origin/type/*
+2. ontology contribute  type/* → upstream(type) (topic PR)
+3. ontology update      downstream sync after upstream merge
 ```
 
 > Type-specific capabilities follow this path. No promote to main needed.
@@ -72,20 +89,20 @@ space → type → upstream(type) → promote → upstream(main) → ✓ done
 ```
 
 ```
-1. space contribute     space/* → type/*
-2. ontology update      upstream → local (sync baseline)
-3. ontology contribute  type/* → upstream(type) (topic PR)
-4. ontology update      downstream sync after upstream merge
-5. ontology promote     type/* → main (discuss scope with user first)
-6. ontology contribute  main → upstream(main) (topic PR)
-7. ontology update      downstream sync again
+0. ontology update      complete pending downstream sync before this batch
+1. space contribute     space/* → local type/* → origin/type/*
+2. ontology contribute  type/* → upstream(type) (topic PR)
+3. ontology update      downstream sync after type PR merge
+4. ontology promote     type/* → main (discuss scope with user first)
+5. ontology contribute  main → upstream(main) (topic PR)
+6. ontology update      downstream sync again after main PR merge
 ```
 
 > Generic capabilities (e.g., generic skills, dev workflows, templates) follow this path. After promote, main branch has new divergence — must contribute to upstream(main) at step 6.
 
-**Key difference**: The long path has 3 extra steps (promote → contribute main → update). It's easy to forget step 6 after promote.
+**Key difference**: The long path has 3 extra steps (promote → contribute main → update). It's easy to forget the main PR after promote.
 
-### 2.3 Topic-Based PR Splitting
+### 2.4 Topic-Based PR Splitting
 
 **One PR, one topic.** Changes from different directories or feature areas must be split into separate PRs.
 
@@ -132,7 +149,7 @@ wopal ontology contribute --type common \
 3. **Batch order**: Contribute PRs with dependencies first (e.g., a plugin that other changes depend on); independent topics can be in any order
 4. **Repeat full gates for each batch**: Every PR goes through the sync analysis gate and pre-flight gate independently
 
-### 2.4 Sync Gates
+### 2.5 Sync Gates
 
 Every sync operation (`contribute`, `update`, `promote`) must pass through two gates in order:
 
@@ -156,7 +173,7 @@ Always inspect before pushing:
 
 > Omitting `--include` pushes everything from the branch — all accumulated changes by everyone. There is no undo.
 
-### 2.5 Ontology Rules
+### 2.6 Ontology Rules
 
 1. **Never auto-sync.** Analyse and get user confirmation first.
 2. **Always chain `--include`.** Multiple flags are additive. One glob per directory.
