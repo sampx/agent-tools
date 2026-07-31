@@ -1,6 +1,8 @@
 import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "fs"
 import { dirname, join } from "path"
-import { getRuntimeContext } from "./runtime-context.js"
+import { homedir } from "os"
+import type { RuntimeContext } from "./runtime-context.js"
+import type { RuntimeEnvironment } from "./runtime-environment.js"
 
 // ---------------------------------------------------------------------------
 // Level definitions
@@ -19,32 +21,32 @@ const LEVELS: Record<string, number> = {
 // Environment helpers
 // ---------------------------------------------------------------------------
 
-export function getMinLevel(): number {
-  const env = process.env.WOPAL_PLUGIN_LOG_LEVEL ?? "info"
-  return LEVELS[env] ?? LEVELS["info"]!
+export function getMinLevel(environment: RuntimeEnvironment = process.env): number {
+  const level = environment.WOPAL_PLUGIN_LOG_LEVEL ?? "info"
+  return LEVELS[level] ?? LEVELS["info"]!
 }
 
-export function getMinLevelName(): string {
-  const env = process.env.WOPAL_PLUGIN_LOG_LEVEL ?? "info"
-  return Object.hasOwn(LEVELS, env) ? env : "info"
+export function getMinLevelName(environment: RuntimeEnvironment = process.env): string {
+  const level = environment.WOPAL_PLUGIN_LOG_LEVEL ?? "info"
+  return Object.hasOwn(LEVELS, level) ? level : "info"
 }
 
-export function getLogFile(): string {
-  if (process.env.VITEST) {
-    return process.env.WOPAL_PLUGIN_LOG_FILE ?? ""
+export function getLogFile(
+  context?: RuntimeContext,
+  environment: RuntimeEnvironment = process.env,
+): string {
+  if (environment.VITEST) {
+    return environment.WOPAL_PLUGIN_LOG_FILE ?? ""
   }
-  const env = process.env.WOPAL_PLUGIN_LOG_FILE
-  if (env) return env
-  try {
-    return join(getRuntimeContext().logDir, "wopal-plugin.log")
-  } catch {
-    // RuntimeContext not yet initialized — fall back to cwd
-    return join(process.cwd(), ".wopal-space", "logs", "wopal-plugin.log")
-  }
+  const configured = environment.WOPAL_PLUGIN_LOG_FILE
+  if (configured) return configured
+  if (context) return join(context.logDir, "wopal-plugin.log")
+  const wopalHome = environment.WOPAL_HOME ?? join(homedir(), ".wopal")
+  return join(wopalHome, "logs", "wopal-plugin.log")
 }
 
-function getAllowedModules(): Set<string> | null {
-  const env = process.env.WOPAL_PLUGIN_LOG_MODULES
+function getAllowedModules(environment: RuntimeEnvironment): Set<string> | null {
+  const env = environment.WOPAL_PLUGIN_LOG_MODULES
   if (!env || env.trim() === "") return null // null = all modules
   return new Set(env.split(",").map(m => m.trim().toLowerCase()))
 }
@@ -125,7 +127,7 @@ function formatMeta(data: Record<string, unknown>): string {
 // File output
 // ---------------------------------------------------------------------------
 
-let _logInitialized = false
+const initializedLogFiles = new Set<string>()
 
 function ensureLogFile(logFile: string): boolean {
   const dir = dirname(logFile)
@@ -139,14 +141,20 @@ function ensureLogFile(logFile: string): boolean {
   return true
 }
 
-function writeLine(line: string): void {
-  const logFile = getLogFile()
+interface LoggerConfiguration {
+  context?: RuntimeContext
+  environment: RuntimeEnvironment
+}
+
+function writeLine(line: string, configuration: LoggerConfiguration): void {
+  const logFile = getLogFile(configuration.context, configuration.environment)
   if (!logFile) return
   if (!ensureLogFile(logFile)) return
   try {
-    if (!_logInitialized) {
-      _logInitialized = true
-      const clearOnStart = !process.env.VITEST && getMinLevel() <= LEVELS["debug"]!
+    if (!initializedLogFiles.has(logFile)) {
+      initializedLogFiles.add(logFile)
+      const clearOnStart = !configuration.environment.VITEST
+        && getMinLevel(configuration.environment) <= LEVELS["debug"]!
       if (clearOnStart) {
         writeFileSync(logFile, line, "utf-8")
       } else {
@@ -164,9 +172,13 @@ function writeLine(line: string): void {
 // Core log function
 // ---------------------------------------------------------------------------
 
-function shouldLog(levelNum: number, moduleName: string): boolean {
-  if (levelNum < getMinLevel()) return false
-  const allowed = getAllowedModules()
+function shouldLog(
+  levelNum: number,
+  moduleName: string,
+  environment: RuntimeEnvironment,
+): boolean {
+  if (levelNum < getMinLevel(environment)) return false
+  const allowed = getAllowedModules(environment)
   if (allowed !== null && !allowed.has(moduleName)) return false
   return true
 }
@@ -175,9 +187,10 @@ function log(
   level: string,
   levelNum: number,
   moduleName: string,
+  configuration: LoggerConfiguration,
   ...args: [string] | [Record<string, unknown>, string]
 ): void {
-  if (!shouldLog(levelNum, moduleName)) return
+  if (!shouldLog(levelNum, moduleName, configuration.environment)) return
 
   let data: Record<string, unknown>
   let msg: string
@@ -194,7 +207,7 @@ function log(
   const meta = formatMeta(sanitized)
   const timestamp = timeString()
   const line = `${timestamp} [${level.toUpperCase()}] [${moduleName}]${meta} ${msg}\n`
-  writeLine(line)
+  writeLine(line, configuration)
 }
 
 // ---------------------------------------------------------------------------
@@ -216,20 +229,49 @@ export interface LoggerInstance {
   fatal(data: Record<string, unknown>, msg: string): void
 }
 
-function createLogger(moduleName: string): LoggerInstance {
+function createLogger(
+  moduleName: string,
+  configuration: LoggerConfiguration = { environment: process.env },
+): LoggerInstance {
   return {
     trace: (...args: [string] | [Record<string, unknown>, string]) =>
-      log("trace", LEVELS["trace"]!, moduleName, ...args),
+      log("trace", LEVELS["trace"]!, moduleName, configuration, ...args),
     debug: (...args: [string] | [Record<string, unknown>, string]) =>
-      log("debug", LEVELS["debug"]!, moduleName, ...args),
+      log("debug", LEVELS["debug"]!, moduleName, configuration, ...args),
     info: (...args: [string] | [Record<string, unknown>, string]) =>
-      log("info", LEVELS["info"]!, moduleName, ...args),
+      log("info", LEVELS["info"]!, moduleName, configuration, ...args),
     warn: (...args: [string] | [Record<string, unknown>, string]) =>
-      log("warn", LEVELS["warn"]!, moduleName, ...args),
+      log("warn", LEVELS["warn"]!, moduleName, configuration, ...args),
     error: (...args: [string] | [Record<string, unknown>, string]) =>
-      log("error", LEVELS["error"]!, moduleName, ...args),
+      log("error", LEVELS["error"]!, moduleName, configuration, ...args),
     fatal: (...args: [string] | [Record<string, unknown>, string]) =>
-      log("fatal", LEVELS["fatal"]!, moduleName, ...args),
+      log("fatal", LEVELS["fatal"]!, moduleName, configuration, ...args),
+  }
+}
+
+export interface PluginLoggers {
+  core: LoggerInstance
+  rules: LoggerInstance
+  task: LoggerInstance
+  memory: LoggerInstance
+  context: LoggerInstance
+  logFile: string
+  logLevel: string
+}
+
+export function createPluginLoggers(
+  context: RuntimeContext,
+  environment: RuntimeEnvironment,
+): PluginLoggers {
+  const configuration = { context, environment }
+  return {
+    core: createLogger("core", configuration),
+    rules: createLogger("rules", configuration),
+    task: createLogger("task", configuration),
+    memory: createLogger("memory", configuration),
+    context: createLogger("context", configuration),
+    logFile: getLogFile(context, environment),
+    logLevel: getMinLevelName(environment),
   }
 }
 

@@ -24,6 +24,7 @@ export interface EventRouterHookContext {
   coreLogger: LoggerInstance
   taskManager: SimpleTaskManager | undefined
   directory: string
+  generateSessionTitle?: (summary: string) => Promise<{ title?: unknown }>
 }
 
 export function createEventRouter(ctx: EventRouterHookContext) {
@@ -106,6 +107,9 @@ export function createEventRouter(ctx: EventRouterHookContext) {
           taskManager: ctx.taskManager,
           contextLogger: ctx.contextLogger,
           taskLogger: ctx.taskLogger,
+          ...(ctx.generateSessionTitle
+            ? { generateSessionTitle: ctx.generateSessionTitle }
+            : {}),
         },
         sessionID ?? "",
       )
@@ -127,6 +131,9 @@ export function createEventRouter(ctx: EventRouterHookContext) {
           taskManager: ctx.taskManager,
           contextLogger: ctx.contextLogger,
           taskLogger: ctx.taskLogger,
+          ...(ctx.generateSessionTitle
+            ? { generateSessionTitle: ctx.generateSessionTitle }
+            : {}),
         },
         sessionID ?? "",
       )

@@ -9,18 +9,10 @@ import { homedir } from "os";
 import { join } from "path";
 import { existsSync, mkdirSync, writeFileSync, readFileSync, unlinkSync, readdirSync } from "fs";
 import { contextLogger } from "../logger.js";
-import { getRuntimeContext } from "../runtime-context.js";
 
-function getStateDir(): string {
-  try {
-    const ctx = getRuntimeContext();
-    if (ctx?.wopalHome) {
-      return join(ctx.wopalHome, "storage", "session_context");
-    }
-  } catch {
-    // Fallback if RuntimeContext is not initialized
-  }
-  const wopalHome = process.env.WOPAL_HOME || join(homedir(), ".wopal");
+export function getSessionContextDir(
+  wopalHome = process.env.WOPAL_HOME || join(homedir(), ".wopal"),
+): string {
   return join(wopalHome, "storage", "session_context");
 }
 
@@ -69,7 +61,7 @@ export interface SessionContext {
  */
 export function loadSessionContext(sessionID: string): SessionContext | null {
   try {
-    const stateDir = getStateDir();
+    const stateDir = getSessionContextDir();
     const filePath = join(stateDir, `${sessionID}.json`);
     if (!existsSync(filePath)) {
       return null;
@@ -100,7 +92,7 @@ export function loadSessionContext(sessionID: string): SessionContext | null {
  */
 export function saveSessionContext(ctx: SessionContext): void {
   try {
-    const stateDir = getStateDir();
+    const stateDir = getSessionContextDir();
     if (!existsSync(stateDir)) {
       mkdirSync(stateDir, { recursive: true });
     }
@@ -121,7 +113,7 @@ export function saveSessionContext(ctx: SessionContext): void {
  */
 export function clearSessionContext(sessionID: string): void {
   try {
-    const stateDir = getStateDir();
+    const stateDir = getSessionContextDir();
     const filePath = join(stateDir, `${sessionID}.json`);
     if (existsSync(filePath)) {
       unlinkSync(filePath);
@@ -143,7 +135,7 @@ export function clearSessionContext(sessionID: string): void {
  */
 export function cleanupLegacyStateFiles(): number {
   try {
-    const stateDir = getStateDir();
+    const stateDir = getSessionContextDir();
     if (!existsSync(stateDir)) {
       contextLogger.debug(`State directory doesn't exist: ${stateDir}`);
       return 0;

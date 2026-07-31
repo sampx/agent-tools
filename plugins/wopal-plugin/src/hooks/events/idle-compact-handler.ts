@@ -14,8 +14,6 @@ import {
   saveSessionContext,
   type SessionContext,
 } from "../../memory/session-context.js"
-import { getLLMClient } from "../../llm-client.js"
-import { loadTitlePrompt } from "../../memory/prompts.js"
 import { formatSessionID } from "../../logger.js"
 import { classifyTaskStop } from "../../tasks/task-stop-classifier.js"
 import { consumeStopNotificationSuppression } from "../../tasks/task-stop-suppression.js"
@@ -27,6 +25,7 @@ export interface IdleCompactHandlerContext {
   taskManager: SimpleTaskManager | undefined
   contextLogger: LoggerInstance
   taskLogger: LoggerInstance
+  generateSessionTitle?: (summary: string) => Promise<{ title?: unknown }>
 }
 
 interface TitleGenerationResult {
@@ -148,7 +147,13 @@ export async function handleSessionCompacted(
 
   // Fire background title generation from compaction summary (non-blocking)
   if (compactionText) {
-    generateTitleInBackground(ctx.client, sessionID, compactionText, ctx.contextLogger)
+    generateTitleInBackground(
+      ctx.client,
+      sessionID,
+      compactionText,
+      ctx.contextLogger,
+      ctx.generateSessionTitle,
+    )
       .catch(() => {})
   }
 
@@ -204,11 +209,11 @@ async function generateTitleInBackground(
   sessionID: string,
   compactionText: string,
   logger: LoggerInstance,
+  generateSessionTitle?: (summary: string) => Promise<{ title?: unknown }>,
 ): Promise<void> {
+  if (!generateSessionTitle) return
   try {
-    const llm = getLLMClient()
-    const prompt = loadTitlePrompt().replace("{{summary}}", compactionText)
-    const result = await llm.completeJson<TitleGenerationResult>(prompt)
+    const result = await generateSessionTitle(compactionText) as TitleGenerationResult
     const validation = validateGeneratedTitle(result)
     if ("reason" in validation) {
       logger.debug({ session_id: formatSessionID(sessionID, false), reason: validation.reason }, "Session title generation skipped")
