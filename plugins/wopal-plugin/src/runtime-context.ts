@@ -1,54 +1,32 @@
-/**
- * Runtime Context
- *
- * Detects the execution environment: WOPAL_HOME, wopal-space status
- * (via WOPAL_SPACE_ROOT set by ellamaka), and log directory routing.
- * Initialized once at plugin startup.
- */
-
 import { homedir } from "os";
 import { join } from "path";
 
 export interface RuntimeContext {
-  wopalHome: string;       // process.env.WOPAL_HOME ?? ~/.wopal
-  directory: string;        // ellamaka working directory (from pluginInput.directory)
-  isWopalSpace: boolean;   // WOPAL_SPACE_ROOT is set
-  spaceRoot?: string;       // WOPAL_SPACE_ROOT, the wopal-space root directory
-  logDir: string;           // space: <spaceRoot>/.wopal-space/logs/ ; else: WOPAL_HOME/logs/
+  readonly wopalHome: string;
+  readonly directory: string;
+  readonly isWopalSpace: boolean;
+  readonly wopalSpaceRoot?: string;
+  readonly logDir: string;
 }
 
-let _context: RuntimeContext | null = null;
+export interface RuntimeContextInput {
+  directory: string;
+  wopalHome?: string;
+  wopalSpaceRoot?: string;
+}
 
-/**
- * Initialize the runtime context singleton.
- * Must be called once at plugin startup before any other module
- * accesses the context via getRuntimeContext().
- */
-export function initRuntimeContext(directory: string): RuntimeContext {
-  const wopalHome = process.env.WOPAL_HOME || join(homedir(), ".wopal");
-  const spaceRoot = process.env.WOPAL_SPACE_ROOT;
-  const isWopalSpace = spaceRoot !== undefined;
-  const logDir = isWopalSpace
-    ? join(spaceRoot, ".wopal-space", "logs")
-    : join(wopalHome, "logs");
-
-  _context = {
+export function createRuntimeContext(input: RuntimeContextInput): RuntimeContext {
+  const wopalHome = input.wopalHome ?? join(homedir(), ".wopal");
+  const context: RuntimeContext = {
     wopalHome,
-    directory,
-    isWopalSpace,
-    logDir,
-    ...(spaceRoot !== undefined ? { spaceRoot } : {}),
+    directory: input.directory,
+    isWopalSpace: input.wopalSpaceRoot !== undefined,
+    logDir: input.wopalSpaceRoot
+      ? join(input.wopalSpaceRoot, ".wopal-space", "logs")
+      : join(wopalHome, "logs"),
+    ...(input.wopalSpaceRoot !== undefined
+      ? { wopalSpaceRoot: input.wopalSpaceRoot }
+      : {}),
   };
-  return _context;
-}
-
-/**
- * Get the runtime context singleton.
- * Throws if initRuntimeContext() has not been called.
- */
-export function getRuntimeContext(): RuntimeContext {
-  if (!_context) {
-    throw new Error("RuntimeContext not initialized");
-  }
-  return _context;
+  return Object.freeze(context);
 }

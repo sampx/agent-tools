@@ -20,6 +20,11 @@ export interface HookContextOptions {
   ruleFiles: DiscoveredRule[];
   sessionStore: SessionStore;
   coreLogger?: LoggerInstance;
+  rulesLogger?: LoggerInstance;
+  taskLogger?: LoggerInstance;
+  memoryLogger?: LoggerInstance;
+  contextLogger?: LoggerInstance;
+  generateSessionTitle?: (summary: string) => Promise<{ title?: unknown }>;
   now?: () => number;
   taskManager?: SimpleTaskManager;
   memoryInjector?: MemoryInjector | undefined;
@@ -50,6 +55,7 @@ export interface HookContext {
   systemInjectionsMap: Map<string, string[]>;
   rulesInjectionEnabled: boolean;
   memoryInjectionEnabled: boolean;
+  generateSessionTitle: ((summary: string) => Promise<{ title?: unknown }>) | undefined;
 }
 
 export function createHookContext(opts: HookContextOptions): HookContext {
@@ -60,10 +66,10 @@ export function createHookContext(opts: HookContextOptions): HookContext {
     ruleFiles: opts.ruleFiles,
     sessionStore: opts.sessionStore,
     coreLogger: opts.coreLogger ?? coreLogger,
-    rulesLogger: rulesLogger,
-    taskLogger: taskLogger,
-    memoryLogger: memoryLogger,
-    contextLogger: contextLogger,
+    rulesLogger: opts.rulesLogger ?? rulesLogger,
+    taskLogger: opts.taskLogger ?? taskLogger,
+    memoryLogger: opts.memoryLogger ?? memoryLogger,
+    contextLogger: opts.contextLogger ?? contextLogger,
     now: opts.now ?? (() => Date.now()),
     taskManager: opts.taskManager ?? undefined,
     memoryInjector: opts.memoryInjector,
@@ -73,6 +79,7 @@ export function createHookContext(opts: HookContextOptions): HookContext {
     systemInjectionsMap: opts.systemInjectionsMap ?? new Map(),
     rulesInjectionEnabled: opts.rulesInjectionEnabled ?? true,
     memoryInjectionEnabled: opts.memoryInjectionEnabled ?? true,
+    generateSessionTitle: opts.generateSessionTitle,
   };
 }
 
@@ -154,6 +161,9 @@ export function createAllHooks(ctx: HookContext): AllHooksResult {
     coreLogger: ctx.coreLogger,
     taskManager: ctx.taskManager,
     directory: ctx.directory,
+    ...(ctx.generateSessionTitle
+      ? { generateSessionTitle: ctx.generateSessionTitle }
+      : {}),
   });
 
   const compactionHooks = createCompactionHooks({
