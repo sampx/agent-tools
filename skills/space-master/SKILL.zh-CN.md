@@ -98,8 +98,23 @@ description: |
 [主干升维 promote] (--include 链式) ➔ 必须与用户讨论确认范围后，将通用能力回流 main 主干
 ```
 
+> ⚠️ **关键：每次 `contribute` 和 `promote` 必须使用链式 `--include`。** 不加 `--include` 会把当前分支积累的**所有**变更一次性推出去——包括他人的工作、无关功能、陈旧内容。不可逆。没有后悔药。
+
+**每次 contribute/promote 的飞前检查：**
+
+1. 先**不加 `--confirm`** 跑一次（dry-run）→ 检查文件列表
+2. 确认只有**你自己改的文件**出现在列表里；不对则调整 `--include` glob
+3. 反复 dry-run 直到文件列表正确
+4. 最终才加 `--confirm` 执行
+
 - **检查状态与 Mode（预检）**：`wopal ontology status`
-- **空间合入类型**：`wopal space contribute --message "feat(scope): description" --confirm`
+- **空间合入类型**：
+  ```bash
+  wopal space contribute \
+    --include "skills/dev-flow/**" \
+    --message "enhance(dev-flow): description" \
+    --confirm
+  ```
 - **创建上游 PR（Fork 模式，链式 `--include`）**：
   ```bash
   wopal ontology contribute \
@@ -127,11 +142,23 @@ description: |
 - **插件改动验证**：检查日志 `<workspace>/.wopal-space/logs/wopal-plugin.log`
 
 ### 4. 核心硬约束
-- **Promote 用户讨论铁律**：**Promote 升维的范围必须提前与用户充分讨论并逐项确认，严禁 Agent 自以为是擅作主张！**
+
+#### contribute/promote 门禁（最高优先级）
+
+> ⚠️ **忘加 `--include` = 全量推送** — 当前分支积累的所有变更（他人的工作、无关功能、历史残留）一次性全推出去。不可逆。必须始终链式指定 `--include` glob。
+
+**每次 `contribute` 和 `promote` 的飞前检查：**
+1. **先不加 `--confirm`** 跑 dry-run
+2. 检查文件列表 —— 只有你改的文件才应该出现
+3. 不对则调整 `--include` glob，重跑 dry-run
+4. 确认无误才加 `--confirm` 执行
+
+**链式 `--include` 白名单**：必须使用链式 `--include` 明确指定路径。多个 `--include` 叠加生效，每个 glob 对应一个目录或文件。禁止不加任何 `--include` 运行 `contribute` 或 `promote`。
+
+- **分主题独立贡献**：禁止合并无关变更到同一个 PR。按目录或功能区域拆分。
+- **Promote 用户讨论铁律**：Promote 升维的范围必须提前与用户充分讨论并逐项确认，严禁 Agent 自以为是擅作主张！
 - **Mode 检查约束**：Clone 模式下坚决禁止构建或调用 `contribute` 命令。
 - **先状态后操作**：构建并执行修改类命令前，必须先调用 `wopal ontology status` 确认 Mode 与拓扑。
-- **链式 `--include` 白名单**：贡献或升维时必须传入链式 `--include` 明确白名单范围。
-- **分主题独立贡献**：禁止合并提交不同主题的改动。
 
 ---
 

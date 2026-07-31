@@ -98,8 +98,23 @@ Before suggesting or executing any upstream operations, Agents MUST run `wopal o
 [Main Promotion promote] (chained --include) ➔ MUST discuss with user to confirm scope before promoting to main
 ```
 
+> ⚠️ **CRITICAL: Every `contribute` and `promote` MUST use chained `--include` flags.** Omitting `--include` pushes ALL accumulated changes from the branch — including unrelated work from other contributors, other features, and stale content. There is no undo.
+
+**Pre-Flight Sequence** — every contribute/promote operation follows this order:
+
+1. Run **without `--confirm`** first (dry-run) → inspect the file list
+2. Verify only YOUR changed files appear; if not, adjust `--include` globs
+3. Re-dry-run until the file list is correct
+4. Only then: re-run with `--confirm`
+
 - **Check Status & Mode (Pre-check)**: `wopal ontology status`
-- **Merge Space into Type**: `wopal space contribute --message "feat(scope): short description" --confirm`
+- **Merge Space into Type**:
+  ```bash
+  wopal space contribute \
+    --include "skills/dev-flow/**" \
+    --message "enhance(dev-flow): short description" \
+    --confirm
+  ```
 - **Create Upstream PR (Fork Mode, Chained `--include`)**:
   ```bash
   wopal ontology contribute \
@@ -127,11 +142,23 @@ Agents MUST perform verification after executing commands or modifying skills, a
 - **Plugin Modification Verification**: Inspect `<workspace>/.wopal-space/logs/wopal-plugin.log`
 
 ### 4. Core Iron Laws
-- **MANDATORY User Discussion for Promote**: **The scope of `wopal ontology promote` MUST be thoroughly discussed with and explicitly confirmed by the user beforehand. Agents are STRICTLY FORBIDDEN from acting on their own assumptions!**
+
+#### Contribute/Promote Gate (HIGHEST PRIORITY)
+
+> ⚠️ **Omitting `--include` pushes EVERYTHING** — all accumulated changes from the branch, including unrelated work by other contributors and stale content. There is no undo. Always chain explicit `--include` globs.
+
+**Pre-Flight Checklist for every `contribute` and `promote`:**
+1. Run **without `--confirm`** first (dry-run)
+2. Inspect the file list — only YOUR changed files should appear
+3. If wrong: adjust `--include` globs, re-dry-run
+4. Only then: re-run with `--confirm`
+
+**Chained `--include` Whitelist**: Always specify explicit paths using chained `--include` flags. Multiple `--include` flags are additive — use one per directory or file. Never run `contribute` or `promote` without at least one `--include`.
+
+- **Topic-Based Contributions**: Never combine unrelated changes into a single PR. Split by directory or feature area.
+- **MANDATORY User Discussion for Promote**: The scope of `wopal ontology promote` MUST be thoroughly discussed with and explicitly confirmed by the user beforehand. Agents are STRICTLY FORBIDDEN from acting on their own assumptions!
 - **Mode Enforcement**: NEVER construct or invoke `contribute` commands in Clone mode.
 - **Read Status First**: Always call `wopal ontology status` to inspect Mode and topology before building modifying commands.
-- **Chained `--include` Whitelist**: Always specify explicit whitelist paths using chained `--include` flags when contributing or promoting.
-- **Topic-Based Contributions**: Never combine unrelated changes into a single PR.
 
 ---
 
