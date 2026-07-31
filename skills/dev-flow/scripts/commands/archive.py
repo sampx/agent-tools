@@ -26,7 +26,7 @@ from pathlib import Path
 from datetime import date
 
 from lib.logging import log_info, log_success, log_error, log_warn, log_step
-from lib.workspace import find_workspace_root, get_ontology_main_repo
+from lib.workspace import find_workspace_root
 from workflow import guard_status, resolve_space_repo
 from plan import find_plan
 from plan import (
@@ -541,31 +541,62 @@ def cmd_archive(args: argparse.Namespace) -> int:
     if is_ontology_worktree:
         log_step("Ontology worktree project detected")
 
-        # Detect stale worktree and branch (warn only, no auto-cleanup)
-        wt = _detect_worktree(plan_path, project or "ontology", workspace_root)
-        if wt:
-            branch = wt['branch']
-            wt_path = wt['path']
-            wt_path_resolved = Path(wt_path)
-            if not wt_path_resolved.is_absolute():
-                wt_path_resolved = workspace_root / wt_path_resolved
+        project_path = resolve_project_path(plan_path, project, workspace_root)
 
-            if wt_path_resolved.exists():
-                log_warn(f"Worktree 目录残留: {wt_path_resolved}")
-                log_warn(f"  请手动清理: trash {wt_path_resolved}")
+        if project_path:
+            wt = _detect_worktree(plan_path, project or "ontology", workspace_root)
 
-            main_repo = get_ontology_main_repo(workspace_root)
-            if main_repo:
-                branch_result = subprocess.run(
-                    ['git', 'branch', '--list', branch],
-                    capture_output=True, text=True,
-                    cwd=str(main_repo),
+            if wt:
+                branch = wt['branch']
+                wt_path = wt['path']
+
+                # Resolve wt_path (may be absolute or workspace-relative)
+                wt_path_resolved = Path(wt_path)
+                if not wt_path_resolved.is_absolute():
+                    wt_path_resolved = workspace_root / wt_path_resolved
+
+                if not wt_path_resolved.exists():
+                    # Worktree directory was cleaned up earlier (typically
+                    # by verify-switch). The feature branch may still be
+                    # present. Skip merge — by this point the branch has
+                    # either been merged into the integration branch
+                    # (verify --confirm ensures this) or is intentionally
+                    # orphaned.
+                    log_info(f"Worktree path no longer exists: {wt_path_resolved}")
+                    log_info("Skipping merge; cleaning up feature branch only")
+                else:
+                    # Worktree directory present → check dirty and merge status
+                    if has_uncommitted_changes(str(wt_path_resolved)):
+                        if not args.force:
+                            log_warn(f"Worktree has uncommitted changes: {wt_path_resolved}")
+                            log_warn("Archive will proceed but uncommitted worktree changes may be lost when worktree is cleaned up")
+
+                    # Check if feature branch has been merged
+                    merge_status = check_branch_merged(workspace_root, plan_path)
+                    if merge_status != 0:
+                        log_error("Feature branch not yet merged. Please merge first.")
+                        return 1
+
+                    log_info("Feature branch already merged, skipping merge")
+
+                # Always cleanup — clean_worktree is safe when the
+                # worktree directory is gone; it still deletes the
+                # feature branch.
+                _cleanup_worktree(
+                    str(project_path),
+                    branch,
+                    str(wt_path_resolved),
+                    workspace_root,
                 )
-                if branch_result.stdout.strip():
-                    log_warn(f"分支残留: {branch}")
-                    log_warn(f"  请手动删除: cd {main_repo} && git branch -d {branch}")
+                worktree_handled = True
+            else:
+                # No worktree — check dirty on project
+                if has_uncommitted_changes(str(project_path)):
+                    if not args.force:
+                        log_warn(f"Project {project} has uncommitted changes — these changes will NOT be committed by archive")
+                    # Continue — dirty working tree no longer blocks archive
 
-        log_warn("请手动 push .wopal/ 变更: cd .wopal && git push")
+            log_warn(f"请手动 push .wopal/ 变更: cd {project_path} && git push")
     elif project:
         project_path = resolve_project_path(plan_path, project, workspace_root)
 
@@ -600,9 +631,9 @@ def cmd_archive(args: argparse.Namespace) -> int:
                     else:
                         # Worktree directory present → check merge status
                         if has_uncommitted_changes(str(wt_path_resolved)):
-                            log_error(f"Worktree has uncommitted changes: {wt_path_resolved}")
-                            log_error("Commit changes in worktree first, then re-run archive")
-                            return 1
+                            if not args.force:
+                                log_warn(f"Worktree has uncommitted changes: {wt_path_resolved}")
+                                log_warn("Archive will proceed but uncommitted worktree changes may be lost when worktree is cleaned up")
 
                         # Check if feature branch has been merged
                         merge_status = check_branch_merged(workspace_root, plan_path)
@@ -625,9 +656,9 @@ def cmd_archive(args: argparse.Namespace) -> int:
             else:
                 # No worktree — remind user to push project changes
                 if has_uncommitted_changes(str(project_path)):
-                    log_error(f"Project {project} has uncommitted changes — archive does not commit implementation code")
-                    log_error("Commit changes first, then re-run archive")
-                    return 1
+                    if not args.force:
+                        log_warn(f"Project {project} has uncommitted changes — these changes will NOT be committed by archive")
+                    # Continue — dirty working tree no longer blocks archive
                 log_warn(f"请手动 push 项目变更: cd {project_path} && git push")
 
     # 4. Cache Product/Phase metadata before Plan is moved
@@ -732,4 +763,9 @@ def register_archive_parser(subparsers: argparse._SubParsersAction) -> None:
         "target",
         nargs="?",
         help="Issue number or Plan name"
+    )
+    archive_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Skip dirty working tree warnings"
     )
