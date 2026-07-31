@@ -48,9 +48,15 @@ description: |
 | 方向 | 含义 | 命令 |
 |------|------|------|
 | **下行** | 拉取上游最新变更到本地 | `wopal ontology update --confirm` |
-| **上行** | 将本地变更贡献回上游 | `wopal ontology contribute` / `wopal ontology promote` |
+| **上行** | 将本地变更贡献回上游 | `wopal space contribute` → `wopal ontology contribute` / `wopal ontology promote` |
 
-Agent 听到"同步本体"时，必须先执行下行（update），再检查是否有待贡献的本地变更，有则执行上行（contribute/promote）。
+同步不是固定的一串命令。下行更新在贡献批次开始前和 PR 合并后执行。上行贡献必须按以下层级顺序推进：
+
+```
+space/<name> → local type/* → origin/type/* → upstream PR
+```
+
+先用 `space status` 确认待贡献文件。文件仍在 space 分支时，先运行 `space contribute`。只有选定文件已经进入 local type/* 后，才能运行 `ontology contribute` 创建上游 PR。贡献过程中不要在 `space contribute` 与 type PR 之间插入 `ontology update`。
 
 ### 2.3 两种贡献路径
 
@@ -68,10 +74,10 @@ space → type → upstream(type) → ✓ 完成
 ```
 
 ```
-1. space contribute     space/* → type/*
-2. ontology update      上游 → 本地（同步基线）
-3. ontology contribute  type/* → upstream(type)（话题 PR）
-4. ontology update      上游合并后下行同步
+0. ontology update      如下行有待同步内容，先在本批次开始前完成
+1. space contribute     space/* → local type/* → origin/type/*
+2. ontology contribute  type/* → upstream(type)（话题 PR）
+3. ontology update      上游合并后下行同步
 ```
 
 > 类型专属的能力走此路径。不需要 promote 到 main。
@@ -83,18 +89,18 @@ space → type → upstream(type) → promote → upstream(main) → ✓ 完成
 ```
 
 ```
-1. space contribute     space/* → type/*
-2. ontology update      上游 → 本地（同步基线）
-3. ontology contribute  type/* → upstream(type)（话题 PR）
-4. ontology update      上游合并后下行同步
-5. ontology promote     type/* → main（先与用户讨论范围）
-6. ontology contribute  main → upstream(main)（话题 PR）
-7. ontology update      再次下行同步
+0. ontology update      如下行有待同步内容，先在本批次开始前完成
+1. space contribute     space/* → local type/* → origin/type/*
+2. ontology contribute  type/* → upstream(type)（话题 PR）
+3. ontology update      上游 type PR 合并后下行同步
+4. ontology promote     type/* → main（先与用户讨论范围）
+5. ontology contribute  main → upstream(main)（话题 PR）
+6. ontology update      上游 main PR 合并后再次下行同步
 ```
 
 > 通用能力（如通用技能、开发流程、模板）走此路径。promote 后 main 分支产生了新的 divergence，必须在步骤 6 再次贡献到 upstream(main)。
 
-**关键差异**：长路径比短路径多 3 步（promote → contribute main → update）。执行时容易在 promote 后忘记步骤 6。
+**关键差异**：长路径比短路径多 3 步（promote → contribute main → update）。执行时容易在 promote 后忘记 main PR。
 
 ### 2.4 分主题分批 PR
 
