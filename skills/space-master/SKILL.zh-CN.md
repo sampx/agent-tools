@@ -41,47 +41,98 @@ description: |
 
 命令：`wopal ontology status`
 
-### 2.2 标准流程（Fork 模式）
+### 2.2 两种贡献路径
+
+不是所有变更都走同样的流程。Ontology 有三层架构（main → type/* → space/*），文件按状态分为两类：
+
+| 状态 | 含义 | 示例 | 路径 |
+|------|------|------|------|
+| **A-status** | 类型专属，只存在于 type/* | 特定领域的技能、工作流、集成脚本 | **短路径**：4 步 |
+| **M-status** | 通用能力，最终进入 main 供所有空间共享 | 通用技能、开发流程、模板 | **长路径**：7 步 |
+
+#### 短路径（A-status 类型专属）
 
 ```
-1. space contribute   space/* → type/*
-2. ontology update    上游 → 本地（上行贡献前先拉取最新）
-3. ontology contribute  PR type/* → upstream（GitHub）
-4. ontology update    上游合并后下行同步
-5. ontology promote   type/* → main（先与用户讨论范围）
+space → type → upstream(type) → ✓ 完成
 ```
 
-`contribute` 前必须先 `update`——不拉取上游最新就直接推送，容易产生冲突和过期 diff。
+```
+1. space contribute     space/* → type/*
+2. ontology update      上游 → 本地（同步基线）
+3. ontology contribute  type/* → upstream(type)（话题 PR）
+4. ontology update      上游合并后下行同步
+```
 
-**命令**（全部需要链式 `--include`）：
+> 类型专属的能力走此路径。不需要 promote 到 main。
+
+#### 长路径（M-status 通用能力）
+
+```
+space → type → upstream(type) → promote → upstream(main) → ✓ 完成
+```
+
+```
+1. space contribute     space/* → type/*
+2. ontology update      上游 → 本地（同步基线）
+3. ontology contribute  type/* → upstream(type)（话题 PR）
+4. ontology update      上游合并后下行同步
+5. ontology promote     type/* → main（先与用户讨论范围）
+6. ontology contribute  main → upstream(main)（话题 PR）
+7. ontology update      再次下行同步
+```
+
+> 通用能力（如通用技能、开发流程、模板）走此路径。promote 后 main 分支产生了新的 divergence，必须在步骤 6 再次贡献到 upstream(main)。
+
+**关键差异**：长路径比短路径多 3 步（promote → contribute main → update）。执行时容易在 promote 后忘记步骤 6。
+
+### 2.3 分主题分批 PR
+
+**一次 PR 只含一个主题。** 不同目录或功能区域的变更必须拆分为独立 PR。
+
+#### 为什么必须拆分
+
+- `--include` 可以隔离变更文件，但如果两个不相关的话题混在一个 PR 里，Reviewer 无法分别审核和合并。
+- 混在一起的 PR 如果其中一个话题被 Reject，另一个也受牵连。
+- Ontology 仓库是所有空间的共享基础设施，PR 历史必须清晰可追溯。
+
+#### 拆分实例
+
+假设 `origin/main → upstream/main` 显示以下待贡献文件：
+
+| 文件 | 所属话题 |
+|------|----------|
+| `plugins/plugin-a/src/feature-x.ts` | plugin-a 新功能 |
+| `plugins/plugin-a/src/feature-y.ts` | plugin-a 新功能 |
+| `skills/skill-a/SKILL.md` | skill-a 技能重写 |
+| `skills/skill-b/scripts/helper.py` | skill-b 脚本改进 |
+
+应拆分为 **3 个独立 PR**：
 
 ```bash
-# 1. 空间 → 类型
-wopal space contribute \
-  --include "skills/<name>/**" \
-  --message "feat(scope): description" --confirm
+# PR 1: plugin-a 新功能
+wopal ontology contribute --type common \
+  --include "plugins/plugin-a/**" \
+  --message "feat(plugin-a): add feature X and Y"
 
-# 2. 下行同步
-wopal ontology update --confirm
+# PR 2: skill-a 技能重写
+wopal ontology contribute --type common \
+  --include "skills/skill-a/**" \
+  --message "feat(skill-a): rewrite workflow guide"
 
-# 3. 类型 → 上游 PR
-wopal ontology contribute \
-  --type coding \
-  --include "skills/<name>/**" \
-  --include "docs/**" \
-  --message "feat(scope): description" --confirm
-
-# 4. 合并后下行同步
-wopal ontology update --confirm
-
-# 5. 升维到 main
-wopal ontology promote \
-  --from type/coding \
-  --include "templates/**" \
-  --message "feat(ontology): promote generic templates to main" --confirm
+# PR 3: skill-b 脚本改进
+wopal ontology contribute --type common \
+  --include "skills/skill-b/scripts/helper.py" \
+  --message "feat(skill-b): improve helper script"
 ```
 
-### 2.3 同步门禁
+#### 拆分规则
+
+1. **按文件路径隔离**：同一目录树的变更通常属于同一话题
+2. **按功能区域隔离**：不同 feature area 的变更不应混在一起
+3. **批次顺序**：建议先贡献有依赖关系的 PR（如某个插件可能被其他变更依赖），同层级无依赖的可任意顺序
+4. **每批重复完整门禁**：每个 PR 都独立过同步分析门禁和飞前检查门禁
+
+### 2.4 同步门禁
 
 每次同步操作（`contribute`、`update`、`promote`）必须依次通过两道门禁：
 
@@ -91,7 +142,7 @@ wopal ontology promote \
 
 1. `wopal space status` — 空间层差异
 2. `wopal ontology status` — 本体层差异（领先/落后、文件级 diff）
-3. 向用户汇报：变更文件、同步范围、排除策略
+3. 向用户汇报：变更文件、同步范围、排除策略、拆分批次
 4. 用户明确确认后才进入下一步
 
 #### 门禁二：飞前检查
@@ -105,15 +156,14 @@ wopal ontology promote \
 
 > 不加 `--include` 会把分支上所有人的所有积累变更一次性全推出去。不可逆。
 
-### 2.4 本体规则
+### 2.5 本体规则
 
 1. **禁止自动同步。** 先分析后汇报用户，确认再执行。
 2. **必须链式 `--include`。** 多个叠加生效，每个 glob 对应一个目录。
-3. **分主题独立 PR。** 按目录或功能区域拆分子主题。
-4. **Promote 必须与用户讨论。** M-status 能力（跨空间共享）可升维；A-status（类型专属）不可。
-5. **Clone 模式不支持 `contribute`。** 如需 PR，引导用户切换到 Fork 模式。
-6. **删除风险需 `reconcile`。** `update` 报 deletion-risk 时，`type/*` 独有的文件面临被删风险。先跑 `wopal ontology reconcile --type <type> --theirs --confirm` 保留它们，再重试 `update`。
-7. **执行后必须验证。** `wopal ontology status` 和 `git diff --stat upstream/main origin/main`。
+3. **Promote 必须与用户讨论。** M-status 能力（跨空间共享）可升维；A-status（类型专属）不可。Agent 禁止自行决定 promote 范围。
+4. **Clone 模式不支持 `contribute`。** 如需 PR，引导用户切换到 Fork 模式。
+5. **删除风险需 `reconcile`。** `update` 报 deletion-risk 时，`type/*` 独有的文件面临被删风险。先跑 `wopal ontology reconcile --type <type> --theirs --confirm` 保留它们，再重试 `update`。
+6. **执行后必须验证。** `wopal ontology status` 和 `git diff --stat upstream/main origin/main`。
 
 ---
 
