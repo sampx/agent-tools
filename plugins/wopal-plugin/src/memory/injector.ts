@@ -7,13 +7,15 @@
 
 import type { MemoryRetriever } from "./retriever.js";
 import type { Memory } from "./store.js";
-import { memoryLogger, formatSessionID } from "../logger.js";
+import { memoryLogger, formatSessionID, type LoggerInstance } from "../logger.js";
 
 export class MemoryInjector {
   private retriever: MemoryRetriever;
+  private logger: LoggerInstance;
 
-  constructor(retriever: MemoryRetriever) {
+  constructor(retriever: MemoryRetriever, logger: LoggerInstance = memoryLogger) {
     this.retriever = retriever;
+    this.logger = logger;
   }
 
   async isEmpty(): Promise<boolean> {
@@ -29,7 +31,7 @@ export class MemoryInjector {
       const memories = await this.retriever.retrieve(userQuery);
 
       if (memories.length === 0) {
-        memoryLogger.debug(`[inject] No relevant memories found`);
+        this.logger.debug(`[inject] No relevant memories found`);
         return undefined;
       }
 
@@ -37,13 +39,13 @@ export class MemoryInjector {
       const tokens = Math.ceil(formatted.length / 4);
       const sid = formatSessionID(sessionID, !!isTask);
       const idLines = injectedIds.map((id, i) => `  [${i + 1}] ${id}`).join("\n");
-      memoryLogger.info(
+      this.logger.info(
         `[inject] ${sid} retrieved=${memories.length}, injected=${injectedCount}, tokens=${tokens}\n${idLines}`,
       );
 
       return formatted;
     } catch (error) {
-      memoryLogger.debug(`[inject] Retrieval failed: ${error}`);
+      this.logger.debug(`[inject] Retrieval failed: ${error}`);
       return undefined;
     }
   }

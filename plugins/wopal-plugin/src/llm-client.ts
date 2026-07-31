@@ -6,7 +6,8 @@
  */
 
 import OpenAI from "openai";
-import { coreLogger } from "./logger.js";
+import { coreLogger, type LoggerInstance } from "./logger.js";
+import type { RuntimeEnvironment } from "./runtime-environment.js";
 
 const LLM_TIMEOUT_MS = 120000;
 
@@ -21,10 +22,15 @@ const LLM_TIMEOUT_MS = 120000;
 export class LLMClient {
   private client: OpenAI;
   private model: string;
+  private logger: LoggerInstance;
 
-  constructor() {
-    const baseURL = process.env.WOPAL_LLM_BASE_URL;
-    const apiKey = process.env.WOPAL_LLM_API_KEY;
+  constructor(
+    environment: RuntimeEnvironment = process.env,
+    logger: LoggerInstance = coreLogger,
+  ) {
+    this.logger = logger;
+    const baseURL = environment.WOPAL_LLM_BASE_URL;
+    const apiKey = environment.WOPAL_LLM_API_KEY;
 
     if (!baseURL || !apiKey) {
       throw new Error(
@@ -32,14 +38,14 @@ export class LLMClient {
       );
     }
 
-    this.model = process.env.WOPAL_LLM_MODEL ?? "gpt-4o-mini";
+    this.model = environment.WOPAL_LLM_MODEL ?? "gpt-4o-mini";
 
     this.client = new OpenAI({
       baseURL,
       apiKey,
     });
 
-    coreLogger.info({ model: this.model, base_url: baseURL }, "LLM client ready");
+    this.logger.info({ model: this.model, base_url: baseURL }, "LLM client ready");
   }
 
   /**
@@ -65,7 +71,7 @@ export class LLMClient {
       return content;
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
-      coreLogger.warn({ err }, "LLM completion failed");
+      this.logger.warn({ err }, "LLM completion failed");
       throw new Error(`LLM complete failed: ${err.message}`);
     }
   }
@@ -86,7 +92,7 @@ export class LLMClient {
     const jsonStr = this.extractJson(rawResponse);
 
     if (!jsonStr) {
-      coreLogger.warn("LLM JSON response missing JSON payload");
+      this.logger.warn("LLM JSON response missing JSON payload");
       throw new Error("No JSON found in LLM response");
     }
 
@@ -104,7 +110,7 @@ export class LLMClient {
       return JSON.parse(repaired) as T;
     } catch (parseError) {
       const message = parseError instanceof Error ? parseError.message : String(parseError);
-      coreLogger.warn({ err: parseError instanceof Error ? parseError : new Error(String(parseError)) }, "LLM JSON parse failed");
+      this.logger.warn({ err: parseError instanceof Error ? parseError : new Error(String(parseError)) }, "LLM JSON parse failed");
       throw new Error(`Failed to parse JSON after repair: ${message}`);
     }
   }
@@ -310,9 +316,9 @@ export class LLMClient {
   }
 }
 
-let singleton: LLMClient | null = null;
-
-export function getLLMClient(): LLMClient {
-  singleton ??= new LLMClient();
-  return singleton;
+export function getLLMClient(
+  environment: RuntimeEnvironment = process.env,
+  logger: LoggerInstance = coreLogger,
+): LLMClient {
+  return new LLMClient(environment, logger);
 }

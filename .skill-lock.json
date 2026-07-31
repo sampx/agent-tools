@@ -1,6 +1,15 @@
 {
   "version": 3,
   "skills": {
+    "agent-browser": {
+      "source": "vercel-labs/agent-browser",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/vercel-labs/agent-browser.git",
+      "skillPath": "/skills/agent-browser",
+      "skillFolderHash": "9b31e495b887e4ca123960415eca69fc7e1bba28",
+      "installedAt": "2026-07-13T03:45:19.761Z",
+      "updatedAt": "2026-07-13T03:45:19.764Z"
+    },
     "skill-creator": {
       "source": "anthropics/skills",
       "sourceType": "github",
@@ -9,15 +18,6 @@
       "skillFolderHash": "3cf9a8db32597ba3e24b584a3d696f4e11c7d7b6",
       "installedAt": "2026-06-23T09:43:35.354Z",
       "updatedAt": "2026-06-23T09:43:35.355Z"
-    },
-    "wasteland": {
-      "source": "gastownhall/marketplace",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/gastownhall/marketplace.git",
-      "skillPath": "/plugins/wasteland/skills/wasteland",
-      "skillFolderHash": "54f804482f93df41710929b81240ecf56736a754",
-      "installedAt": "2026-06-29T04:51:24.593Z",
-      "updatedAt": "2026-06-29T04:51:24.593Z"
     }
   }
 }
