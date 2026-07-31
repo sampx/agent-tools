@@ -1,7 +1,7 @@
 # Ontology — 空间灵魂、规约与能力基因工具包设计
 
 > **Status**: Active
-> **Updated**: 2026-06-12
+> **Updated**: 2026-07-31
 > **Parent Architecture**: `docs/products/wopal-space/DESIGN-wopalspace.md`
 > **Parent Product**: `docs/products/wopal-space/PRD-wopalspace.md`
 
@@ -41,6 +41,7 @@ ontology 拥有的目标态能力组：
 | 灵魂、规约与能力协同演进 | Agent 灵魂、规则、技能、命令、模板与脚本共同构成空间本体，演进时保持角色、规约与执行面的协同。 |
 | 灵魂与操作分离 | Agent 灵魂文件只定义角色与决策原则（"我是谁"），操作知识由技能承载（"我怎么做"）。 |
 | 插件适配原则 | wopal-plugin 是运行时插件，集中提供规则注入、任务委派、记忆系统和上下文管理，插件能实现尽量不改造 engine。 |
+| Plugin instance 隔离 | Ellamaka 通过 `PluginInput.wopalSpaceRoot` 传递可选空间根。wopal-plugin 为每次 `server(input)` 调用构造独立 RuntimeContext、effective env、logger 与 memory client。 |
 | Git source + worktree 分发 | clone 降低门槛，fork 支持贡献；分支承载空间演化，通用能力回流上游（详见 §6.8）。 |
 
 ---
@@ -99,12 +100,22 @@ wopal-plugin 由 TypeScript 编写，Bun 执行，基于 EllaMaka Plugin SDK。
 
 | 模块 | 职责 | 禁用开关 |
 |------|------|---------|
-| Global（入口） | 加载 .env、检查开关、注册 Hooks/Tools | 无 |
+| Global（入口） | 构造 instance runtime、检查开关、注册 Hooks/Tools | 无 |
 | Rules | 规则发现 → 条件匹配 → 注入系统提示词 | `WOPAL_RULES_INJECTION_ENABLED` |
 | Memory | LanceDB 存储、语义检索、蒸馏注入 | `WOPAL_MEMORY_ENABLED`（总控） |
 | Task | 非阻塞子会话启动、状态监控、双向通信、并发控制 | 无（始终启用） |
 | Monitor | 周期性调度引擎，统一管理监控策略 | 无（始终启用） |
 | Context | 会话摘要、上下文压缩与恢复 | 无（始终启用） |
+
+每次 plugin invocation 以 `PluginInput.wopalSpaceRoot` 作为唯一空间根来源。字段缺失表示非 WopalSpace instance。effective env 由进程启动环境、`$WOPAL_HOME/.env` 与 `<wopalSpaceRoot>/.wopal/.env` 合并生成，并保持只读，不写回 `process.env`。
+
+| 资源 | 非 WopalSpace | WopalSpace |
+|------|---------------|------------|
+| Rules | `$WOPAL_HOME/rules` | `$WOPAL_HOME/rules` + `<wopalSpaceRoot>/.wopal/rules` |
+| Plugin log | `$WOPAL_HOME/logs/wopal-plugin.log` | `<wopalSpaceRoot>/.wopal-space/logs/wopal-plugin.log` |
+| Memory prompts | `$WOPAL_HOME/prompts` | `<wopalSpaceRoot>/.wopal/prompts` + `$WOPAL_HOME/prompts` |
+| Memory database | `$WOPAL_HOME/storage/memory` | `$WOPAL_HOME/storage/memory` |
+| Session context | `$WOPAL_HOME/storage/session_context` | `$WOPAL_HOME/storage/session_context` |
 
 ### 4.6 模板体系
 
@@ -622,7 +633,7 @@ ontology 本身是无状态的声明式能力包，不持有运行时状态：
 | 命令定义 | `commands/*.md` | ontology + ellamaka | ontology 定义，ellamaka 执行 |
 | 辅助脚本 | `scripts/**` | ontology | 维护与辅助自动化载体 |
 | 插件运行时状态 | wopal-plugin 进程内 | wopal-plugin | 运行载体，ontology 不持有 |
-| 记忆数据 | LanceDB（space runtime 内） | memory_manage | ontology 提供工具，不持有数据 |
+| 记忆数据 | `$WOPAL_HOME/storage/memory` 下的 LanceDB | memory_manage | ontology 提供工具，不持有数据 |
 | 会话状态 | ellamaka session | ellamaka | ontology 不持有 |
 | 空间结构 | `.wopal-space/STRUCTURE.md` | `/init` | ontology 提供模板，不持有实例 |
 | 空间守则 | `.wopal-space/REGULATIONS.md` | 用户 + `/wopal:evolve` | ontology 提供初始化模板，不持有实例 |
