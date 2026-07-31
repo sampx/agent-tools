@@ -183,6 +183,11 @@ function getGlobalRulesDirCandidates(): string[] {
   return candidates;
 }
 
+export interface RuleDiscoveryRoots {
+  wopalHome: string;
+  wopalSpaceRoot?: string;
+}
+
 /**
  * Recursively scan a directory for markdown rule files
  * Skips hidden files and directories (starting with .)
@@ -259,7 +264,7 @@ function inferAgentScope(relativePath: string): string | undefined {
  * Discover markdown rule files from standard directories.
  * Searches recursively in (lowest → highest priority):
  * 1. ~/.wopal/rules/ (global, fallback: $XDG_CONFIG_HOME/wopal/rules/)
- * 2. <WOPAL_SPACE_ROOT>/.wopal/rules/ (space-level, when WOPAL_SPACE_ROOT is set)
+ * 2. <wopalSpaceRoot>/.wopal/rules/ (space-level, when supplied)
  * 3. <projectDir>/.wopal/rules/ (project-local, if provided)
  * Finds all .md and .mdc files including nested subdirectories.
  * Direct subdirectories are interpreted as agent scopes (e.g., rules/fae/*.md → agentScope="fae").
@@ -277,6 +282,7 @@ function inferAgentScope(relativePath: string): string | undefined {
 export async function discoverRuleFiles(
   projectDir?: string,
   rulesDebugLog?: LoggerInstance,
+  roots?: RuleDiscoveryRoots,
 ): Promise<DiscoveredRule[]> {
   // Keyed by relativePath to deduplicate and to allow project-local override.
   const ruleMap = new Map<string, DiscoveredRule>();
@@ -296,7 +302,9 @@ export async function discoverRuleFiles(
 
   // Discover global rules from all candidate directories.
   // Among global candidates, the first occurrence of a relativePath wins.
-  const globalCandidates = getGlobalRulesDirCandidates();
+  const globalCandidates = roots
+    ? [path.join(roots.wopalHome, "rules")]
+    : getGlobalRulesDirCandidates();
   for (const globalRulesDir of globalCandidates) {
     const globalRules = await scanDirectoryRecursively(
       globalRulesDir,
@@ -309,7 +317,7 @@ export async function discoverRuleFiles(
     }
   }
 
-  const spaceRoot = process.env.WOPAL_SPACE_ROOT;
+  const spaceRoot = roots?.wopalSpaceRoot;
   if (spaceRoot) {
     const spaceRulesDir = path.join(spaceRoot, ".wopal", "rules");
     const projectRulesDir = projectDir

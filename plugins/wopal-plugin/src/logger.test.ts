@@ -7,8 +7,10 @@ import {
   taskLogger,
   memoryLogger,
   contextLogger,
+  createPluginLoggers,
   formatSessionID,
 } from "./logger"
+import { createRuntimeContext } from "./runtime-context.js"
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -342,6 +344,32 @@ describe("Output format", () => {
     expect(lines.length).toBeGreaterThanOrEqual(2)
     expect(lines[0]).toMatch(/Line 1$/)
     expect(lines[1]).toMatch(/Line 2$/)
+  })
+})
+
+describe("Per-invocation logger routing", () => {
+  it("keeps space log files isolated", () => {
+    const root = join("/tmp", `logger-runtime-${crypto.randomUUID()}`)
+    const spaceA = join(root, "a")
+    const spaceB = join(root, "b")
+    const logA = join(spaceA, ".wopal-space", "logs", "wopal-plugin.log")
+    const logB = join(spaceB, ".wopal-space", "logs", "wopal-plugin.log")
+    try {
+      const runtimeA = createRuntimeContext({ directory: spaceA, wopalSpaceRoot: spaceA })
+      const runtimeB = createRuntimeContext({ directory: spaceB, wopalSpaceRoot: spaceB })
+      const loggersA = createPluginLoggers(runtimeA, { WOPAL_PLUGIN_LOG_LEVEL: "info" })
+      const loggersB = createPluginLoggers(runtimeB, { WOPAL_PLUGIN_LOG_LEVEL: "info" })
+
+      loggersA.core.info("from-a")
+      loggersB.core.info("from-b")
+
+      expect(readFileSync(logA, "utf-8")).toContain("from-a")
+      expect(readFileSync(logA, "utf-8")).not.toContain("from-b")
+      expect(readFileSync(logB, "utf-8")).toContain("from-b")
+      expect(readFileSync(logB, "utf-8")).not.toContain("from-a")
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 })
 
