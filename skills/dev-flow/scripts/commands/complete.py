@@ -154,6 +154,52 @@ def _resolve_code_repo(
     return active.commit_repo_root
 
 
+def _record_verification_commit(
+    plan_path: str, workspace_root: Path, active: "ActivePlanInfo"
+) -> str:
+    """Resolve the feature branch tip SHA and store it as Verification Commit.
+
+    The field feeds verify's L1 ancestor check. The feature branch lives in
+    the project repo, not the space repo — after verify-switch removes the
+    worktree the branch is reachable only from the code repo. Try the commit
+    repo first, then fall back to the code repo; warn loudly instead of
+    silently skipping when the branch is unresolvable everywhere (a missing
+    field degrades verify to the weaker tree/changeset criteria).
+    """
+    wt_meta = get_plan_worktree(plan_path)
+    if not wt_meta or not wt_meta.get("branch"):
+        return ""
+
+    branch = wt_meta["branch"]
+    candidates = [active.commit_repo_root]
+    code_repo = _resolve_code_repo(plan_path, workspace_root, active)
+    if code_repo not in candidates:
+        candidates.append(code_repo)
+
+    for repo in candidates:
+        try:
+            result = subprocess.run(
+                ["git", "rev-parse", branch],
+                cwd=str(repo),
+                capture_output=True,
+                text=True,
+            )
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            continue
+        if result.returncode == 0 and result.stdout.strip():
+            set_plan_field(
+                plan_path, "Verification Commit", result.stdout.strip()
+            )
+            return result.stdout.strip()
+
+    log_warn(
+        "Could not resolve feature branch "
+        f"'{branch}' in any repo — Verification Commit not recorded; "
+        "verify will fall back to tree/changeset detection."
+    )
+    return ""
+
+
 # ============================================
 # Verification guidance helpers
 # ============================================
@@ -387,20 +433,12 @@ def cmd_complete(args: argparse.Namespace) -> int:
         log_success(f"Plan status updated: {target_status}")
 
         # Store feature branch tip SHA for robust merge detection in verify --confirm.
-        # Using commit SHA allows ancestry check without depending on branch ref existence.
-        wt_meta = get_plan_worktree(plan_path)
-        if wt_meta and wt_meta.get("branch"):
-            sha_result = subprocess.run(
-                ["git", "rev-parse", wt_meta["branch"]],
-                cwd=str(active.commit_repo_root),
-                capture_output=True, text=True,
-            )
-            if sha_result.returncode == 0 and sha_result.stdout.strip():
-                set_plan_field(
-                    str(active.active_plan_path),
-                    "Verification Commit",
-                    sha_result.stdout.strip(),
-                )
+        # The feature branch lives in the project repo; the helper falls back
+        # to the code repo when the space repo cannot resolve it (e.g. after
+        # verify-switch removed the worktree).
+        _record_verification_commit(
+            str(active.active_plan_path), workspace_root, active
+        )
 
         # Plan-only commit
         commit_msg = _build_plan_only_commit_msg(plan_issue, plan_name)

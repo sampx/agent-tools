@@ -185,6 +185,8 @@ Metadata 中的项目信息（`Project Path`、`Project Type`、`Target Project`
 
     ## 上下文
     - 实施工作路径: 项目目录绝对路径 (worktree 绝对路径)
+    - 实施基线: Plan Metadata 中 Base Commit（集成分支 HEAD，approve 时记录）。
+      worktree 创建于此基线之上，fae 的提交均以该 commit 为起点
     - 每完成一个 task 的实施和验证, commit git
     - 遵循项目和模块开发规范 (AGENTS.md)
     - <仅在 Plan 之外需要额外强调的事项，无则省略>

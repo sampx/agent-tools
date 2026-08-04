@@ -133,6 +133,8 @@ flow.sh approve <plan> --confirm --no-worktree # 跳过 worktree
 
 `approve` 不带 `--confirm` 时报错退出，提示使用 `submit`。`--confirm` 接受 `reviewing` 或 `planning`（快捷路径）→ `executing`。
 
+approve 还会记录 **Base Commit**（集成分支 HEAD）到 Plan metadata——实施基线，fae 从该 commit 开始实施，squash 合并时与 Final Commit 对照确定影响范围。
+
 ### complete --pr
 
 ```bash
@@ -158,13 +160,17 @@ standard 项目规范路径为项目目录（如 `projects/<name>/`）；ontolog
 flow.sh verify-switch <issue>
 ```
 
-验证通过后，手动合并特性分支到集成分支：
+验证通过后，合并特性分支到集成分支。**默认优先 squash 合并**（保持 main 历史干净）：
 
 ```bash
 cd <repo_root>
 git checkout main        # standard 项目；ontology-worktree 用 space/<name>
-git merge <feature_branch>
+git merge --squash <feature_branch>   # 压成单个提交
+git commit -m "feat(scope): <description> (#<issue>)"
+# 或保留历史: git merge --no-ff <feature_branch>
 ```
+
+squash 合入后 verify 的 tree 相等判据原生识别已合并，无需手动干预。
 
 ### decompose-prd
 
