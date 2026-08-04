@@ -109,17 +109,6 @@ $WOPAL_HOME/{agents,skills,commands,rules,plugins}  # base
 -> <space>/.wopal/{agents,skills,commands,rules,plugins}  # overlay，优先级最高
 ```
 
-### 浏览器扩展
-
-浏览器扩展位于 `.wopal/extensions/` 目录，**不纳入 Base Capability Source Contract**，不参与 symlink 物化。
-
-分发方式：Git 仓库分发。用户 clone ontology 后，手动在浏览器中"加载已解压扩展"安装。更新时需重新加载扩展。
-
-当前扩展：
-- `opencode-usage-extension` — OpenCode 多账号用量监控
-
-扩展遵循 `.wopal/rules/chrome-extension.md` 规范，Edge/Chrome 完全兼容，Firefox 需适配。
-
 ---
 
 ## 6. Runtime Loading Handoff
@@ -162,4 +151,3 @@ ontology 被 materialize 后，ellamaka 在 wopal-space mode 下负责运行时�
 | `../../projects/wopal-cli/docs/DISTRIBUTION.md` | CLI 对 ontology materialization 的消费契约 |
 | `../../projects/ellamaka/docs/DESIGN.md` | ellamaka 的 wopal-space mode 与 runtime loading 设计 |
 | `../../projects/ellamaka/docs/DISTRIBUTION.md` | ellamaka 对 ontology runtime loading 的消费契约 |
-| `.wopal/rules/chrome-extension.md` | 浏览器扩展开发规范 |
