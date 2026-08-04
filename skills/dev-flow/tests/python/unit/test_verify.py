@@ -69,6 +69,46 @@ def _write_plan(tmp_path, content: str, name: str = "42-feature-dev-flow-test.md
     return plan_file
 
 
+# -- Test: Final Commit recording -------------------------------------------------
+
+class TestVerifyRecordsFinalCommit:
+    """verify 应记录 Final Commit(合入后集成分支 HEAD)到 Plan metadata。"""
+
+    def test_final_commit_records_integration_head(self, tmp_path):
+        """Final Commit 应取集成分支 HEAD(standard: main)。"""
+        from commands.verify import _record_final_commit
+        plan_path = _write_plan(tmp_path, PLAN_VERIFYING_STANDARD)
+        proj_dir = tmp_path / "projects" / "gesp"
+        proj_dir.mkdir(parents=True)
+        (proj_dir / ".git").mkdir()
+
+        with patch("commands.verify.get_branch_head", return_value="deadbeef") as mock_head:
+            with patch("commands.verify.set_plan_field", return_value=True) as mock_set:
+                _record_final_commit(str(plan_path), tmp_path)
+
+        mock_head.assert_called_once()
+        mock_set.assert_called_once_with(
+            str(plan_path), "Final Commit", "deadbeef"
+        )
+
+    def test_final_commit_uses_main_branch(self, tmp_path):
+        """standard 项目 Final Commit 用 main 分支;ontology 用当前空间分支。"""
+        from commands.verify import _record_final_commit
+        plan_path = _write_plan(tmp_path, PLAN_VERIFYING_STANDARD)
+        proj_dir = tmp_path / "projects" / "gesp"
+        proj_dir.mkdir(parents=True)
+        (proj_dir / ".git").mkdir()
+
+        with patch("commands.verify.get_branch_head", return_value="abc123") as mock_head:
+            with patch("commands.verify.set_plan_field", return_value=True):
+                _record_final_commit(str(plan_path), tmp_path)
+
+        cmd = mock_head.call_args[0][0]
+        assert cmd == str(tmp_path / "projects" / "gesp")
+        branch = mock_head.call_args[0][1]
+        assert branch == "main"
+
+
 # -- Test: _check_feature_branch_merged function -------------------------------
 
 class TestCheckFeatureBranchMerged:
@@ -109,12 +149,25 @@ class TestCheckFeatureBranchMerged:
         proj_dir.mkdir(parents=True)
         (proj_dir / ".git").mkdir()
 
-        # Three subprocess.run calls: local merged, remote merged, git log --grep
-        not_merged_result = MagicMock(returncode=0, stdout="  main\n")
-        empty_result = MagicMock(returncode=0, stdout="")
+        # Subprocess calls: local merged, tree x2, remote merged, git log --grep
+        def fake_run(cmd, *args, **kwargs):
+            if cmd[0] == "git" and cmd[1] == "branch" and "--merged" in cmd and "-r" not in cmd:
+                return MagicMock(returncode=0, stdout="  main\n")
+            if "rev-parse" in cmd and any("^{tree}" in c for c in cmd):
+                return MagicMock(returncode=0, stdout="tree-diff-main\n")
+            if cmd[1] == "branch" and "-r" in cmd:
+                return MagicMock(returncode=0, stdout="")
+            return MagicMock(returncode=0, stdout="")
 
-        with patch("lib.git.subprocess.run") as mock_run:
-            mock_run.side_effect = [not_merged_result, empty_result, empty_result]
+        # Override: feature tree differs from integration tree
+        def fake_run2(cmd, *args, **kwargs):
+            if "rev-parse" in cmd and any("^{tree}" in c for c in cmd):
+                if any("feature/test-1-slug" in c for c in cmd):
+                    return MagicMock(returncode=0, stdout="tree-diff-feature\n")
+                return MagicMock(returncode=0, stdout="tree-diff-main\n")
+            return fake_run(cmd, *args, **kwargs)
+
+        with patch("lib.git.subprocess.run", side_effect=fake_run2) as mock_run:
             with patch("lib.git.log_error") as mock_log:
                 result = _check_feature_branch_merged(tmp_path, str(plan_path))
 
@@ -154,12 +207,19 @@ class TestCheckFeatureBranchMerged:
         wopal_dir.mkdir(parents=True)
         (wopal_dir / ".git").mkdir()
 
-        # Three subprocess.run calls: local merged, remote merged, git log --grep
-        not_merged_result = MagicMock(returncode=0, stdout="  space/wopal-workspace\n")
-        empty_result = MagicMock(returncode=0, stdout="")
+        # Subprocess calls: local merged, tree x2, remote merged, git log --grep
+        def fake_run(cmd, *args, **kwargs):
+            if cmd[0] == "git" and cmd[1] == "branch" and "--merged" in cmd and "-r" not in cmd:
+                return MagicMock(returncode=0, stdout="  space/wopal-workspace\n")
+            if "rev-parse" in cmd and any("^{tree}" in c for c in cmd):
+                if any("issue-10-slug" in c for c in cmd):
+                    return MagicMock(returncode=0, stdout="tree-diff-feature\n")
+                return MagicMock(returncode=0, stdout="tree-diff-main\n")
+            if cmd[1] == "branch" and "-r" in cmd:
+                return MagicMock(returncode=0, stdout="")
+            return MagicMock(returncode=0, stdout="")
 
-        with patch("lib.git.subprocess.run") as mock_run:
-            mock_run.side_effect = [not_merged_result, empty_result, empty_result]
+        with patch("lib.git.subprocess.run", side_effect=fake_run):
             with patch("lib.git.get_current_branch", return_value="space/wopal-workspace"):
                 with patch("lib.git.log_error") as mock_log:
                     result = _check_feature_branch_merged(tmp_path, str(plan_path))
@@ -225,18 +285,24 @@ class TestCheckFeatureBranchMerged:
         proj_dir.mkdir(parents=True)
         (proj_dir / ".git").mkdir()
 
-        with patch("lib.git.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0, stdout="  main\n* feature/test-1-slug\n"
-            )
+        def fake_run_std(cmd, *args, **kwargs):
+            if cmd[0] == "git" and cmd[1] == "branch" and "--merged" in cmd and "-r" not in cmd:
+                return MagicMock(returncode=0, stdout="  main\n* feature/test-1-slug\n")
+            return MagicMock(returncode=0, stdout="")
+
+        with patch("lib.git.subprocess.run", side_effect=fake_run_std) as mock_run:
             _check_feature_branch_merged(tmp_path, str(plan_path_std))
 
-        cmd = mock_run.call_args[0][0]
+        merged_calls = [
+            c.args[0] for c in mock_run.call_args_list
+            if "--merged" in c.args[0]
+        ]
+        assert merged_calls, "expected git branch --merged call"
+        cmd = merged_calls[0]
         assert "--merged" in cmd
         assert "main" in cmd
 
         # Ontology → current .wopal/ branch (dynamically detected)
-        mock_run.reset_mock()
         plan_path_ont = _write_plan(
             tmp_path, PLAN_VERIFYING_ONTOLOGY, name="10-ont.md"
         )
@@ -244,14 +310,21 @@ class TestCheckFeatureBranchMerged:
         wopal_dir.mkdir(parents=True)
         (wopal_dir / ".git").mkdir()
 
-        with patch("lib.git.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0, stdout="  space/wopal-workspace\n* issue-10-slug\n"
-            )
+        def fake_run_ont(cmd, *args, **kwargs):
+            if cmd[0] == "git" and cmd[1] == "branch" and "--merged" in cmd and "-r" not in cmd:
+                return MagicMock(returncode=0, stdout="  space/wopal-workspace\n* issue-10-slug\n")
+            return MagicMock(returncode=0, stdout="")
+
+        with patch("lib.git.subprocess.run", side_effect=fake_run_ont) as mock_run:
             with patch("lib.git.get_current_branch", return_value="space/wopal-workspace"):
                 _check_feature_branch_merged(tmp_path, str(plan_path_ont))
 
-        cmd = mock_run.call_args[0][0]
+        merged_calls = [
+            c.args[0] for c in mock_run.call_args_list
+            if "--merged" in c.args[0]
+        ]
+        assert merged_calls, "expected git branch --merged call"
+        cmd = merged_calls[0]
         assert "--merged" in cmd
         assert "space/wopal-workspace" in cmd
 
@@ -271,11 +344,15 @@ class TestCheckFeatureBranchMerged:
         # Simulate a different space name to prove the value is dynamic
         current_space_branch = "space/gesp-space"
 
-        with patch("lib.git.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0,
-                stdout=f"  {current_space_branch}\n* issue-10-slug\n",
-            )
+        def fake_run(cmd, *args, **kwargs):
+            if cmd[0] == "git" and cmd[1] == "branch" and "--merged" in cmd and "-r" not in cmd:
+                return MagicMock(
+                    returncode=0,
+                    stdout=f"  {current_space_branch}\n* issue-10-slug\n",
+                )
+            return MagicMock(returncode=0, stdout="")
+
+        with patch("lib.git.subprocess.run", side_effect=fake_run) as mock_run:
             with patch("lib.git.get_current_branch", return_value=current_space_branch) as mock_branch:
                 result = _check_feature_branch_merged(tmp_path, str(plan_path))
 
@@ -283,5 +360,10 @@ class TestCheckFeatureBranchMerged:
         # get_current_branch must have been called with .wopal/ repo root
         mock_branch.assert_called_once_with(str(wopal_dir))
         # git branch --merged must use the dynamically detected branch
-        cmd = mock_run.call_args[0][0]
+        merged_calls = [
+            c.args[0] for c in mock_run.call_args_list
+            if "--merged" in c.args[0]
+        ]
+        assert merged_calls, "expected git branch --merged call"
+        cmd = merged_calls[0]
         assert current_space_branch in cmd
