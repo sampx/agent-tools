@@ -231,6 +231,10 @@ agent 必须将其完整传达给用户，由用户选择验证方式。
 - 分支创建：`approve --confirm`（脚本会自动创建）
 - 分支删除：`archive`（脚本会自动删除）
 - **Agent 唯一的分支操作是 merge**：`git checkout <集成分支> && git merge <feature>`
+- **合并策略**：默认优先 **squash 合并**（`git merge --squash <feature>`）——将 feature
+  全部提交压成单个提交合入集成分支，避免验证过程的修复提交污染 main 历史。
+  合并后需手动 `git commit` 一次。verify 的 tree 相等判据原生支持 squash。
+  用户明确要求保留提交历史时，改用 `--no-ff` 合并
 - Agent 禁止 `git branch -d/-D`、禁止 `git branch <name>`、禁止任何分支的创建或删除
 - 工作树生命周期由脚本管理：`approve` 创建，`verify-switch` 或 `archive` 删除
 
@@ -266,13 +270,20 @@ Agent 需要知道脚本做了什么，以便在出错时排查。
 
 1. 状态门控：Plan status 必须为 `verifying`
 2. 用户验证门控：User Validation checkbox 必须已勾选
-3. **Merge 检测**（场景 4 自动跳过）：
-   - 优先使用 `complete` 写入的 `Verification Commit`（SHA）做祖先检测：
+3. **Merge 检测**（场景 4 自动跳过），三级判定，任一层命中即视为已合并：
+   - L1: `complete` 写入的 `Verification Commit`（SHA）祖先检测：
      `git merge-base --is-ancestor <sha> <集成分支>`
-   - SHA 检测不依赖 branch ref，合并后分支删除也能正常通过
-   - 若无 `Verification Commit`（旧 Plan），回退到 branch ref 检测
-   - 未合并时报错退出，提示 agent 先 merge
-4. 状态转换：`verifying → done`，commit 在集成分支
+   - L2: **tree 相等判据**（squash merge 支持）：
+     `git rev-parse <集成分支>^{tree}` == `git rev-parse <feature>^{tree}`
+     内容级检测，不依赖分支 ref。squash 合入后 main 只有 feature 内容的
+     副本提交，feature tip 永远不会成为 main 祖先，但 tree 字节级一致。
+     对 --no-ff / fast-forward 同样成立（L1 已提前命中）
+   - L3: branch ref 检测（`git branch --merged` + remote + log --grep 兜底）
+   - 全部不命中时报错退出，提示 agent 先 merge
+4. **Final Commit 记录**：merge 检测通过后，写入集成分支 HEAD SHA 到
+   Plan `Final Commit` 字段。与 approve 时记录的 `Base Commit` 对照可
+   确定本次 feature 的影响范围（revert 时尤其有用）
+5. 状态转换：`verifying → done`，commit 在集成分支
 
 #### Agent 检查清单
 
@@ -298,7 +309,12 @@ flow.sh verify <issue> --confirm
 前置：Plan 状态 = `verifying`，User Validation checkbox 已勾选。
 
 有工作树的场景（场景 1-3）还要求 feature 分支已合并到集成分支，
-脚本通过 `Verification Commit` SHA 或 branch ref 检测合并状态。
+脚本通过三级检测（Verification Commit SHA → tree 相等 → branch ref）
+判断合并状态。squash 合入（`git merge --squash`）天然支持——tree 相等
+判据在 feature tip 非祖先时也能识别已合并。
+
+verify --confirm 会记录 `Final Commit`（合入后的集成分支 HEAD）到 Plan
+metadata，与 approve 时的 `Base Commit` 形成实施基线 → 落地点闭环。
 
 脚本在集成分支提交 Plan-only commit（`verifying` → `done`）。
 
@@ -325,10 +341,11 @@ flow.sh archive <issue>
 | 阶段 | 归属分支 | 提交者 | 内容 |
 |------|---------|--------|------|
 | `planning` / `submit` / `approve` | 集成分支 | 脚本 | Plan 文件状态变更 |
+| `approve`（Base Commit） | 集成分支 | 脚本 | 记录集成分支 HEAD 到 Plan `Base Commit` 字段（实施基线） |
 | `executing`（实施代码） | feature 分支 | agent | 实施产物（代码 + checkbox） |
 | `complete` | feature 分支 | 脚本 | Plan status → verifying + Verification Commit SHA |
-| `verify --confirm` | 集成分支 或 feature 分支 | 脚本 | Plan status → done（SHA 或 branch ref 检测 merge） |
-| `agent merge feature → 集成分支` | 集成分支 | agent | 代码 merge（**不删 feature 分支**） |
+| `verify --confirm` | 集成分支 或 feature 分支 | 脚本 | Plan status → done（三级 merge 检测，squash 支持）+ Final Commit 记录 |
+| `agent merge feature → 集成分支` | 集成分支 | agent | 代码 merge（**不删 feature 分支**；squash 合入受支持） |
 | `archive` | 集成分支 | 脚本 | Plan 归档 + 删 worktree + 删 feature 分支 |
 
 **--no-worktree 模式**：无 feature 分支，全部阶段在集成分支。

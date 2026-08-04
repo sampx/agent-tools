@@ -44,9 +44,11 @@ from issue import (
 from lib.git import (
     is_repo_dirty,
     get_current_branch,
+    get_branch_head,
 )
 from lib.plan_commit import commit_and_push_plan, RESULT_OK, RESULT_PUSH_FAILED
 from lib.worktree import create_worktree, write_worktree_context
+from plan import set_plan_field
 
 
 # ============================================
@@ -401,9 +403,30 @@ def cmd_approve(args: argparse.Namespace) -> int:
                 return 1
     
     # ============================================
+    # Record Base Commit (implementation baseline)
+    # ============================================
+    # 记录集成分支 HEAD 作为实施基线。fae 从该 commit 开始实施,
+    # squash 合并时用于对照 Final Commit 确定 feature 影响范围。
+    base_commit = ""
+    try:
+        project_type_str = get_plan_field(plan_path, "Project Type")
+        if project_type_str == ProjectType.ONTOLOGY_WORKTREE.value:
+            main_repo = get_ontology_main_repo(workspace_root)
+            if main_repo:
+                base_commit = get_branch_head(str(main_repo), get_current_branch(workspace_root / ".wopal"))
+        elif project_path:
+            base_commit = get_branch_head(str(project_path), "main")
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        base_commit = ""
+
+    if base_commit:
+        set_plan_field(plan_path, "Base Commit", base_commit)
+        log_success(f"Base Commit recorded: {base_commit}")
+
+    # ============================================
     # Issue sync (if plan has Issue link)
     # ============================================
-    
+
     if issue_number:
         # Sync Issue status label (planning -> in-progress)
         sync_status_label(issue_number, "executing", repo)

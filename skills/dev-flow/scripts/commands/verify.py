@@ -35,8 +35,9 @@ from plan import (
     get_plan_project_path,
     get_plan_worktree,
 )
-from lib.git import check_branch_merged, commit_paths, get_current_branch
+from lib.git import check_branch_merged, commit_paths, get_current_branch, get_branch_head
 from lib.worktree import resolve_active_plan, ResolveActivePlanError
+from plan import set_plan_field
 from validation import (
     ValidationError,
     check_user_validation,
@@ -178,6 +179,41 @@ def _check_feature_branch_merged(workspace_root: Path, plan_path: str) -> int:
     return check_branch_merged(workspace_root, plan_path)
 
 
+def _record_final_commit(plan_path: str, workspace_root: Path) -> str:
+    """Record Final Commit — integration branch HEAD after merge.
+
+    合入后集成分支 HEAD 即 feature 落地点(squash commit 或 merge commit),
+    与 approve 时记录的 Base Commit 对照可确定 feature 影响范围。
+
+    Args:
+        plan_path: Path to the Plan file
+        workspace_root: Workspace root path
+
+    Returns:
+        Recorded commit SHA, or empty string if not recorded
+    """
+    final_commit = ""
+    try:
+        project_type_str = get_plan_field(plan_path, "Project Type")
+        if project_type_str == "ontology-worktree":
+            from lib.workspace import get_ontology_main_repo
+            main_repo = get_ontology_main_repo(workspace_root)
+            if main_repo:
+                final_commit = get_branch_head(str(main_repo), get_current_branch(workspace_root / ".wopal"))
+        else:
+            project_path = get_plan_project_path(plan_path)
+            if project_path:
+                final_commit = get_branch_head(str(Path(workspace_root) / project_path), "main")
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        final_commit = ""
+
+    if final_commit:
+        set_plan_field(plan_path, "Final Commit", final_commit)
+        log_success(f"Final Commit recorded: {final_commit}")
+
+    return final_commit
+
+
 # ============================================
 # verify command
 # ============================================
@@ -291,6 +327,9 @@ def cmd_verify(args: argparse.Namespace) -> int:
     merge_check = _check_feature_branch_merged(workspace_root, plan_path)
     if merge_check != 0:
         return merge_check
+
+    # 7.5 Record Final Commit — integration branch HEAD after merge.
+    _record_final_commit(plan_path, workspace_root)
 
     # 8. Resolve active Plan — enforce merged state (D-05)
     try:
