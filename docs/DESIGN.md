@@ -29,7 +29,6 @@ ontology 拥有的目标态能力组：
 | 运行时插件 | wopal-plugin 提供规则注入、任务委派、记忆系统、上下文管理四大能力，7 个 plugin tools | 仅限插件内部，不侵入技能/规则/命令 |
 | 模板体系 | 空间初始化模板（结构、守则、用户档案）+ 文档模板（PRD/DESIGN/phase/AGENTS） | 不持有空间运行态实例 |
 | 辅助脚本 | ontology 维护、git hooks 与辅助自动化脚本 | 仅承担辅助维护动作 |
-| 浏览器扩展 | 独立 Chrome 扩展（如 OpenCode Usage Monitor），提供辅助工具能力，通过 ontology 仓库分发 | 不侵入 ontology 核心模块，遵循 `.wopal/rules/chrome-extension.md` 规范 |
 
 ---
 
@@ -157,27 +156,6 @@ wopal-plugin 由 TypeScript 编写，Bun 执行，基于 EllaMaka Plugin SDK。
 | 空间级（私有）| `.wopal/config/settings.local.jsonc` | 当前空间 | 否（git 忽略）| 覆盖公共默认值的本地配置 |
 
 空间级公共配置与全局配置合并生效，空间级私有配置覆盖前两者。详见 §6.8 配置隔离约定。
-
-### 4.9 浏览器扩展体系
-
-ontology 管理独立的浏览器扩展工具，提供辅助能力。扩展位于 `.wopal/extensions/` 目录，遵循 `.wopal/rules/chrome-extension.md` 规范。
-
-| 扩展 | 职责 | 载体 |
-|------|------|------|
-| OpenCode Usage Monitor | 多账号 OpenCode 用量监控：自动捕获 Cookie、DNR 规则注入、Alarm 轮询、通知系统 | `.wopal/extensions/opencode-usage-extension/` |
-
-扩展特征：
-- **独立性**：每个扩展是独立的 Chrome MV3 项目，拥有自己的 `manifest.json`、`AGENTS.md` 和开发规范
-- **分发方式**：通过 ontology git 仓库分发，用户手动"加载已解压扩展"安装
-- **无构建工具链**：纯 JavaScript ES Modules，无需编译
-- **规则遵循**：所有扩展开发必须遵守 `.wopal/rules/chrome-extension.md` 中的 MV3 规范
-
-当前扩展 `opencode-usage-extension` 核心功能：
-- 多账号 Cookie 自动捕获（webRequest 只读观察）
-- DNR 动态规则注入（每账号一条规则，ID 从 1000 起）
-- Alarm 周期性轮询用量数据
-- 4 类通知（认证失效、用量警告、额度用尽、额度恢复）
-- 账号导入导出（JSON 格式）
 
 ---
 
@@ -575,7 +553,15 @@ upstream/main → main → type/coding → space/<name>
 
 `ontology update` 内部多步（main merge + type/coding merge）按顺序执行。任一步冲突 → 停在该点，不继续后续步骤。agent 手动解决冲突并 commit 完成该步 merge 后，重跑 `ontology update`，CLI 跳过已完成的步骤，从下一步继续。
 
-**规则 6：配置隔离与 .gitignore 一致性**
+**规则 6：promote 前置检查**
+
+`ontology promote` 在执行前检查 `fromBranch`（type/*）是否已包含 main 的全部 commit。如果 main 有 type/* 尚未吸收的通用变更，promote 会拒绝执行并提示先运行 `ontology update`。
+
+这条规则避免"promote 快照旧 type → 下次 update main→type 冲突"的循环：promote 只在 type 已经是 main 超集时执行，快照内容完整，后续 update 不会因 promote 产生假冲突。
+
+Dry-run 不受此规则限制——用户可以随时预览 promote 会带来什么，包括冲突预览。
+
+**规则 7：配置隔离与 .gitignore 一致性**
 
 空间分支相对父层的差异只包含能力变更，由配置文件的分层约定保证：
 
@@ -591,6 +577,7 @@ upstream/main → main → type/coding → space/<name>
 | `ontology status` | — | 下行/上行全链路 git log/diff 展示差异 + `git merge-tree` 预测 merge 结果 | — |
 | `ontology update` | 下行 | `git merge upstream/main → main` + `git merge main → type/coding` | 强制顺序，冲突即停 |
 | `ontology contribute` | 上行 | 创建临时分支 + squash merge + PR | `--type <type>` 物理隔绝空间分支，支持 `--resume` 和 `--abort` 挂起恢复 |
+| `ontology promote` | 上行 | `git merge --squash type/* → main` | 前置检查 type/* 已包含 main 全部 commit，否则拒绝 |
 | `space status` | — | 当前 space 相关的完整链路 git log/diff 展示差异 + `git merge-tree` 预测 merge 结果 | — |
 | `space update` | 下行 | `git merge type/coding → space` | 前置检查 type 已更新 |
 | `space contribute` | 上行 | `git merge --squash space → type/coding` | 预览排除，不自动提交 |
@@ -668,4 +655,3 @@ Runtime 维护由 ontology commands 驱动：`/init`（结构校准）、`/wopal
 | `projects/wopal-cli/docs/DESIGN.md` | wopal-cli 子系统设计 — 统一操作入口 |
 | `.wopal/docs/DISTRIBUTION.md` | ontology 的 Git source、worktree、template handoff 与 runtime loading 契约 |
 | `.wopal/docs/BUSINESS_RULES.md` | 本体业务规则 |
-| `.wopal/extensions/opencode-usage-extension/AGENTS.md` | OpenCode Usage Monitor 浏览器扩展开发规范 |
