@@ -11,6 +11,8 @@
 - **Project Type**: {ptype}
 - **Created**: {date}
 - **Status**: planning
+- **Base Commit**: (approve 时自动记录实施基线,集成分支 HEAD)
+- **Final Commit**: (verify 时自动记录合入提交,集成分支 HEAD)
 
 
 ## Scope Assessment

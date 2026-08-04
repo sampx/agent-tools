@@ -43,6 +43,10 @@ def _make_approve_mocks(status="planning"):
         "sync_status_label": None,
         "sync_plan_to_issue_body": None,
         "ensure_issue_labels": None,
+        "get_ontology_main_repo": Path("/ws/.wopal"),
+        "get_current_branch": "space/wopal-workspace",
+        "get_branch_head": "abc123def",
+        "set_plan_field": True,
     }
     return {k: MagicMock(return_value=v) for k, v in values.items()}
 
@@ -132,6 +136,38 @@ class TestApproveBlockedStatus(unittest.TestCase):
         args = Namespace(target="42", confirm=True, no_worktree=False)
         result = cmd_approve(args)
         self.assertEqual(result, 1)
+
+
+class TestApproveRecordsBaseCommit(unittest.TestCase):
+    """approve --confirm 应记录 Base Commit(集成分支 HEAD)到 Plan metadata。"""
+
+    def test_approve_writes_base_commit(self):
+        from commands.approve import cmd_approve
+        mocks = _make_approve_mocks(status="reviewing")
+        with patch.multiple("commands.approve", **mocks):
+            args = Namespace(target="42", confirm=True, no_worktree=True)
+            result = cmd_approve(args)
+            mocks["set_plan_field"].assert_any_call(
+                "/ws/.wopal-space/plans/space-ontology/42-fix-test.md",
+                "Base Commit",
+                "abc123def",
+            )
+        self.assertEqual(result, 0)
+
+    def test_base_commit_uses_integration_branch_head(self):
+        """Base Commit 应取集成分支 HEAD(standard: main;ontology: 当前空间分支)。"""
+        from commands.approve import cmd_approve
+        mocks = _make_approve_mocks(status="reviewing")
+        # 切到 standard 项目场景,验证用 main 分支
+        mocks["get_plan_field"] = MagicMock(return_value="standard")
+        with patch.multiple("commands.approve", **mocks):
+            args = Namespace(target="42", confirm=True, no_worktree=True)
+            result = cmd_approve(args)
+            mocks["get_branch_head"].assert_any_call(
+                str(mocks["resolve_project_path"].return_value),
+                "main",
+            )
+        self.assertEqual(result, 0)
 
 
 class TestRegisterApproveParser(unittest.TestCase):
