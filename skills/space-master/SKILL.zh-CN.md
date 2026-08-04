@@ -41,6 +41,20 @@ description: |
 
 命令：`wopal ontology status`
 
+### 2.1.1 能力分层：日常同步 vs 高级提升/贡献
+
+本体交互分两个层级，能力边界与确认要求不同：
+
+| 层级 | 操作 | 需要 | 面向用户 |
+|------|------|------|---------|
+| **日常同步（基础）** | `update`（下行）、`space contribute` → `ontology contribute`（type 层 PR） | 所有 fork/clone 用户 | 普通 wopalspace 产品用户 |
+| **跨类型提升/贡献（高级）** | `promote`（type/* → main）+ 随后的 `main` 贡献 PR | fork 模式 + 上游仓库维护者 | 上游 `wopal-space-ontology` 维护者 |
+
+**判定规则**：
+- **先完成常规更新和贡献流程**，再考虑提升/贡献。执行顺序：日常同步（`update` + type 层贡献）→ 完成 → 才评估是否跨类型提升。
+- **提升/贡献是高级特性，必须主动向用户确认**：完成常规更新与贡献后，向用户确认"是否执行跨空间类型能力提升和贡献"，用户明确同意后才执行 `promote`。不得默认自动执行。
+- **普通用户可能只需要日常同步**：如果用户是普通 wopalspace 产品用户（非上游维护者），日常同步即可满足，无需提升/贡献。Agent 不应把提升/贡献当作默认流程强加。
+
 ### 2.2 同步本体的含义
 
 "同步本体"包含两个方向，缺一不可：
@@ -94,7 +108,7 @@ space → type → upstream(type) → promote → upstream(main) → ✓ 完成
 2. ontology contribute  type/* → upstream(type)（话题 PR）
 3. ontology update      上游 type PR 合并后下行同步
 4. ontology promote     type/* → main（先与用户讨论范围）
-5. ontology contribute  main → upstream(main)（话题 PR）
+5. ontology contribute  main → upstream(main)（话题 PR，按 §2.4 分主题拆分）
 6. ontology update      上游 main PR 合并后再次下行同步
 ```
 
@@ -102,9 +116,13 @@ space → type → upstream(type) → promote → upstream(main) → ✓ 完成
 
 **关键差异**：长路径比短路径多 3 步（promote → contribute main → update）。执行时容易在 promote 后忘记 main PR。
 
+**promote 完整性核对**（步骤 4 完成后必做）：promote 的分类器可能把新增文件误判为 A-status 排除（实测 `skills/dev-flow/tests/` 新增测试文件被漏掉）。核对 `promote --confirm` 输出的 promote 文件列表，与 type PR 的文件集合逐项比对，确认无遗漏。发现遗漏时用 `--include <files>` 强制补入。
+
+**promote 补漏时序**：promote 后 main 领先 type/*，再次 promote 会报 `type branch is behind main` 错误。必须先 `ontology update --confirm` 同步 main → type/*，再重试 promote。补漏的 `--include` 只补新增文件，不会重复已提升内容。
+
 ### 2.4 分主题分批 PR
 
-**一次 PR 只含一个主题。** 不同目录或功能区域的变更必须拆分为独立 PR。
+**一次 PR 只含一个主题。** 不同目录或功能区域的变更必须拆分为独立 PR。此规则同时适用于 type PR（步骤 2）和 main PR（步骤 5）——promote 常把多个主题的 M-status 文件一并推入 main，贡献时必须按文件目录重新拆回独立 PR。
 
 #### 为什么必须拆分
 
@@ -162,6 +180,12 @@ wopal ontology contribute --type common \
 3. 向用户汇报：变更文件、同步范围、排除策略、拆分批次
 4. 用户明确确认后才进入下一步
 
+**提升（promote）前的强制汇报**（本门禁的强化要求）：
+
+- **主动分析，不等用户询问**：`wopal ontology status` 展示可提升项后，Agent 必须主动分类分析（M-status 可提升 / A-status 类型专属），判断哪些应提升、哪些应留在 type/*，并说明理由，向用户给出明确建议，不得静默等待或自行决定。
+- **提升边界必须与用户确认**：可提升的文件范围（`--include`/`--exclude` 边界）、是否强制补入误判文件，全部列出并与用户逐项确认，用户批准前禁止执行 `promote --confirm`。
+- **明确 PR 数量与信息**：分析必须预估提升后的贡献拆分为几个 PR（按 §2.4 分主题），逐个列出 PR 的文件范围、提交信息（`--message`）和顺序。PR 数量与信息经用户确认后，才允许执行 promote 和随后的 main 贡献。
+
 #### 门禁二：飞前检查
 
 先看再推：
@@ -172,11 +196,12 @@ wopal ontology contribute --type common \
 4. 确认无误才加 `--confirm`
 
 > 不加 `--include` 会把分支上所有人的所有积累变更一次性全推出去。不可逆。
+> dry-run 输出中被 `exclude` 的文件必须逐一目视确认——它们不会进入 PR，如果本应贡献的文件出现在 exclude 列表，说明 glob 写错了。
 
 ### 2.6 本体规则
 
 1. **禁止自动同步。** 先分析后汇报用户，确认再执行。
-2. **必须链式 `--include`。** 多个叠加生效，每个 glob 对应一个目录。
+2. **多个文件模式用逗号分隔，不要链式 `--include`。** `--include` 是单值参数，链式（`--include A --include B`）实测只有最后一个生效，其余模式被覆盖——会把未覆盖的变更一并推出去（不可逆）。多模式必须写成 `--include "a/**,b/**,c"`（逗号分隔，空格可选）。`--exclude` 同理。
 3. **Promote 必须与用户讨论。** M-status 能力（跨空间共享）可升维；A-status（类型专属）不可。Agent 禁止自行决定 promote 范围。
 4. **Clone 模式不支持 `contribute`。** 如需 PR，引导用户切换到 Fork 模式。
 5. **删除风险需 `reconcile`。** `update` 报 deletion-risk 时，`type/*` 独有的文件面临被删风险。先跑 `wopal ontology reconcile --type <type> --theirs --confirm` 保留它们，再重试 `update`。
