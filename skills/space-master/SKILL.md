@@ -41,6 +41,20 @@ Before any ontology operation, check the mode:
 
 Command: `wopal ontology status`
 
+### 2.1.1 Capability Tiers: Daily Sync vs Advanced Promote/Contribute
+
+Ontology interaction splits into two tiers with different capability boundaries and confirmation requirements:
+
+| Tier | Operations | Requires | Audience |
+|------|-----------|----------|----------|
+| **Daily sync (base)** | `update` (downstream), `space contribute` → `ontology contribute` (type PR) | all fork/clone users | ordinary wopalspace product users |
+| **Cross-type promote/contribute (advanced)** | `promote` (type/* → main) + subsequent `main` contribution PR | fork mode + upstream repo maintainer | upstream `wopal-space-ontology` maintainer |
+
+**Decision rules**:
+- **Complete the regular update and contribution flow first**, then consider promote/contribute. Order: daily sync (`update` + type contribution) → done → then assess whether cross-type promotion is needed.
+- **Promote/contribute is an advanced feature that must be explicitly confirmed with the user**: after completing the regular update and contribution, ask the user whether to execute cross-type capability promotion and contribution. Only run `promote` after explicit user agreement. Never default to running it automatically.
+- **Ordinary users may only need daily sync**: if the user is an ordinary wopalspace product user (not an upstream maintainer), daily sync suffices — no promote/contribute needed. The agent must not impose promote/contribute as a default flow.
+
 ### 2.2 What "Sync Ontology" Means
 
 "Sync ontology" covers both directions — neither is optional:
@@ -94,7 +108,7 @@ space → type → upstream(type) → promote → upstream(main) → ✓ done
 2. ontology contribute  type/* → upstream(type) (topic PR)
 3. ontology update      downstream sync after type PR merge
 4. ontology promote     type/* → main (discuss scope with user first)
-5. ontology contribute  main → upstream(main) (topic PR)
+5. ontology contribute  main → upstream(main) (topic PR, split per §2.4)
 6. ontology update      downstream sync again after main PR merge
 ```
 
@@ -102,9 +116,13 @@ space → type → upstream(type) → promote → upstream(main) → ✓ done
 
 **Key difference**: The long path has 3 extra steps (promote → contribute main → update). It's easy to forget the main PR after promote.
 
+**Post-promote completeness check** (mandatory after step 4): The promote classifier can misclassify newly added files as A-status and exclude them (observed: new test files under `skills/dev-flow/tests/` were missed). Compare the `promote --confirm` output's promote list against the type PR file set item by item; re-add missing files with `--include <files>`.
+
+**Promote backfill timing**: After promote, main is ahead of type/*; another promote errors with `type branch is behind main`. Run `ontology update --confirm` first to sync main → type/*, then retry promote. The backfill `--include` only adds new files; it does not re-promote existing content.
+
 ### 2.4 Topic-Based PR Splitting
 
-**One PR, one topic.** Changes from different directories or feature areas must be split into separate PRs.
+**One PR, one topic.** Changes from different directories or feature areas must be split into separate PRs. This rule applies to both the type PR (step 2) and the main PR (step 5) — promote often pushes multiple topics of M-status files into main at once; when contributing, re-split them into independent PRs by file directory.
 
 #### Why splitting matters
 
@@ -162,6 +180,12 @@ Never auto-sync. The agent must understand the full picture first:
 3. Present analysis to the user: what changed, sync scope, exclusion strategy, PR batches
 4. Proceed only after explicit user confirmation
 
+**Mandatory pre-promote report** (reinforced requirement of this gate):
+
+- **Analyze proactively, don't wait to be asked**: once `wopal ontology status` shows promotable items, the agent must proactively classify them (M-status promotable / A-status type-specific), decide which should be promoted and which should stay in type/*, justify each decision, and present a clear recommendation to the user. Never stay silent or decide autonomously.
+- **Promotion boundary must be confirmed with the user**: the full file scope (`--include`/`--exclude` boundaries) and any forced re-inclusion of misclassified files must be listed and confirmed item by item. `promote --confirm` is forbidden before user approval.
+- **Explicit PR count and messages**: the analysis must estimate how many PRs the promoted changes will split into (per §2.4 topic splitting), listing each PR's file scope, commit message (`--message`), and order. Only after the user confirms the PR count and messages may the agent run promote and the subsequent main contribution.
+
 #### Gate 2: Pre-Flight
 
 Always inspect before pushing:
@@ -172,11 +196,12 @@ Always inspect before pushing:
 4. Only then: re-run with `--confirm`
 
 > Omitting `--include` pushes everything from the branch — all accumulated changes by everyone. There is no undo.
+> Eyeball the `exclude` list in dry-run output — excluded files never enter the PR. If a file that should be contributed shows up there, the glob is wrong.
 
 ### 2.6 Ontology Rules
 
 1. **Never auto-sync.** Analyse and get user confirmation first.
-2. **Always chain `--include`.** Multiple flags are additive. One glob per directory.
+2. **Separate multiple patterns with commas — never chain `--include`.** `--include` is a single-value flag; chaining (`--include A --include B`) keeps only the last one (verified empirically), overriding the others — which pushes the uncovered changes out too (irreversible). Write multiple patterns as `--include "a/**,b/**,c"` (comma-separated, spaces optional). Same for `--exclude`.
 3. **Promote requires user discussion.** M-status capabilities (shared across spaces) are eligible for promotion; A-status (type-specific) are not. The agent must not decide promote scope autonomously.
 4. **Clone mode blocks `contribute`.** Guide the user to fork mode if a PR is needed.
 5. **Deletion-risk requires `reconcile`.** When `update` warns about files unique to `type/*` being at risk, run `wopal ontology reconcile --type <type> --theirs --confirm` to preserve them, then retry `update`.
