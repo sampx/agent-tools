@@ -233,7 +233,13 @@ wopal skills remove <name> --force       # Remove from space
 
 ---
 
-## 4. References
+## 4. AGENTS.md Maintenance
+
+When deciding whether to update a project's `AGENTS.md` after a change, or when following language-version/content-boundary rules for such updates, **read `references/agents-md-maintenance.md`**. Key principle: not updating is the default and legitimate outcome.
+
+---
+
+## 5. References
 
 The skill body covers the essentials. When troubleshooting or encountering edge cases, **read the reference documents** — they contain the full protocol:
 
@@ -241,3 +247,4 @@ The skill body covers the essentials. When troubleshooting or encountering edge 
 |----------|------------------|
 | `references/ontology-maintenance.md` | Three-layer architecture (main → type/* → space/*), status signal interpretation matrix, conflict resolution by file type, remote branch cleanup |
 | `references/skills-maintenance.md` | Full lifecycle details, security scan checks, quality evaluation criteria |
+| `references/agents-md-maintenance.md` | When/how to update project AGENTS.md: update triggers, language version rules, content boundary rules |
