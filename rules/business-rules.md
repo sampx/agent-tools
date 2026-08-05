@@ -1,6 +1,6 @@
 ---
 trigger: model_decision
-description: 定义 BUSINESS_RULES.md 的格式标准、业务规则定义边界与从现有项目代码提炼业务规则的方法。Plan 层面的规则维护机制（新增/修改/废弃的时机与同步）见 dev-flow 技能。
+description: Defines the format standard for BUSINESS_RULES.md, the boundary of business rule definitions, and the method for extracting business rules from existing project code. For Plan-level rule maintenance mechanisms (when to add/modify/deprecate and how to sync), see the dev-flow skill.
 keywords:
   - '业务规则'
   - 'business rules'
@@ -8,96 +8,96 @@ keywords:
   - '@BR-'
 ---
 
-# Business Rules — 提炼工作规范
+# Business Rules — Extraction Work Conventions
 
-> 定位：Agent 从现有项目代码/文档中提炼和维护业务规则的工作规范。
-> Plan 层面的规则维护机制（新增/修改/废弃的时机、模板与同步）见 dev-flow 技能。
+> Positioning: the work convention for Agents extracting and maintaining business rules from existing project code/documentation.
+> For Plan-level rule maintenance mechanisms (when to add/modify/deprecate, templates, and syncing), see the dev-flow skill.
 
-## 1. 业务规则定义
+## 1. Business Rule Definition
 
-**什么是业务规则**：项目中稳定、可测试、独立于实现细节的领域约束。与需求不同——需求说"做什么"，规则说"怎么算对"。
+**What is a business rule**: a stable, testable domain constraint in the project that is independent of implementation details. It differs from requirements — requirements say "what to do", rules say "how to compute it correctly".
 
-**不是业务规则的**（归 AGENTS.md）：
-- 编码规范、命名约定、缩进风格
-- 架构约束、技术栈选型
-- 测试隔离策略、CI/CD 配置
-- 日志格式、错误处理模式
+**What is NOT a business rule** (belongs in AGENTS.md):
+- Coding conventions, naming conventions, indentation style
+- Architectural constraints, tech stack choices
+- Test isolation strategy, CI/CD configuration
+- Log formats, error handling patterns
 
-**边界判定**："密码至少 6 字符" → 业务规则。"密码用 bcryptjs 哈希" → 技术规则。
+**Boundary judgment**: "password must be at least 6 characters" → business rule. "hash passwords with bcryptjs" → technical rule.
 
-## 2. 文件规范
+## 2. File Specification
 
-### 位置
+### Location
 
 ```
 projects/{project-name}/docs/BUSINESS_RULES.md
 ```
 
-每个产品一份，与 REQUIREMENT.md 同级。
+One per product, at the same level as REQUIREMENT.md.
 
-### 格式
+### Format
 
 ```markdown
-# Business Rules — {产品名}
+# Business Rules — {Product Name}
 
-> 定位: 业务规则的单一真相源。技术规则归 AGENTS.md。
+> Positioning: the single source of truth for business rules. Technical rules belong in AGENTS.md.
 
 ---
 
-## {域1}
+## {Domain 1}
 
-### BR-001 规则名 `active`
-{1-3 行规则描述，业务语言}
+### BR-001 Rule Name `active`
+{1-3 line rule description, in business language}
 
-### BR-002 规则名 `active`
-{同上}
+### BR-002 Rule Name `active`
+{same as above}
 
-## {域2}
+## {Domain 2}
 
-### BR-003 规则名 `planned`
-{同上}
+### BR-003 Rule Name `planned`
+{same as above}
 ```
 
-**强制要求**：
-- 每条规则一个 `###` 标题，格式 `BR-NNN 规则名 \`status\``
-- 状态值：`active`（已落地）、`planned`（设计中）、`deprecated`（已废弃）
-- 描述 1-3 行，用业务语言，不绑定代码路径
-- 编号跨域连续（全局递增），不回收已废弃编号
-- 域信息靠 `##` 标题分组表达，**不编码到 BR ID 中**
+**Mandatory requirements**:
+- One `###` heading per rule, in the format `BR-NNN Rule Name \`status\``
+- Status values: `active` (implemented), `planned` (in design), `deprecated` (retired)
+- Description is 1-3 lines, in business language, not bound to code paths
+- Numbering is continuous across domains (globally incrementing); deprecated numbers are not recycled
+- Domain information is expressed via `##` heading grouping, **not encoded into the BR ID**
 
-## 3. 提炼方法
+## 3. Extraction Method
 
-### 来源优先级
+### Source Priority
 
-| 优先级 | 来源 | 提取策略 |
+| Priority | Source | Extraction Strategy |
 |--------|------|---------|
-| 1 | `REQUIREMENT.md` / `DESIGN.md` | 从系统定位、功能约束中提取原子规则 |
-| 2 | 数据模型文档 | 从字段约束、关系规则、状态机中提取 |
-| 3 | Service 层代码 | 从常量、判断分支、guard 条件反向推断 |
-| 4 | 共享常量 | 从枚举定义和注释中提取 |
+| 1 | `REQUIREMENT.md` / `DESIGN.md` | Extract atomic rules from system positioning and functional constraints |
+| 2 | Data model documentation | Extract from field constraints, relationship rules, and state machines |
+| 3 | Service layer code | Reverse-infer from constants, branching conditions, and guard conditions |
+| 4 | Shared constants | Extract from enum definitions and comments |
 
-### 提取步骤
+### Extraction Steps
 
-1. **通读来源文档**，理解产品域边界
-2. **标注候选规则**：什么是必须为真的约束？什么判定可以独立测试？
-3. **原子化**：1 条规则 = 1 条约束。合并同类项，拆分复合规则
-4. **去技术化**：删除实现细节（函数名、文件路径），保留业务语义
-5. **标注状态**：代码中已有实现 → `active`；仅在文档中描述 → `planned`
-6. **分组**：按域归类，用 `##` 标题表达
+1. **Read through the source documents** to understand the product domain boundaries
+2. **Mark candidate rules**: what constraints must hold true? What judgments can be tested independently?
+3. **Atomicize**: 1 rule = 1 constraint. Merge duplicates, split composite rules
+4. **De-technicalize**: remove implementation details (function names, file paths), keep business semantics
+5. **Mark status**: already implemented in code → `active`; only described in documentation → `planned`
+6. **Group**: categorize by domain, expressed with `##` headings
 
-### 常见模式识别
+### Common Pattern Recognition
 
-| 代码形态 | 对应业务规则 |
+| Code Pattern | Corresponding Business Rule |
 |---------|------------|
-| 常量 `MAX_*`、`LIMIT_*` | 数值上限约束 |
-| `if (status === "completed") return error` | 状态机转换约束 |
-| `role >= ROLE.ADMIN` | 权限判定规则 |
-| `score >= 6 ? correct : incorrect` | 评分阈值规则 |
-| `.split(/[、，]/)` | 数据格式/拆分规则 |
+| Constants `MAX_*`, `LIMIT_*` | Numeric upper bound constraint |
+| `if (status === "completed") return error` | State machine transition constraint |
+| `role >= ROLE.ADMIN` | Permission judgment rule |
+| `score >= 6 ? correct : incorrect` | Scoring threshold rule |
+| `.split(/[、，]/)` | Data format/splitting rule |
 
-## 4. 代码引用约定
+## 4. Code Reference Convention
 
-代码中用 `@BR-NNN` 注释标注规则引用：
+Mark rule references in code with `@BR-NNN` comments:
 
 ```typescript
 // @BR-003 评级升降判定
@@ -106,6 +106,6 @@ if (correctCount >= thresholdUp) {
 }
 ```
 
-- 注释放在规则生效代码块的上方
-- 一行注释一个 BR 引用
-- 核心规则集中标注，辅助代码不标
+- Place the comment above the code block where the rule takes effect
+- One comment per BR reference
+- Mark core rules prominently; auxiliary code is not annotated
