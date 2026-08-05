@@ -2,7 +2,7 @@
 version: 1
 space: {space-name}
 
-space-component-type: [ontology-worktree, space-runtime, projects, contents, docs, labs, external, scripts]
+space-component-type: [ontology-worktree, space-runtime, projects, contents, docs, labs, scripts]
 
 ontology-worktree: {project: ${ONTOLOGY_NAME}, path: .wopal, repo: ${ONTOLOGY_REPO}@space/{space-name}}
 
