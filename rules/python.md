@@ -1,62 +1,62 @@
 ---
 trigger: model_decision
-description: 开发 Python 项目和脚本时遵守此规则。
+description: Follow this rule when developing Python projects and scripts.
 keywords:
   - 'python'
   - 'py'
   - '.py'
 ---
 
-# Python 开发规范
+# Python Development Conventions
 
-## 项目和依赖管理
+## Project and Dependency Management
 
-- 使用 `uv` 管理项目和依赖
+- Use `uv` to manage projects and dependencies
 
-## 版本要求
+## Version Requirements
 
-- Python 版本：3.11+
+- Python version: 3.11+
 
-## 文件头
+## File Header
 
-所有 Python 脚本必须包含：
+All Python scripts must include:
 
 ```python
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 ```
 
-## 代码风格
+## Code Style
 
-- 遵循 PEP 8 规范
-- 使用 4 空格缩进（不使用 tab）
-- 行长度限制为 100 字符
-- 使用单引号，除非需要双引号
-- 文件编码：UTF-8
+- Follow the PEP 8 spec
+- Use 4-space indentation (no tabs)
+- Limit line length to 100 characters
+- Use single quotes, unless double quotes are required
+- File encoding: UTF-8
 
-## 命名约定
+## Naming Conventions
 
-| 类型 | 风格 | 示例 |
+| Type | Style | Example |
 |------|------|------|
-| 变量/函数 | snake_case | `get_user_by_id` |
-| 类 | PascalCase | `UserSession` |
-| 常量 | UPPER_CASE | `MAX_RETRY_COUNT` |
-| 私有成员 | _leading_underscore | `_internal_cache` |
+| Variables/functions | snake_case | `get_user_by_id` |
+| Classes | PascalCase | `UserSession` |
+| Constants | UPPER_CASE | `MAX_RETRY_COUNT` |
+| Private members | _leading_underscore | `_internal_cache` |
 
-## 导入顺序
+## Import Order
 
-1. 标准库
-2. 第三方库
-3. 本地导入
+1. Standard library
+2. Third-party libraries
+3. Local imports
 
-每组之间用空行分隔。避免通配符导入。
+Separate each group with a blank line. Avoid wildcard imports.
 
-## 类型提示
+## Type Hints
 
-- 为所有公共函数添加类型提示
-- 使用 `typing` 模块处理复杂类型：`Dict`, `List`, `Optional`, `Any`
-- 可为 None 的参数使用 `Optional[T]`
-- 数据模型使用 `@dataclass` 装饰器
+- Add type hints to all public functions
+- Use the `typing` module for complex types: `Dict`, `List`, `Optional`, `Any`
+- Use `Optional[T]` for parameters that may be None
+- Use the `@dataclass` decorator for data models
 
 ```python
 from typing import Optional
@@ -72,12 +72,12 @@ def get_user(user_id: int) -> Optional[User]:
     ...
 ```
 
-## 日志
+## Logging
 
-- 使用 `logging` 模块而非 `print()`（脚本工具除外）
-- Logger 名称使用 `__name__`
-- 使用适当的日志级别：DEBUG, INFO, WARNING, ERROR, CRITICAL
-- 日志消息包含上下文信息
+- Use the `logging` module rather than `print()` (except for script tools)
+- Use `__name__` as the logger name
+- Use appropriate log levels: DEBUG, INFO, WARNING, ERROR, CRITICAL
+- Log messages include context information
 
 ```python
 import logging
@@ -86,12 +86,12 @@ logger = logging.getLogger(__name__)
 logger.info("用户登录成功", extra={"user_id": user_id})
 ```
 
-## 错误处理
+## Error Handling
 
-- 使用具体的异常类型
-- 避免裸 `except:` 子句
-- 记录错误并包含上下文信息
-- 在适当的层级处理异常
+- Use specific exception types
+- Avoid bare `except:` clauses
+- Log errors with context information
+- Handle exceptions at the appropriate level
 
 ```python
 try:
@@ -104,11 +104,11 @@ except Exception as e:
     raise
 ```
 
-## 文档
+## Documentation
 
-- 为所有公共模块、类和函数使用 docstring
-- 遵循 Google Python Style Guide
-- 在 docstring 中包含类型信息
+- Use docstrings for all public modules, classes, and functions
+- Follow the Google Python Style Guide
+- Include type information in docstrings
 
 ```python
 def calculate_total(items: list[dict]) -> float:
@@ -126,16 +126,16 @@ def calculate_total(items: list[dict]) -> float:
     ...
 ```
 
-## 注释
+## Comments
 
-- 注释使用中文
-- 单行注释使用 `#`
-- 避免重复代码的明显注释
-- 解释为什么而非做什么
+- Write comments in Chinese
+- Use `#` for single-line comments
+- Avoid obvious comments that repeat the code
+- Explain why, not what
 
-## 数据类
+## Data Classes
 
-优先使用 `dataclass` 定义数据模型：
+Prefer `dataclass` for defining data models:
 
 ```python
 from dataclasses import dataclass, field
@@ -148,17 +148,17 @@ class Order:
     total: float = 0.0
 ```
 
-## 上下文管理器
+## Context Managers
 
-使用 `with` 语句管理资源：
+Use `with` statements to manage resources:
 
 ```python
 with open('file.txt', 'r') as f:
     content = f.read()
 ```
 
-## 测试
+## Testing
 
-- 使用 `pytest` 作为测试框架
-- 测试文件命名：`test_*.py`
-- 测试函数命名：`test_*`
+- Use `pytest` as the test framework
+- Test file naming: `test_*.py`
+- Test function naming: `test_*`

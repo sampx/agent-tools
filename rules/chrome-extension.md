@@ -1,6 +1,6 @@
 ---
 trigger: model_decision
-description: 开发 Chrome/Edge/Firefox 浏览器扩展时遵守此规则。覆盖 Manifest V3 规范、项目结构、权限管理、Service Worker 生命周期、安全策略、发布与分发。
+description: Follow this rule when developing Chrome/Edge/Firefox browser extensions. Covers Manifest V3 spec, project structure, permission management, Service Worker lifecycle, security policies, and publishing and distribution.
 keywords:
   - 'browser extension'
   - 'chrome extension'
@@ -10,20 +10,20 @@ keywords:
   - 'webextension'
 ---
 
-# Chrome 浏览器扩展开发规范
+# Chrome Browser Extension Development Conventions
 
-## 版本要求
+## Version Requirements
 
-- 必须使用 **Manifest V3**（MV2 已停止审核）
-- Chrome 85+ 支持，Edge 同理
-- 如需兼容 Firefox，使用 WebExtensions API
+- Must use **Manifest V3** (MV2 is no longer accepted for review)
+- Supported by Chrome 85+, same for Edge
+- Use the WebExtensions API if Firefox compatibility is needed
 
-## 项目结构
+## Project Structure
 
 ```
 my-extension/
-├── manifest.json              # 核心清单（必需，根目录）
-├── background.js              # Service Worker（后台脚本，事件驱动）
+├── manifest.json              # Core manifest (required, root directory)
+├── background.js              # Service Worker (background script, event-driven)
 ├── popup/
 │   ├── popup.html
 │   ├── popup.js
@@ -32,30 +32,30 @@ my-extension/
 │   ├── options.html
 │   └── options.js
 ├── content-scripts/
-│   └── content.js             # 内容脚本（注入网页 DOM）
+│   └── content.js             # Content script (injected into page DOM)
 ├── lib/
-│   └── protocol.js            # 公共模块
+│   └── protocol.js            # Shared modules
 ├── icons/
 │   ├── icon16.png
 │   ├── icon48.png
 │   └── icon128.png
 ├── _locales/
-│   ├── en/messages.json       # 国际化
+│   ├── en/messages.json       # Internationalization
 │   └── zh_CN/messages.json
 ├── package.json
-└── vite.config.ts             # 推荐 Vite 构建
+└── vite.config.ts             # Vite build recommended
 ```
 
-### 结构原则
+### Structure Principles
 
-- `manifest.json` **必须**放在项目根目录
-- Service Worker 作为协调者（路由 + 权限 + 状态管理）
-- UI 代码保持在 UI 文件中（popup/options）
-- 页面交互逻辑保持在 content script 中
-- 公共逻辑提取到 `lib/` 目录
-- 构建产物输出到 `dist/`，加载时指向此目录
+- `manifest.json` **must** be placed in the project root directory
+- Service Worker acts as the coordinator (routing + permissions + state management)
+- Keep UI code in UI files (popup/options)
+- Keep page interaction logic in content scripts
+- Extract shared logic into the `lib/` directory
+- Output build artifacts to `dist/`, and point to this directory when loading
 
-## manifest.json 规范
+## manifest.json Specification
 
 ```json
 {
@@ -105,45 +105,45 @@ my-extension/
 }
 ```
 
-## 权限管理
+## Permission Management
 
-### 最小权限原则
+### Least Privilege Principle
 
-- **只申请真正需要的权限**，每多一个权限就多一份审核风险
-- `host_permissions` 使用具体域名，避免 `<all_urls>` 除非绝对必要
-- 非必需的权限使用 `chrome.permissions.request()` 按需动态请求
+- **Only request permissions you truly need**; every additional permission adds review risk
+- Use specific domains in `host_permissions`, avoid `<all_urls>` unless absolutely necessary
+- Request non-essential permissions dynamically on demand with `chrome.permissions.request()`
 
 ```javascript
-// 动态请求权限
+// Dynamically request permissions
 chrome.permissions.request({
   permissions: ['activeTab'],
   origins: ['https://example.com/*']
 }, (granted) => {
   if (!granted) {
-    // 权限被拒绝时优雅降级
+    // Gracefully degrade when permission is denied
     notifyUser('部分功能需要授权才能使用');
   }
 });
 ```
 
-### 权限分类
+### Permission Categories
 
-| 权限类别 | 清单字段 | 说明 |
+| Permission Category | Manifest Field | Description |
 |----------|----------|------|
-| 浏览器 API | `permissions` | `storage`, `alarms`, `notifications`, `tabs`, `webRequest` 等 |
-| 主机访问 | `host_permissions` | `https://example.com/*`，指定可访问的域名 |
-| 可选权限 | `optional_permissions` | 运行时动态请求，减少初次安装时的审核压力 |
+| Browser APIs | `permissions` | `storage`, `alarms`, `notifications`, `tabs`, `webRequest`, etc. |
+| Host access | `host_permissions` | `https://example.com/*`, specifies accessible domains |
+| Optional permissions | `optional_permissions` | Requested dynamically at runtime, reduces review pressure at initial install |
 
-## Service Worker 生命周期
+## Service Worker Lifecycle
 
-### 核心规则
+### Core Rules
 
-- Service Worker **不是常驻的**，浏览器会闲置后销毁
-- 所有状态必须持久化（`chrome.storage`），不能依赖全局变量
-- 使用 `chrome.alarms` API 实现定时任务
+- Service Workers are **not persistent**; the browser destroys them after idle
+- All state must be persisted (`chrome.storage`), never rely on global variables
+- Use the `chrome.alarms` API for scheduled tasks
 
 ```javascript
-// 正确：使用 storage 持久化状态
+// Correct: persist state with storage
 const STORAGE_KEY = 'appState';
 
 async function getState() {
@@ -157,28 +157,28 @@ async function saveState(partial) {
 }
 ```
 
-### 初始化策略
+### Initialization Strategy
 
 ```javascript
-// 三重保障：模块级别 + onInstalled + onStartup
+// Triple guarantee: module level + onInstalled + onStartup
 (async () => {
-  // 1. 模块级别 — Service Worker 每次唤醒时执行
+  // 1. Module level — runs on every Service Worker wake-up
   await initAlarm();
   await initDnrRules();
 })();
 
 chrome.runtime.onInstalled.addListener(() => {
-  // 2. 安装/更新时执行
+  // 2. Runs on install/update
   migrateState();
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  // 3. 浏览器启动时执行
+  // 3. Runs on browser startup
   verifyState();
 });
 ```
 
-### 定时任务
+### Scheduled Tasks
 
 ```javascript
 const ALARM_NAME = 'my-extension-monitor';
@@ -201,17 +201,17 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 });
 ```
 
-## 通信机制
+## Communication Mechanisms
 
 ### Popup ↔ Service Worker
 
 ```javascript
-// popup.js — 发送消息
+// popup.js — send messages
 function send(message) {
   return new Promise((resolve) => chrome.runtime.sendMessage(message, resolve));
 }
 
-// background.js — 接收消息（必须支持异步）
+// background.js — receive messages (must support async)
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   (async () => {
     try {
@@ -228,26 +228,26 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       sendResponse({ ok: false, error: e.message });
     }
   })();
-  return true; // 异步响应时必须返回 true
+  return true; // must return true for async responses
 });
 ```
 
 ### Content Script ↔ Service Worker
 
 ```javascript
-// content-script.js — 发送请求
+// content-script.js — send requests
 chrome.runtime.sendMessage({ type: 'pageAction', payload: { url: location.href } });
 
-// Service Worker — 响应
+// Service Worker — respond
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  // sender.tab 包含来自哪个标签页的信息
+  // sender.tab contains information about which tab the message came from
 });
 ```
 
-### Popup ↔ Content Script（直接通信）
+### Popup ↔ Content Script (direct communication)
 
 ```javascript
-// popup.js — 向当前标签页的 content script 发消息
+// popup.js — send messages to the content script of the current tab
 async function sendToActiveTab(message) {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id) return;
@@ -260,15 +260,15 @@ async function sendToActiveTab(message) {
 }
 ```
 
-## 安全规范
+## Security Conventions
 
-### 禁止项
+### Forbidden Items
 
-- **禁止**执行远程代码（所有 JavaScript 必须打包在扩展内）
-- **禁止**使用 `eval()` 或 `new Function()`
-- **禁止**从 CDN 加载外部脚本
+- **Forbidden** to execute remote code (all JavaScript must be bundled inside the extension)
+- **Forbidden** to use `eval()` or `new Function()`
+- **Forbidden** to load external scripts from a CDN
 
-### CSP 安全
+### CSP Security
 
 ```json
 // manifest.json
@@ -279,7 +279,7 @@ async function sendToActiveTab(message) {
 }
 ```
 
-### web_accessible_resources 精确控制
+### Precise web_accessible_resources Control
 
 ```json
 {
@@ -291,18 +291,18 @@ async function sendToActiveTab(message) {
 }
 ```
 
-### 数据存储安全
+### Data Storage Security
 
-- 敏感数据（如 API key、cookie）使用 `chrome.storage.local`（不自动同步到云端）
-- `chrome.storage.sync` 只用于用户偏好设置（每键最大 8KB，总额 100KB）
-- 大体积数据使用 IndexedDB
-- 不要将敏感信息硬编码在代码中
+- Store sensitive data (such as API keys, cookies) in `chrome.storage.local` (not automatically synced to the cloud)
+- Use `chrome.storage.sync` only for user preferences (8KB max per key, 100KB total)
+- Use IndexedDB for large data
+- Do not hardcode sensitive information in code
 
-## 网络请求拦截
+## Network Request Interception
 
-### 使用 declarativeNetRequest（推荐）
+### Use declarativeNetRequest (recommended)
 
-MV3 中 `webRequest` 的 blocking 模式已被移除，网络请求拦截应使用声明式 API：
+In MV3, the blocking mode of `webRequest` has been removed; use the declarative API for network request interception:
 
 ```json
 {
@@ -330,12 +330,12 @@ MV3 中 `webRequest` 的 blocking 模式已被移除，网络请求拦截应使�
 }]
 ```
 
-### webRequest 只读观察
+### Read-Only webRequest Observation
 
-如果只需要**读取**请求头（不修改），可以使用 webRequest 的非 blocking 模式：
+If you only need to **read** request headers (without modifying), you can use webRequest's non-blocking mode:
 
 ```javascript
-// 只读观察请求头 — 合法使用
+// Read-only observation of request headers — legitimate use
 chrome.webRequest.onBeforeSendHeaders.addListener(
   (details) => {
     const cookie = extractCookie(details.requestHeaders);
@@ -346,23 +346,23 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
 );
 ```
 
-## 内容脚本 (Content Script)
+## Content Scripts
 
 ```javascript
-// content-script.js — 注入网页的脚本
-// 注意：内容脚本运行在隔离的 world 中，不会与页面 JS 冲突
+// content-script.js — script injected into pages
+// Note: content scripts run in an isolated world and do not conflict with page JS
 
-// 读取页面信息
+// Read page information
 const pageData = {
   title: document.title,
   url: location.href,
   selectedText: window.getSelection()?.toString(),
 };
 
-// 发送到 Service Worker
+// Send to Service Worker
 chrome.runtime.sendMessage({ type: 'pageData', payload: pageData });
 
-// 接收来自 popup/background 的消息
+// Receive messages from popup/background
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'getPageContent') {
     sendResponse({ content: document.body.innerText });
@@ -370,15 +370,15 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 });
 ```
 
-## 图标要求
+## Icon Requirements
 
-| 尺寸 | 用途 | 是否必需 |
+| Size | Purpose | Required |
 |------|------|----------|
-| 16x16 | 浏览器工具栏、地址栏 | 推荐 |
-| 48x48 | 扩展管理页面 | 推荐 |
-| 128x128 | Chrome Web Store 展示、安装对话框 | **必需** |
+| 16x16 | Browser toolbar, address bar | Recommended |
+| 48x48 | Extension management page | Recommended |
+| 128x128 | Chrome Web Store listing, install dialog | **Required** |
 
-## 国际化（推荐）
+## Internationalization (recommended)
 
 ```json
 // _locales/en/messages.json
@@ -393,7 +393,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   "extDescription": { "message": "扩展描述" }
 }
 
-// manifest.json 引用
+// manifest.json reference
 {
   "name": "__MSG_extName__",
   "description": "__MSG_extDescription__",
@@ -401,79 +401,79 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 }
 ```
 
-## 开发与构建
+## Development and Build
 
-### 推荐工具链
+### Recommended Toolchain
 
-- **Vite** + **CRXJS** 插件 — 支持热重载开发
-- **TypeScript** — 类型安全
-- **ESLint + Prettier** — 代码规范
+- **Vite** + **CRXJS** plugin — supports hot-reload development
+- **TypeScript** — type safety
+- **ESLint + Prettier** — code conventions
 
 ```bash
-# 开发
+# Development
 npm create vite@latest my-extension -- --template vanilla-ts
 cd my-extension
 npm install @crxjs/vite-plugin
-# npm run dev → 热重载开发
+# npm run dev → hot-reload development
 
-# 构建
+# Build
 npm run build
-# 产物在 dist/ 目录，加载为已解压扩展即可
+# Artifacts are in the dist/ directory; load it as an unpacked extension
 ```
 
-### 调试技巧
+### Debugging Tips
 
-- `chrome://extensions/` — 加载/管理扩展
-- `chrome://inspect/#service-workers` — 调试 Service Worker
-- Service Worker 使用 `console.log()` 输出日志，可在背景页审查中查看
+- `chrome://extensions/` — load/manage extensions
+- `chrome://inspect/#service-workers` — debug the Service Worker
+- Use `console.log()` in the Service Worker for logging, viewable in the background page inspector
 
-## Service Worker 常见陷阱
+## Common Service Worker Pitfalls
 
-| 错误做法 | 正确做法 | 原因 |
+| Wrong Approach | Correct Approach | Reason |
 |----------|----------|------|
-| 使用全局变量存状态 | 持久化到 `chrome.storage` | SW 随时可能被销毁 |
-| 异步 `onMessage` 不返回 `true` | `return true` 标记异步 | 否则回调会被立即清理 |
-| 用 `fetch` 发请求不带 `credentials: "omit"` | 明确指定凭据策略 | 避免浏览器自动泄露 cookies |
-| 依赖 `setTimeout` 做定时任务 | 使用 `chrome.alarms` | SW 休眠后定时器失效 |
-| 在 SW 中操作 DOM | SW 不能访问 DOM | 使用 content script 操作页面 |
+| Storing state in global variables | Persist to `chrome.storage` | SW can be destroyed at any time |
+| Async `onMessage` without returning `true` | `return true` to mark async | Otherwise the callback is cleaned up immediately |
+| Using `fetch` without `credentials: "omit"` | Explicitly specify the credentials policy | Avoid the browser auto-leaking cookies |
+| Relying on `setTimeout` for scheduled tasks | Use `chrome.alarms` | Timers fail after the SW sleeps |
+| Manipulating DOM in the SW | SW cannot access the DOM | Use content scripts to manipulate pages |
 
-## 发布与分发
+## Publishing and Distribution
 
 ### Chrome Web Store
 
-1. 注册开发者：`$5` 一次性费用
-2. 准备素材：128x128 图标 + 1280x800 截图（最多 5 张）
-3. 打包：`zip -r extension.zip . -x "*.git*" "node_modules/*" ".svn*" ".DS_Store" "src/*"`
-4. 提交流程：
-   - 上传 ZIP
-   - 填写商品详情（名称、描述、分类）
-   - 填写隐私权规范（单一用途、权限理由、数据收集声明）
-   - 提交审核（1-3 个工作日）
+1. Register as a developer: one-time fee of `$5`
+2. Prepare assets: 128x128 icon + 1280x800 screenshots (up to 5)
+3. Package: `zip -r extension.zip . -x "*.git*" "node_modules/*" ".svn*" ".DS_Store" "src/*"`
+4. Submission process:
+   - Upload the ZIP
+   - Fill in the store listing (name, description, category)
+   - Fill in privacy practices (single purpose, permission justification, data collection statements)
+   - Submit for review (1-3 business days)
 
-### 多平台分发
+### Multi-Platform Distribution
 
-| 平台 | 费用 | 备注 |
+| Platform | Fee | Notes |
 |------|------|------|
-| Chrome Web Store | $5（一次性） | **推荐**，用户安装体验最好 |
-| Edge Add-ons | 免费 | Chrome 代码基本兼容 |
-| Firefox Add-ons | 免费 | 需兼容 WebExtensions API |
-| 自托管 | 免费 | 仅限 Linux 直接安装；Windows/macOS 需"加载已解压扩展"方式 |
+| Chrome Web Store | $5 (one-time) | **Recommended**, best user installation experience |
+| Edge Add-ons | Free | Largely compatible with Chrome code |
+| Firefox Add-ons | Free | Requires WebExtensions API compatibility |
+| Self-hosted | Free | Direct installation on Linux only; Windows/macOS require "load unpacked extension" |
 
-### 自托管分发（内部/技术用户）
+### Self-Hosted Distribution (internal/technical users)
 
 ```bash
-# 1. 打包 ZIP
+# 1. Package as ZIP
 zip -r my-extension-v1.0.zip . -x "*.git*" "node_modules/*" ".DS_Store" "src/*"
 
-# 2. 上传到服务器
+# 2. Upload to the server
 
-# 3. 用户安装步骤（macOS/Linux/Windows 通用）：
-#    a. 下载并解压 ZIP
-#    b. 打开 chrome://extensions/
-#    c. 开启"开发者模式"
-#    d. 点击"加载已解压的扩展程序" → 选择解压后的文件夹
+# 3. User installation steps (common to macOS/Linux/Windows):
+#    a. Download and unzip the ZIP
+#    b. Open chrome://extensions/
+#    c. Enable "Developer mode"
+#    d. Click "Load unpacked" → select the unzipped folder
 
-# 4. 用户更新步骤：
-#    a. 下载新版本 ZIP 并解压覆盖
-#    b. 在 chrome://extensions/ 点击扩展的刷新按钮
+# 4. User update steps:
+#    a. Download the new version ZIP and unzip to overwrite
+#    b. Click the extension's refresh button in chrome://extensions/
 ```

@@ -1,17 +1,17 @@
 ---
 trigger: model_decision
-description: Astro 项目开发时遵守此规则。
+description: Follow this rule when developing Astro projects.
 keywords:
   - 'astro'
   - '*博客界面*'
 ---
-# Astro 开发规范
+# Astro Development Conventions
 
-## Astro 组件
+## Astro Components
 
 ```astro
 ---
-// Frontmatter: 导入、接口、属性、逻辑
+// Frontmatter: imports, interfaces, props, logic
 import { Icon } from 'astro-icon/components';
 import type { Props } from '~/types';
 
@@ -24,55 +24,55 @@ const { prop1 = 'default', prop2 } = Astro.props;
 </div>
 ```
 
-- 使用 `---` 分隔符将 frontmatter 与模板分开
-- 属性接口在 frontmatter 顶部命名为 `Props`
-- 使用 Astro 的 `class:list` 处理条件类
-- 使用 `set:html` 插入原始 HTML，而非 `dangerouslySetInnerHTML`
+- Use the `---` delimiter to separate frontmatter from the template
+- Name the props interface `Props` at the top of the frontmatter
+- Use Astro's `class:list` for conditional classes
+- Use `set:html` to insert raw HTML, rather than `dangerouslySetInnerHTML`
 
-## 路由
+## Routing
 
-- `src/pages/` 中的基于文件的路由
-- 静态：`.astro` 文件预渲染
-- 动态：设置 `export const prerender = false;` 用于 SSR
-- API 路由：`.ts` 文件导出返回 Response 的 GET/POST 函数
-- 捕获全部：用于嵌套路由的 `[...param].astro`
+- File-based routing in `src/pages/`
+- Static: `.astro` files are pre-rendered
+- Dynamic: set `export const prerender = false;` for SSR
+- API routes: `.ts` files exporting GET/POST functions that return a Response
+- Catch-all: `[...param].astro` for nested routes
 
-## 样式
+## Styling
 
-- 所有样式使用 Tailwind CSS
-- 使用 `class:list` 指令处理条件类
-- 除非必要，否则避免内联样式
-- 暗色模式：一致使用 `dark:` 前缀
+- Use Tailwind CSS for all styling
+- Use the `class:list` directive for conditional classes
+- Avoid inline styles unless necessary
+- Dark mode: consistently use the `dark:` prefix
 
-## 导入
+## Imports
 
-- 所有 src 导入使用 `~` 别名：`import { foo } from '~/lib/server/db'`
-- 分组导入：外部包优先，然后是本地导入
-- Astro 文件中非 TypeScript 导入需显式文件扩展名
+- Use the `~` alias for all src imports: `import { foo } from '~/lib/server/db'`
+- Group imports: external packages first, then local imports
+- Non-TypeScript imports in Astro files require explicit file extensions
 
-## React 组件集成
+## React Component Integration
 
-- 使用 hooks 的函数式组件（`useState`, `useEffect`）
-- 使用 `export default function ComponentName()`
-- 接口类型化属性
-- `useEffect` 返回函数中清理
-- 使用 try/catch 处理错误，记录到控制台
+- Use functional components with hooks (`useState`, `useEffect`)
+- Use `export default function ComponentName()`
+- Type props with interfaces
+- Clean up in the `useEffect` return function
+- Handle errors with try/catch, log to the console
 
-## 命名约定
+## Naming Conventions
 
-- **文件**: kebab-case（`toggle-theme.astro`, `auth-buttons-client.tsx`）
-- **组件**: PascalCase（`ToggleTheme`, `AuthButtonsClient`）
-- **函数/变量**: camelCase（`getUserFromGitHubId`, `validateSessionToken`）
-- **常量**: SCREAMING_SNAKE_CASE（`APP_BLOG`, `BLOG_BASE`）
-- **接口/类型**: PascalCase，通常以 `...Props` 或 `...Result` 结尾
+- **Files**: kebab-case (`toggle-theme.astro`, `auth-buttons-client.tsx`)
+- **Components**: PascalCase (`ToggleTheme`, `AuthButtonsClient`)
+- **Functions/variables**: camelCase (`getUserFromGitHubId`, `validateSessionToken`)
+- **Constants**: SCREAMING_SNAKE_CASE (`APP_BLOG`, `BLOG_BASE`)
+- **Interfaces/types**: PascalCase, usually ending in `...Props` or `...Result`
 
-## 环境变量
+## Environment Variables
 
-- 存储在 `.env`（git 忽略）
-- 通过 `import.meta.env.PROD`, `import.meta.env.DEV` 访问
+- Stored in `.env` (git-ignored)
+- Accessed via `import.meta.env.PROD`, `import.meta.env.DEV`
 
-## 错误处理
+## Error Handling
 
-- 服务端：返回适当的 HTTP 状态码（401, 404, 500）
-- 客户端：async 操作使用 try/catch，记录错误，显示用户反馈
-- API 路由：始终检查 `context.locals.session` 认证状态
+- Server side: return appropriate HTTP status codes (401, 404, 500)
+- Client side: use try/catch for async operations, log errors, show user feedback
+- API routes: always check the `context.locals.session` authentication state
