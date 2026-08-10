@@ -31,6 +31,7 @@ export interface SystemTransformHookContext {
   client: OpenCodeClient;
   directory: string;
   projectDirectory: string;
+  logDir: string;
   sessionStore: SessionStore;
   memoryLogger: LoggerInstance;
   contextLogger: LoggerInstance;
@@ -140,7 +141,7 @@ export function createSystemTransformHooks(ctx: SystemTransformHookContext) {
           const prefix = isChild ? "AUTO-CTXDUMP-TASK" : "AUTO-CTXDUMP";
           await writeContextDump({
             sessionID,
-            baseDir: ctx.directory,
+            baseDir: ctx.logDir,
             filenamePrefix: prefix,
             systemSnapshots: ctx.systemSnapshots ?? new Map(),
             systemMetadataMap: ctx.systemMetadataMap ?? new Map(),

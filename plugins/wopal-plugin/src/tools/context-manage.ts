@@ -37,14 +37,16 @@ export function createContextManageTool(
   workspaceDir?: string,
   sessionStore?: SessionStore,
   taskManager?: SimpleTaskManager,
+  /** Log root directory for dump files (e.g. <space>/.wopal-space/logs). Defaults to workspaceDir. */
+  logDir?: string,
 ): ToolDefinition {
   const snapshotMap = systemSnapshots ?? new Map<string, string[]>();
   const metadataMap = systemMetadataMap ?? new Map<string, SystemPromptMetadata>();
   const injectionsMap = systemInjectionsMap ?? new Map<string, string[]>();
   const messagesMap = transformedMessagesMap ?? new Map<string, MessageWithInfo[]>();
-  const baseDir = workspaceDir ?? ".";
+  const directory = workspaceDir ?? ".";
+  const dumpBaseDir = logDir ?? directory;
   const store = sessionStore ?? new SessionStoreClass();
-
   return tool({
     description: `Cross-session context manager. Operates on main or child sessions via optional session_id (accepts 'ses_xxx' or 'wopal-task-xxx', defaults to current).
 
@@ -108,7 +110,7 @@ Actions:
           target.sessionID,
           target.isTask,
           client,
-          baseDir,
+          dumpBaseDir,
           snapshotMap,
           metadataMap,
           injectionsMap,
@@ -125,7 +127,7 @@ Actions:
         }
         const target = await resolveSessionTarget(rawSessionID, client as OpenCodeClient, taskManager);
         contextLogger.trace(`[context_manage] compact ${formatSessionID(target.sessionID, target.isTask)}`);
-        return await handleCompact(target.sessionID, target.isTask, client, activeStore, baseDir, taskManager);
+        return await handleCompact(target.sessionID, target.isTask, client, activeStore, directory, taskManager);
       }
 
       return "Unknown action.";
