@@ -336,7 +336,7 @@ describe('context_manage: handleDump', () => {
     expect(result).toContain('System prompt:** parsed from 2 raw blocks');
     expect(result).toContain('Messages:** 2');
 
-    const files = findDumpFiles(join(testTmpDir, 'logs'), 'CTXDUMP');
+    const files = findDumpFiles(testTmpDir, 'CTXDUMP');
     expect(files.length).toBe(1);
     const content = readFileSync(files[0], 'utf-8');
     expect(content).toContain('# Context Dump');
@@ -360,7 +360,7 @@ describe('context_manage: handleDump', () => {
     expect(result).toContain('ses_abc123');
     expect(result).not.toContain('wopal-task-abc123');
 
-    const files = findDumpFiles(join(testTmpDir, 'logs'), 'CTXDUMP-TASK');
+    const files = findDumpFiles(testTmpDir, 'CTXDUMP-TASK');
     expect(files.length).toBe(1);
     const content = readFileSync(files[0], 'utf-8');
     expect(content).toContain('system content');
@@ -374,7 +374,7 @@ describe('context_manage: handleDump', () => {
     const result = await execute({ action: 'dump', session_id: 'ses_nonexist' }, dumpCtx);
 
     expect(result).toContain('Context dumped to');
-    const files = findDumpFiles(join(testTmpDir, 'logs'), 'CTXDUMP');
+    const files = findDumpFiles(testTmpDir, 'CTXDUMP');
     expect(files.length).toBe(1);
     const content = readFileSync(files[0], 'utf-8');
     expect(content).toContain('No snapshot available');
@@ -391,7 +391,7 @@ describe('context_manage: handleDump', () => {
     const result = await execute({ action: 'dump' }, dumpCtx);
 
     expect(result).toContain('Context dumped to');
-    const files = findDumpFiles(join(testTmpDir, 'logs'), 'CTXDUMP');
+    const files = findDumpFiles(testTmpDir, 'CTXDUMP');
     expect(files.length).toBe(1);
     const content = readFileSync(files[0], 'utf-8');
     expect(content).toContain('sys content');

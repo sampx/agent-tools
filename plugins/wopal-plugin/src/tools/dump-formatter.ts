@@ -22,6 +22,7 @@ export { parseRawBlocks, formatSystemPromptSections } from "./system-prompt-form
 
 export interface ContextDumpOptions {
   sessionID: string;
+  /** Log root directory — dump files are written directly into this directory (e.g. logDir). */
   baseDir: string;
   filenamePrefix: string;
   systemSnapshots: Map<string, string[]>;
@@ -84,7 +85,8 @@ export async function writeContextDump(options: ContextDumpOptions): Promise<Con
     title,
   } = options;
 
-  const logsDir = join(baseDir, "logs");
+  // baseDir is the log root directory (e.g. <space>/.wopal-space/logs); dumps go directly into it.
+  const logsDir = baseDir;
   if (!existsSync(logsDir)) {
     mkdirSync(logsDir, { recursive: true });
   }
