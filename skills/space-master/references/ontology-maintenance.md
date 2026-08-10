@@ -122,3 +122,53 @@ When merge conflicts occur during `update`, `contribute`, or `promote`:
   ```bash
   git -C <WOPAL_HOME>/ontologies/wopal-space-ontology push origin --delete contribute/<branch-name>
   ```
+
+---
+
+## 6. Contribution Scope Determination
+
+Detailed step-by-step procedure for §2.4 of SKILL.md (the body states the hard rules; this is the how-to).
+
+**Step 1 — Present the full menu first.** Run `git diff --name-status <base>...<target>` to enumerate EVERY pending file. Group by directory/feature area and label each group's status (M-status generic / A-status type-specific). Show this complete inventory to the user BEFORE asking anything.
+
+**Step 2 — Classify by STRUCTURAL criterion, not intuition.** M-status (eligible for promotion to main) = capabilities shared by ALL space types — they live on the `main` baseline. A-status (type-specific) = capabilities meaningful only to one space type (e.g. platform-specific skills, integration scripts). Do NOT classify from memory or gut feeling — when unsure whether a file is generic, read the ontology design (`docs/DESIGN.md`) and check whether the capability already exists on `main`. Space-specific customizations (e.g. a skill kept only in `space/<name>`) stay in type/* and are NOT contributed upstream until the user explicitly wants them shared.
+
+**Step 3 — The user circles the scope.** Present the classified inventory and let the user: (a) decide which groups to contribute, (b) which to exclude, (c) which stay space-only. The agent proposes, the user disposes. Never execute `space contribute` / `ontology contribute` / `promote` until the user has explicitly confirmed the scope.
+
+**Step 4 — Space-only assets stay out.** Skills kept only in the space (e.g. unverified or space-specific skills) must NOT enter type/* or upstream. If the user says "keep X in the space only", X never appears in any contribution.
+
+---
+
+## 7. Topic-Based PR Splitting (Worked Example)
+
+Expanded example for §2.5 of SKILL.md.
+
+When `origin/main → upstream/main` shows these pending files:
+
+| File | Topic |
+|------|-------|
+| `plugins/plugin-a/src/feature-x.ts` | plugin-a new features |
+| `plugins/plugin-a/src/feature-y.ts` | plugin-a new features |
+| `skills/skill-a/SKILL.md` | skill-a rewrite |
+| `skills/skill-b/scripts/helper.py` | skill-b script improvement |
+
+Split into **3 independent PRs**:
+
+```bash
+# PR 1: plugin-a feature X and Y
+wopal ontology contribute --type common \
+  --include "plugins/plugin-a/**" \
+  --message "feat(plugin-a): JWT auth and rate limiting for public API"
+
+# PR 2: skill-a rewrite
+wopal ontology contribute --type common \
+  --include "skills/skill-a/**" \
+  --message "feat(skill-a): step-by-step deployment guide with rollback"
+
+# PR 3: skill-b script improvement
+wopal ontology contribute --type common \
+  --include "skills/skill-b/scripts/helper.py" \
+  --message "feat(skill-b): skip empty inputs and dedupe output paths"
+```
+
+The message describes WHAT the change delivers (result state), not the mechanical action.
