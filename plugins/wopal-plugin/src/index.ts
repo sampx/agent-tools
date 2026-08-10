@@ -218,6 +218,7 @@ const openCodeRulesPlugin = async (pluginInput: PluginInput): Promise<Hooks> => 
     client: input.client as OpenCodeClient,
     directory: input.directory,
     projectDirectory: input.directory,
+    logDir: runtimeCtx.logDir,
     ruleFiles,
     sessionStore,
     coreLogger: coreLogger,
@@ -257,6 +258,7 @@ const openCodeRulesPlugin = async (pluginInput: PluginInput): Promise<Hooks> => 
     pluginInput.directory,
     sessionStore,
     taskManager,
+    runtimeCtx.logDir,
   );
 
   coreLogger.debug({ log_file: loggers.logFile, log_level: loggers.logLevel }, "Logger config");

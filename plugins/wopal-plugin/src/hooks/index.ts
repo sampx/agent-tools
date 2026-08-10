@@ -17,6 +17,7 @@ export interface HookContextOptions {
   client: OpenCodeClient;
   directory: string;
   projectDirectory: string;
+  logDir: string;
   ruleFiles: DiscoveredRule[];
   sessionStore: SessionStore;
   coreLogger?: LoggerInstance;
@@ -39,6 +40,8 @@ export interface HookContext {
   client: OpenCodeClient;
   directory: string;
   projectDirectory: string;
+  /** Log root directory (e.g. <space>/.wopal-space/logs); dumps and diagnostics write here. */
+  logDir: string;
   ruleFiles: DiscoveredRule[];
   sessionStore: SessionStore;
   coreLogger: LoggerInstance;     // Plugin lifecycle (passed from index.ts)
@@ -63,6 +66,7 @@ export function createHookContext(opts: HookContextOptions): HookContext {
     client: opts.client,
     directory: opts.directory,
     projectDirectory: opts.projectDirectory,
+    logDir: opts.logDir,
     ruleFiles: opts.ruleFiles,
     sessionStore: opts.sessionStore,
     coreLogger: opts.coreLogger ?? coreLogger,
@@ -141,6 +145,7 @@ export function createAllHooks(ctx: HookContext): AllHooksResult {
     client: ctx.client,
     directory: ctx.directory,
     projectDirectory: ctx.projectDirectory,
+    logDir: ctx.logDir,
     sessionStore: ctx.sessionStore,
     memoryLogger: ctx.memoryLogger,
     contextLogger: ctx.contextLogger,
