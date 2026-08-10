@@ -1,123 +1,87 @@
 # REGULATIONS.md — Space Regulations
 
-These regulations are the fundamental behavioral norms within this workspace. All agents **must** strictly comply.
+These regulations are the fundamental behavioral norms of this workspace. Every agent must comply unconditionally. Violation constitutes serious negligence.
 
 ---
 
-## Safety Red Lines
-
-<CRITICAL_RULE>
+## Safety Prohibitions
 
 ### Deletion Protection
 
-- Never delete any file or directory without careful consideration
-- **Authorization**: Only delete when the user confirms with an imperative statement (e.g., "delete it"). Questions ("should this be deleted?") do not constitute authorization
-- **Read before delete**: Read file contents before any deletion to judge whether it is user work product
-- **Untracked file protection**: Files shown as `??` (untracked) in `git status` must never be deleted
-- Use `trash` for all deletes; `rm` / `rm -fr` is forbidden. `git rm` also deletes disk files and is subject to the same protection
+- Deletion is permitted only when the user confirms with an imperative statement (e.g., "delete it"); questions do not constitute authorization
+- Read file contents before any deletion to judge whether it is user work product; files shown as `??` (untracked) in `git status` must never be deleted
+- Use `trash` for all deletions; `rm` / `rm -fr` / `git rm` are forbidden
 
 ### Uncommitted Changes Protection (Concurrency Safety)
 
-**Uncommitted working-tree changes are another session's/agent's unfinished work — as important as committed code, and more fragile.** When multiple agents work on the same project concurrently, any git reset operation can wipe out others' uncommitted work.
+- Before operations that may touch the working tree — `git reset`, `checkout/restore`, `stash`, `clean`, `worktree add/remove`, `switch -f`, `merge/apply` — run `git status` first to confirm the working-tree state
+- When uncommitted changes are found: do not operate; report the file list and let the user decide
+- **Never stash another agent's in-progress changes without confirmation**; when the user explicitly requests it, record the stash number, content summary, creator, and reason; check `git stash list` before finishing; report ownerless stashes; never drop/pop without authorization
 
-**Before operations that may touch the working tree, an awareness check is mandatory**:
+### Boundaries & Sensitive Information
 
-- Covered commands: `git reset`, `git checkout/restore <file>`, `git stash`, `git clean`, `git worktree add/remove`, `git switch -f`, `git merge/apply`, etc.
-- Pre-check: `git status` to confirm the target repo's working-tree state
-
-**When uncommitted changes are found**:
-
-- Do not run the operations above — that is someone else's work, not your operation target
-- Report to the user: summarize the changes (file list) and let the user decide (commit / save / confirm it may be touched)
-- When the working tree is clean, operate normally without restriction
-
-### Workspace Boundaries & Sensitive Information
-
-- Operations are confined to the space root directory; do not modify system configuration or privacy files outside this boundary without authorization
+- Never read user files that may contain tokens or keys, such as `.env`, `.bashrc`, `.zshrc`; reading is as forbidden as writing
 - Code or commits must not contain `.env`, keys, or other sensitive credentials
-
-### Sensitive File Read Prohibition
-
-- Never read user files that may contain tokens or keys, such as `.env`, `.bashrc`, `.zshrc`
-- Such files are user privacy; reading them constitutes a sensitive-information leak risk, as strictly forbidden as writing them
-
-</CRITICAL_RULE>
+- `external/` is a collection of external resource references; creating, modifying, or deleting anything under it without authorization is forbidden
 
 ---
 
-## Collaboration & Flow Gates
+## Core Work Rules
+
+**Thinking iron rule (highest priority)**: during thinking, no large code blocks, no content unrelated to the current project, no circular thinking. Violating any of these constitutes serious negligence.
+
+### Content Retrieval
+
+- This space is multi-repo: sub-repos are ignored by the space repo, and `glob` cannot traverse nested repos; prefer `read`/`ls` for locating files and directories
+- Use `glob`/`grep` only after the project root or target directory is identified; never search across projects from the space root
+- When the user mentions a project name, confirm it exists with `read projects/` or `ls projects/` first; never search with `glob` directly
+- Use `rg` for content search: `rg "<pattern>" projects/<name>/` when the project root is known; `rg --no-ignore-vcs "<pattern>"` for cross-project search
+- **`rg -r` is replace, not recursive; `rg` is recursive by default; use `rg -n` for line numbers; never use `rg -rn`**
+
+- Writes requiring user authorization: `.wopal-space/memory/`, `.wopal-space/REGULATIONS.md`
+- Temporary files go in `.wopal-space/.tmp/`
+- Other reads/writes follow `.wopal-space/STRUCTURE.md`
 
 ### Forced Skill Gates
 
-The following tasks **must** load the corresponding skill before any operation. Missing a load = serious negligence:
+The following tasks must load the corresponding skill before any operation. Missing a load = serious negligence:
 
 | Task | Required Skill |
 |------|----------------|
-| Create/edit Issue, create Plan, Plan state transitions | `dev-flow` |
-| Delegate any subagent | `agents-collab` |
-| Create/modify a skill | `skill-creator` |
-| Ambiguous task intent, unsure which skill/flow to use, space maintenance, skill management, multi-space management | `space-master` |
+| Issue/Plan creation and state transitions (submit/approve/complete/verify/archive) | `dev-flow` |
+| Delegating any subagent (fae/rook and all types) | `agents-collab` |
+| Creating/modifying a skill | `skill-creator` |
+| Ambiguous intent, unsure which skill/flow, space maintenance, skill management, ontology repo operations (update/sync/contribute/promote) | `space-master` |
 
-- Check the `<available_skills>` list in context before choosing an approach. Never force generic capability execution when a skill exists
-- **Issue/Plan ownership**: All Issues/Plans in a space are created/stored in the space repo, located automatically by the dev-flow script. `--project` only partitions Plan directories. Trust the script; do not question or ask about ownership
+Never force generic capability execution when a ready skill exists.
 
 ### Sub-agent Delegation
 
-<CRITICAL_RULE>
+Before delegating any subagent, complete the following steps in order. Skipping any step = serious negligence:
+1. Run `memory_manage command=search` for "delegation" keywords to load path rules, agent-type rules, and past lessons
+2. Check all paths in the prompt (`files_to_read`, output paths, etc.); use space-root-relative or absolute paths only; bare relative paths are forbidden
+3. Confirm the prompt includes the target project path context (e.g., `projects/gesp/`); subagents run at the workspace root by default — without a project path, files land in the wrong place
 
-Before delegating **any** subagent:
-1. Search memory for delegation rules and past lessons
-2. Verify all prompt paths use space-root-relative or absolute paths (bare relative paths write to the workspace root)
-3. Confirm the prompt includes target project path context (subagents run at workspace root by default)
-
-- **Prefer `wopal_task`**; use the built-in `Task` tool only when unavailable
-- **No sleep polling**: tasks report via `[WOPAL TASK *]` system notifications; check only when a task is alarming or abnormal
-
-</CRITICAL_RULE>
+- Prefer `wopal_task` for delegation; use the built-in `Task` only when unavailable
+- No sleep + wopal_task_output polling; tasks report proactively via `[WOPAL TASK IDLE/STUCK/PROGRESS]` notifications; check only when anomalies appear
 
 ### Verification Isolation
 
-Verification and testing work must not pollute space project files. Except in formal development scenarios, verification may only run in `.wopal-space/.tmp/` or system temporary directories.
+Verification/testing work (by Wopal or Fae) must never modify space project files; it may only run in `.wopal-space/.tmp/` or system temporary directories.
 
 ### Context Compaction
 
-- `context_manage compact` is asynchronous — compaction runs in the background; the tool returns immediately but compaction is unfinished
-- **Must wait for the completion notification** before resuming: current session → wait for `<system-reminder>` recovery protocol; delegated session → wait for `[WOPAL TASK COMPACTED]` → send recovery via `wopal_task_reply`
-- **Never execute follow-up tasks before compaction completes**
+`context_manage compact` is asynchronous — after triggering, wait for the completion notification before continuing:
+- Current session: wait for `<system-reminder>` and follow its recovery protocol
+- Delegated session: wait for `[WOPAL TASK COMPACTED]` and send recovery instructions via `wopal_task_reply`
 
-### Memory & Evolution
+Never execute follow-up tasks before compaction completes.
 
-**Core principle**: record only information with high long-term reuse value related to space optimization and project building.
+### Memory
 
-#### Memory Recall
-
-Memory only has value when actively retrieved. Proactive search is mandatory in these scenarios:
-
-| Scenario | Search Keywords |
-|----------|----------------|
-| Before complex tasks | Task-type keywords |
-| Ambiguous/conflicting instructions | Related-topic keywords |
-| After user criticism | Problem-domain keywords |
-| Key decision points | Node-specific keywords |
-| After tool errors | Task-type keywords |
-
-**Search method**: pick 2-3 core keywords; neither too broad nor too narrow.
-
-#### Storage Locations
-
-| Info Type | Storage |
-|-----------|---------|
-| Knowledge/experience/pitfalls | LanceDB (`memory_manage` tool) |
-| User Profile | `USER.md` |
-| Work rules | `REGULATIONS.md` |
-| Project knowledge | project `AGENTS.md` |
-| Behavior traits | soul (system prompt) |
-
-#### Write Rules
-
-- Long-term memory writes require: deduplicate first → show full content to user → wait for explicit approval → execute
-- Record only information with long-term reuse value related to space optimization and project building
-- Memory conflicts with AGENTS.md / REGULATIONS → constitution wins; unique memory details → merge into constitution then delete memory
+- Proactively run `memory_manage command=search` (2-3 core keywords) before complex tasks, on ambiguous/conflicting instructions, after user criticism, at key decision points, and after tool errors
+- Storage: knowledge/experience/pitfalls → LanceDB; user Profile → `USER.md`; work rules → `REGULATIONS.md`; project knowledge → project `AGENTS.md`; behavior traits → system prompt
+- Full spec: `.wopal/rules/wopal/mem-rule.md`
 
 ---
 
@@ -125,64 +89,54 @@ Memory only has value when actively retrieved. Proactive search is mandatory in 
 
 ### Project Types & Ownership
 
-- **`standard`**: independent git repos under `projects/<name>/`, main branch `main`
-- **`ontology-worktree`** (only in `.wopal/`): changes take effect at runtime; never modify the `~/.wopal/ontologies/` main repo directly or push to `main` — commit through the `.wopal/` worktree on `space/<name>`, then follow the contribution flow
+- `standard`: independent git repos under `projects/<name>/`, main branch `main`
+- `ontology-worktree` (`.wopal/`): never modify the `~/.wopal/ontologies/` main repo directly or push to `main`; all changes must be committed through the `.wopal/` worktree on `space/<name>`
+- All Issues/Plans are created and stored in the space repo, located automatically by the dev-flow script; `--project` only partitions Plan directories; never question ownership
 
-### Space Access Rules
+### Project Spec Updates (AGENTS.md)
 
-- Writes requiring user authorization: `.wopal-space/memory/`, `.wopal-space/REGULATIONS.md`
-- Temporary files go in `.wopal-space/.tmp/`
-- Other reads/writes follow `.wopal-space/STRUCTURE.md`
+- Project specs carry the long-term principles that constrain agent decisions in design, development, testing, and verification — the decision boundaries agents must strictly follow during implementation.
+- Agents are obligated to keep project specs consistent with actual project content, but must not write implementation details, single-bug fix records, or other information without long-term value into project specs.
+
+#### TDD
+
+Code projects (`projects/`, ontology-worktree) enforce TDD: write a failing test first (red) → implement to pass (green) → refactor, adjusting tests alongside. Feature code without corresponding tests is incomplete and forbidden to commit. Exempt: documentation, configuration, pure scripts, typo fixes, and other changes without logic.
+
+#### Project Workflow
+
+Layer-by-layer commits, project first then space; the changed path determines which repo to check (`projects/*/` changes do not check the space root repo); ensure not in detached HEAD before development; complete add → commit → push inside the project.
+
+#### Issue Titles
+
+`<type>(<scope>): <description>`: type required, scope required (project or module name), description an English imperative ≤55 chars, total ≤72 chars. Label mapping: feat/enhance → `type/feature`, fix → `type/bug`, refactor → `type/refactor`, docs → `type/docs`, test → `type/test`, chore → `type/chore`, perf has no label.
 
 ### Git Workflow
 
-- **Directory precondition**: git operations must target the repo the command acts on. The space root is itself an independent git repo — running git there acts on the **space repo**, not sub-repos. Use `git -C <path>` to specify a repo, or run inside the target project/worktree. Never rely on the default working directory for git operations on sub-projects
-- **Pre-implementation check**: run `git status` + `git log --oneline -5` before starting
-- **Pre-commit check**: `git status`, `git diff --staged --name-only`, `git log --oneline -5`; confirm not in detached HEAD
+#### Fundamentals
+
+- Use `git -C <path>` to explicitly target the repo; the space root is itself an independent git repo — never rely on the default working directory for git operations on sub-projects
+- Before implementation: `git status` (remind the user to commit uncommitted changes first) + `git log --oneline -5` (report unpushed commits from other sessions first)
+- All code changes may be committed only after user verification and explicit confirmation; automated verification passing ≠ committable
+- Before committing: `git status` + `git diff --staged --name-only` (confirm scope matches intent, no files from other tasks) + `git log --oneline -5`; confirm not in detached HEAD
+- Commit language: Chinese for the space repo, English for project repos
 
 #### Commit Format
 
 `<type>(scope): <description> [#ref]`
 
-| Element | Required | Rule |
-|---------|----------|------|
-| `type` | yes | see type table |
-| `scope` | no | parenthesized, lowercase, concise (e.g. `(api)`, `(cli)`) |
-| `description` | yes | ≤70 chars; ≤60 chars with Issue ref |
-| `Issue ref` | no | appendix `(#N)` for project repos |
+- type required (see table below); scope optional, parenthesized, lowercase, concise (e.g. `(api)`, `(cli)`), omitted when globally unclear
+- description: imperative, English lowercase first letter, no trailing period; ≤70 chars, ≤60 chars with Issue ref; first line total ≤100
+- body optional: blank-line separated, explains what/why not how, ≤72 chars per line; breaking changes start with `BREAKING CHANGE:`
+- Related changes go in one commit, unrelated changes split; atomic commits ease rollback and bisect
 
-**Type table**:
-
-| Type | Purpose | Version Change |
-|------|---------|----------------|
-| `feat` | New feature | MINOR |
-| `fix` | Bug fix | PATCH |
-| `refactor` | Refactor (no behavior change) | — |
-| `docs` | Documentation | — |
-| `test` | Testing | — |
-| `chore` | Build/tooling | — |
-| `enhance` | Enhancement | MINOR |
-| `style` | Code format (no logic change) | — |
-| `perf` | Performance | — |
-| `ci` | CI/CD config | — |
-| `build` | Build system | — |
-| `revert` | Revert commit | — |
-
-**Length constraints**: description ≤70 chars (no Issue ref) or ≤60 chars (with Issue ref); first line total ≤100 chars (type + scope + description + Issue ref).
-
-**Description rules**: imperative (`add`, not `added`); English lowercase first letter; no trailing period; concise but descriptive.
-
-**Scope**: parenthesized; common scopes `api`, `ui`, `auth`, `db`, `config`, `deps`, `docs`; monorepo uses package/module name; skip when global or unclear.
-
-**Body (optional)**: blank-line separated; explain **what** and **why**, not **how**; ≤72 chars per line; use body for complex changes to keep the first line concise.
-
-**Footer (optional)**: blank-line separated; breaking change: `BREAKING CHANGE: <desc>`; Issue ref: `Refs: #N` (or appendix `(#N)`).
-
-#### Commit Splitting
-
-- Group related changes into one commit
-- Split unrelated changes into separate commits
-- Atomic commits ease rollback and bisect
+| Type | Purpose | Version Change | Type | Purpose | Version Change |
+|------|---------|----------------|------|---------|----------------|
+| `feat` | New feature | MINOR | `enhance` | Enhancement | MINOR |
+| `fix` | Bug fix | PATCH | `perf` | Performance | — |
+| `refactor` | Refactor (no behavior change) | — | `ci` | CI/CD config | — |
+| `docs` | Documentation | — | `build` | Build system | — |
+| `test` | Testing | — | `revert` | Revert commit | — |
+| `chore` | Build/tooling | — | `style` | Code format (no logic change) | — |
 
 #### Branch Strategy
 
@@ -194,22 +148,24 @@ Memory only has value when actively retrieved. Proactive search is mandatory in 
 | `hotfix/*` | Emergency fixes |
 | `refactor/*` | Refactoring |
 
-### Merge Verification (Post-Refactor)
+#### Merge Verification (Structural Change Iron Rule)
 
-When a feature branch structurally changes code (file renames, directory reorganization, multi-file merges/splits), never rely on git auto-merge when merging into the target branch. No conflict ≠ lossless change. Classify each commit (`merge-base` → `git show --name-only`); merge/split files must be manually ported; verify key changes landed at new paths with `rg`, then confirm before merging.
+When a feature branch contains structural changes — file renames, directory reorganization, multi-file merges/splits — merging must not rely on git auto-merge; no conflict ≠ lossless change.
+
+Before merging: `git merge-base` to find the common ancestor → list the target branch's new commits → classify each file (1:1 renames may be auto-handled but must be verified; merges/splits must be ported manually) → report the classification and get user confirmation before merging.
+
+### Forbidden Commits
+
+Sensitive credentials (`.env`, keys) and temporary artifacts (`__pycache__/`, `node_modules/`, `.ruff_cache/`, IDE configs) must never enter the repository.
 
 ---
 
-## Engineering Details
+## Other Rules
 
 ### Time Handling
 
-Always use system commands to get time; never guess. Command: `date '+%Y-%m-%d %H:%M:%S'`
+Always use system commands to get time; never guess: `date '+%Y-%m-%d %H:%M:%S'`.
 
-### Path & File Location
+### Documentation Standards
 
-Spaces are multi-repo: `glob` cannot reliably traverse nested repos. Prefer `read`/`ls` for location; confirm a project exists under `projects/` before searching. Use `rg` for content search (follows .gitignore; use `--no-ignore-vcs` to cross projects).
-
-### Engineering Standards
-
-- **Historical documents are not retroactively modified**: records in `.wopal-space/plans/**/done/` and similar paths are not retroactively changed
+- Historical documents are not retroactively modified: records in `.wopal-space/plans/**/done/` and similar paths are not retroactively changed
